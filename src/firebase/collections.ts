@@ -1,0 +1,30 @@
+import { collection, doc, type Firestore } from 'firebase/firestore';
+
+/**
+ * Lazily build collection references against a consumer-provided Firestore instance.
+ * Consumers do not call these directly — the services do.
+ */
+export function caspianCollections(db: Firestore) {
+  return {
+    products: collection(db, 'products'),
+    users: collection(db, 'users'),
+    orders: collection(db, 'orders'),
+    reviews: collection(db, 'reviews'),
+    questions: collection(db, 'questions'),
+    carts: collection(db, 'carts'),
+    faqs: collection(db, 'faqs'),
+    journal: collection(db, 'journal'),
+    subscribers: collection(db, 'subscribers'),
+    promoCodes: collection(db, 'promoCodes'),
+    shippingMethods: collection(db, 'shippingMethods'),
+    productCategories: collection(db, 'productCategories'),
+    productBrands: collection(db, 'productBrands'),
+    productCollections: collection(db, 'productCollections'),
+    pageContents: collection(db, 'pageContents'),
+    languages: collection(db, 'languages'),
+    scriptSettingsDoc: doc(db, 'scriptSettings', 'site'),
+    siteSettingsDoc: doc(db, 'settings', 'site'),
+  };
+}
+
+export type CaspianCollections = ReturnType<typeof caspianCollections>;

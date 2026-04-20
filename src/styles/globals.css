@@ -1,0 +1,21 @@
+/**
+ * Caspian Store — base CSS tokens.
+ *
+ * Consumers import this file once at the root of their app:
+ *   import '@caspian-explorer/script-caspian-store/styles.css';
+ *
+ * All variables are injected at runtime by <ThemeInjector>; the values below
+ * are fallbacks for first paint before Firestore settings load.
+ */
+
+:root {
+  --caspian-primary: #111111;
+  --caspian-primary-foreground: #ffffff;
+  --caspian-accent: #f5a8b8;
+  --caspian-radius: 0.5rem;
+  --caspian-font-family: system-ui, -apple-system, sans-serif;
+}
+
+.caspian-root {
+  font-family: var(--caspian-font-family);
+}
