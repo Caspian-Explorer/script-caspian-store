@@ -1,7 +1,8 @@
 /**
  * Default English strings. Consumers can override individual keys via
- * <CaspianStoreProvider messages={{ ... }}>, or ship a completely different
- * locale by providing a full dictionary.
+ * `<CaspianStoreProvider messages={{ ... }}>`, or ship a completely different
+ * locale by providing a full dictionary. For multi-locale sites, pass
+ * `messagesByLocale={{ en: {...}, ar: {...}, ... }}` instead.
  *
  * Keys are flat dot-notation so overrides can target any subset.
  */
@@ -283,13 +284,92 @@ export const DEFAULT_MESSAGES: MessageDict = {
   'settings.saveButton': 'Save settings',
   'settings.saving': 'Saving…',
   'settings.needAdminRole': 'You need admin role to access script settings.',
+
+  // --- Forward-looking keys for v1.2+ surfaces ---
+
+  // Homepage
+  'home.featured.label': 'Curation',
+  'home.featured.title': 'Featured Categories',
+  'home.trending.label': 'Bestsellers',
+  'home.trending.title': 'Trending Now',
+  'home.newsletter.title': 'Join the circle',
+  'home.newsletter.description': 'Early access to drops and editorial stories.',
+  'home.newsletter.placeholder': 'Email address',
+  'home.newsletter.submit': 'Subscribe',
+  'home.newsletter.alreadySubscribed': 'This email is already on our list.',
+  'home.newsletter.success': 'Subscribed!',
+  'home.newsletter.successDesc': 'Thank you for subscribing.',
+  'home.newsletter.failure': 'Failed to subscribe. Please try again.',
+
+  // Journal
+  'journal.title': 'The Journal',
+  'journal.subtitle': 'Stories, style guides, and insights.',
+  'journal.readMore': 'Read more',
+  'journal.backToList': 'Back to the journal',
+
+  // FAQs
+  'faqs.title': 'Frequently Asked Questions',
+  'faqs.subtitle': 'Find answers to common questions.',
+  'faqs.empty': 'No FAQs yet.',
+
+  // Generic content pages
+  'page.notFound': 'Page not found.',
+  'page.defaultContentHint': 'Administrators can edit this page in /admin/pages.',
+
+  // Size guide
+  'sizeGuide.title': 'Size Guide',
+  'sizeGuide.subtitle': 'Find your perfect fit.',
+
+  // Shipping & Returns
+  'shipping.title': 'Shipping & Returns',
+  'shipping.subtitle': 'Everything you need to know about getting your order.',
+  'shipping.methods.title': 'Shipping Methods',
 };
 
-/** Interpolates `{placeholders}` with the provided values. */
+/**
+ * Expands simple `{placeholder}` substitutions and a minimal ICU-plural subset:
+ *   `{count, plural, =0 {none} one {one item} other {# items}}`
+ *
+ * - Exact-match arms (`=N`) are tried first.
+ * - Otherwise, `count === 1` → `one`, else → `other`.
+ * - `#` inside a plural arm is replaced with the numeric value.
+ *
+ * Other placeholders (non-plural) collapse to the provided value or stay as `{key}`.
+ */
 export function interpolate(template: string, values?: Record<string, string | number>): string {
   if (!values) return template;
-  return template.replace(/\{(\w+)\}/g, (_, key) => {
+
+  const pluralRegex = /\{(\w+),\s*plural,\s*([^{}]*(?:\{[^{}]*\}[^{}]*)*)\}/g;
+  let result = template.replace(pluralRegex, (_: string, key: string, body: string) => {
+    const rawValue = values[key];
+    const count = typeof rawValue === 'number' ? rawValue : Number(rawValue);
+    if (Number.isNaN(count)) return `{${key}}`;
+
+    const armRegex = /(=\d+|zero|one|two|few|many|other)\s*\{([^{}]*)\}/g;
+    const arms: Record<string, string> = {};
+    let match: RegExpExecArray | null;
+    while ((match = armRegex.exec(body)) !== null) {
+      arms[match[1]] = match[2];
+    }
+
+    const exactKey = `=${count}`;
+    const chosen =
+      arms[exactKey] ?? (count === 1 ? arms.one ?? arms.other : arms.other ?? arms.one) ?? '';
+    return chosen.replace(/#/g, String(count));
+  });
+
+  result = result.replace(/\{(\w+)\}/g, (_: string, key: string) => {
     const v = values[key];
     return v !== undefined ? String(v) : `{${key}}`;
   });
+
+  return result;
+}
+
+const RTL_LOCALES = new Set(['ar', 'he', 'fa', 'ur']);
+
+/** Returns true for right-to-left locales (ar, he, fa, ur). Matches the primary subtag only. */
+export function isRtl(locale: string): boolean {
+  const primary = locale.split('-')[0].toLowerCase();
+  return RTL_LOCALES.has(primary);
 }

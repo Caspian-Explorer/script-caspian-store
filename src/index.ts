@@ -91,8 +91,13 @@ export {
   LocaleProvider,
   useT,
   useLocale,
+  useDirection,
+  useFormatNumber,
+  useFormatCurrency,
+  useFormatDate,
   DEFAULT_MESSAGES,
   interpolate,
+  isRtl,
   LocaleSwitcher,
   type LocaleProviderProps,
   type TranslateFn,
@@ -202,8 +207,13 @@ export {
 } from './services/storage-service';
 
 // --- Client hooks ---
-export { useCheckout, type StartCheckoutOptions } from './hooks/use-checkout';
+export {
+  useCheckout,
+  type StartCheckoutOptions,
+  type CheckoutShippingInfoInput,
+} from './hooks/use-checkout';
 export { useWishlist } from './hooks/use-wishlist';
+export { validatePromoCode } from './services/promo-code-service';
 
 // --- Admin surface ---
 export {
@@ -246,7 +256,23 @@ export type {
   ShippingInfo,
   ScriptSettings,
   ThemeTokens,
+  FontTokens,
+  HeroTokens,
   FeatureFlags,
+  // v1.1 additions — Firestore admin types
+  FaqItem,
+  JournalArticle,
+  Subscriber,
+  SocialLink,
+  SiteSettings,
+  PromoCode,
+  AppliedPromoCode,
+  ShippingMethod,
+  ProductCategoryDoc,
+  ProductBrandDoc,
+  ProductCollectionDoc,
+  PageContent,
+  LanguageDoc,
 } from './types';
 export { DEFAULT_SCRIPT_SETTINGS } from './types';
 

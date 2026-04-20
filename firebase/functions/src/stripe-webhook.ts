@@ -1,16 +1,18 @@
 import { onRequest } from 'firebase-functions/v2/https';
 import { defineSecret } from 'firebase-functions/params';
-import { getFirestore, FieldValue, Timestamp } from 'firebase-admin/firestore';
+import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import Stripe from 'stripe';
 
 const STRIPE_SECRET = defineSecret('STRIPE_SECRET_KEY');
 const STRIPE_WEBHOOK_SECRET = defineSecret('STRIPE_WEBHOOK_SECRET');
 
 /**
- * HTTP webhook — Stripe POSTs checkout.session.completed events here.
- *
- * Stage 0 version creates an order document and decrements product stock.
- * Cart clearing happens client-side after returning to success_url.
+ * HTTP Stripe webhook. Listens for `checkout.session.completed` and:
+ * 1. Skips duplicate events by looking up existing orders by session ID.
+ * 2. Parses the rich metadata the checkout Cloud Function stored.
+ * 3. Creates an order doc in `orders/` keyed by `H{timestamp}`.
+ * 4. Decrements per-size stock on each product.
+ * 5. Clears the user's cart in `carts/{uid}`.
  */
 export const stripeWebhook = onRequest(
   { secrets: [STRIPE_SECRET, STRIPE_WEBHOOK_SECRET] },
@@ -21,7 +23,9 @@ export const stripeWebhook = onRequest(
       return;
     }
 
-    const stripe = new Stripe(STRIPE_SECRET.value(), { apiVersion: '2024-11-20.acacia' as any });
+    const stripe = new Stripe(STRIPE_SECRET.value(), {
+      apiVersion: '2024-11-20.acacia' as any,
+    });
 
     let event: Stripe.Event;
     try {
@@ -31,8 +35,8 @@ export const stripeWebhook = onRequest(
         STRIPE_WEBHOOK_SECRET.value(),
       );
     } catch (err) {
-      console.error('Webhook signature verification failed:', err);
-      res.status(400).send(`Webhook Error`);
+      console.error('[caspian-webhook] Signature verification failed:', err);
+      res.status(400).send('Webhook Error');
       return;
     }
 
@@ -42,66 +46,133 @@ export const stripeWebhook = onRequest(
     }
 
     const session = event.data.object as Stripe.Checkout.Session;
-    const userId = session.metadata?.userId ?? session.client_reference_id;
-    if (!userId) {
-      res.status(400).send('Missing userId in session metadata');
-      return;
-    }
-
-    const lineItems = await stripe.checkout.sessions.listLineItems(session.id, {
-      expand: ['data.price.product'],
-    });
-
     const db = getFirestore();
-    const now = Timestamp.now();
-    const orderRef = db.collection('orders').doc(session.id);
 
-    const items = lineItems.data.map((li) => {
-      const product = (li.price?.product as Stripe.Product) ?? null;
-      const meta = product?.metadata ?? {};
-      return {
-        productId: meta.productId ?? '',
-        name: li.description ?? product?.name ?? '',
-        brand: product?.description ?? '',
-        price: (li.price?.unit_amount ?? 0) / 100,
-        quantity: li.quantity ?? 1,
-        selectedSize: meta.selectedSize || null,
-        selectedColor: meta.selectedColor || null,
-        imageUrl: product?.images?.[0] ?? '',
-      };
-    });
+    try {
+      // --- Duplicate detection ---
+      const existing = await db
+        .collection('orders')
+        .where('payment.stripeSessionId', '==', session.id)
+        .limit(1)
+        .get();
+      if (!existing.empty) {
+        console.log(`[caspian-webhook] Skipping duplicate ${session.id}`);
+        res.status(200).send(JSON.stringify({ received: true, duplicate: true }));
+        return;
+      }
 
-    await orderRef.set({
-      userId,
-      userEmail: session.customer_details?.email ?? '',
-      status: 'paid',
-      items,
-      payment: {
-        stripeSessionId: session.id,
-        last4: '',
-        brand: '',
-        amount: (session.amount_total ?? 0) / 100,
-      },
-      subtotal: (session.amount_subtotal ?? 0) / 100,
-      shippingCost: 0,
-      discount: ((session.total_details?.amount_discount ?? 0)) / 100,
-      promoCode: null,
-      total: (session.amount_total ?? 0) / 100,
-      createdAt: now,
-      updatedAt: now,
-    });
+      const metadata = session.metadata ?? {};
+      const userId = metadata.userId || (session.client_reference_id ?? '');
+      if (!userId) {
+        console.error('[caspian-webhook] Missing userId in session', session.id);
+        res.status(400).send('Missing userId');
+        return;
+      }
 
-    // Decrement stock per item (best-effort).
-    for (const item of items) {
-      if (!item.productId) continue;
-      const key = item.selectedSize || '_default';
-      await db.collection('products').doc(item.productId).update({
-        [`stock.${key}`]: FieldValue.increment(-item.quantity),
-      }).catch((err) => {
-        console.warn(`Failed to decrement stock for ${item.productId}:`, err);
+      let shippingInfo: Record<string, unknown> | null = null;
+      let items: Array<{
+        productId: string;
+        name: string;
+        brand: string;
+        price: number;
+        quantity: number;
+        selectedSize: string | null;
+        selectedColor: string | null;
+        imageUrl: string;
+      }> = [];
+      try {
+        shippingInfo = metadata.shippingInfo ? JSON.parse(metadata.shippingInfo) : null;
+        items = metadata.items ? JSON.parse(metadata.items) : [];
+      } catch (err) {
+        console.error('[caspian-webhook] Malformed metadata JSON:', err);
+        res.status(400).send('Malformed metadata');
+        return;
+      }
+
+      if (items.length === 0) {
+        console.error('[caspian-webhook] No items in session metadata');
+        res.status(400).send('Missing items');
+        return;
+      }
+
+      const userEmail = metadata.userEmail || session.customer_details?.email || '';
+      const promoCode = metadata.promoCode || null;
+      const discount = parseFloat(metadata.discount ?? '0') || 0;
+      const shippingCost = parseFloat(metadata.shippingCost ?? '0') || 0;
+      const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+      const total = Math.max(0, subtotal + shippingCost - discount);
+
+      // --- Enrich payment from Stripe ---
+      const paymentIntent = session.payment_intent
+        ? await stripe.paymentIntents.retrieve(session.payment_intent as string)
+        : null;
+      const charge = paymentIntent?.latest_charge
+        ? await stripe.charges.retrieve(paymentIntent.latest_charge as string)
+        : null;
+      const cardDetails = charge?.payment_method_details?.card;
+
+      const orderId = `H${Date.now()}`;
+
+      await db.collection('orders').doc(orderId).set({
+        userId,
+        userEmail,
+        status: 'paid',
+        items: items.map((item) => ({
+          productId: item.productId,
+          name: item.name,
+          brand: item.brand ?? '',
+          price: item.price,
+          quantity: item.quantity,
+          selectedSize: item.selectedSize ?? null,
+          selectedColor: item.selectedColor ?? null,
+          imageUrl: item.imageUrl ?? '',
+        })),
+        shippingInfo: shippingInfo ?? {},
+        payment: {
+          stripeSessionId: session.id,
+          last4: cardDetails?.last4 ?? '****',
+          brand: cardDetails?.brand ?? 'card',
+          amount: session.amount_total ?? 0,
+        },
+        subtotal,
+        shippingCost,
+        discount,
+        promoCode,
+        total,
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
       });
-    }
 
-    res.status(200).send('OK');
+      // --- Decrement per-size stock ---
+      for (const item of items) {
+        const stockField = item.selectedSize ? `stock.${item.selectedSize}` : 'stock._default';
+        await db
+          .collection('products')
+          .doc(item.productId)
+          .update({
+            [stockField]: FieldValue.increment(-item.quantity),
+            updatedAt: FieldValue.serverTimestamp(),
+          })
+          .catch((err) => {
+            console.warn(`[caspian-webhook] Stock decrement failed for ${item.productId}:`, err);
+          });
+      }
+
+      // --- Clear user's cart ---
+      const cartRef = db.collection('carts').doc(userId);
+      const cartSnap = await cartRef.get();
+      if (cartSnap.exists) {
+        await cartRef.update({
+          items: [],
+          updatedAt: FieldValue.serverTimestamp(),
+        });
+      }
+
+      console.log(`[caspian-webhook] Order ${orderId} created for user ${userId}`);
+      res.status(200).send(JSON.stringify({ received: true, orderId }));
+    } catch (error) {
+      console.error('[caspian-webhook] Failed to process checkout.session.completed:', error);
+      res.status(500).send('Failed to process order');
+    }
   },
 );

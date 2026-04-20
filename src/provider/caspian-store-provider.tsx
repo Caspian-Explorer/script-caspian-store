@@ -31,10 +31,15 @@ export interface CaspianStoreProviderProps {
   adapters?: Partial<FrameworkAdapters>;
   /** Optional Firebase app name when mounting more than one store per page. */
   appName?: string;
-  /** Locale code (BCP-47). Default: `en`. Does not change the messages dict on its own — pair with `messages`. */
+  /** Locale code (BCP-47). Default: `en`. Does not change the messages dict on its own — pair with `messages` or `messagesByLocale`. */
   locale?: string;
   /** Partial or full message dictionary overriding the built-in English defaults. Missing keys fall through. */
   messages?: MessageDict;
+  /**
+   * Alternative to `messages` for multi-locale sites. Pass a map of `{ en: {...}, ar: {...} }`;
+   * the active `locale` selects which one applies. Supports `fr-CA` → `fr` fallback.
+   */
+  messagesByLocale?: Record<string, MessageDict>;
   children: ReactNode;
 }
 
@@ -53,6 +58,7 @@ export function CaspianStoreProvider({
   appName,
   locale,
   messages,
+  messagesByLocale,
   children,
 }: CaspianStoreProviderProps) {
   const value = useMemo<CaspianStoreContextValue>(() => {
@@ -74,7 +80,7 @@ export function CaspianStoreProvider({
 
   return (
     <CaspianStoreContext.Provider value={value}>
-      <LocaleProvider locale={locale} messages={messages}>
+      <LocaleProvider locale={locale} messages={messages} messagesByLocale={messagesByLocale}>
         <ToastProvider>
           <AuthProvider firebase={value.firebase}>
             <CartProvider db={value.firebase.db}>

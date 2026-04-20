@@ -157,6 +157,139 @@ export interface FirestoreQuestion {
   status: ModerationStatus;
 }
 
+// --- Admin-managed content types (v1.1+) ---
+
+export interface FaqItem {
+  id: string;
+  category: string;
+  question: string;
+  answer: string;
+  order: number;
+}
+
+export interface JournalArticle {
+  id: string;
+  title: string;
+  excerpt: string;
+  category: string;
+  date: string;
+  imageUrl: string;
+  content: string;
+  createdAt: Timestamp;
+}
+
+export interface Subscriber {
+  id: string;
+  email: string;
+  subscribedAt: Timestamp;
+}
+
+export interface SocialLink {
+  platform: string;
+  url: string;
+  label?: string;
+}
+
+export interface SiteSettings {
+  logoUrl: string;
+  faviconUrl?: string;
+  brandName: string;
+  brandDescription: string;
+  contactEmail: string;
+  contactPhone: string;
+  contactAddress: string;
+  businessHours: string;
+  socialLinks: SocialLink[];
+}
+
+export interface PromoCode {
+  id: string;
+  code: string;
+  type: 'percentage' | 'fixed';
+  value: number;
+  minOrderAmount?: number;
+  maxDiscount?: number;
+  isActive: boolean;
+  createdAt: Timestamp;
+}
+
+/** Client-side shape after a promo code has been validated against a subtotal. */
+export interface AppliedPromoCode {
+  code: string;
+  type: 'percentage' | 'fixed';
+  value: number;
+  discountAmount: number;
+}
+
+export interface ShippingMethod {
+  id: string;
+  slug: string;
+  name: string;
+  price: number;
+  estimatedDays: { min: number; max: number };
+  isActive: boolean;
+  order: number;
+  createdAt: Timestamp;
+}
+
+export interface ProductCategoryDoc {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string;
+  order: number;
+  isActive: boolean;
+  isFeatured?: boolean;
+  imageUrl?: string;
+  parentId?: string | null;
+  path?: string[];
+  depth?: number;
+  createdAt: Timestamp;
+}
+
+export interface ProductBrandDoc {
+  id: string;
+  name: string;
+  isActive: boolean;
+  createdAt: Timestamp;
+}
+
+export interface ProductCollectionDoc {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string;
+  imageUrl?: string;
+  productIds: string[];
+  isActive: boolean;
+  isFeatured?: boolean;
+  order: number;
+  createdAt: Timestamp;
+  updatedAt?: Timestamp;
+}
+
+export interface PageContent {
+  id: string;
+  pageKey: string;
+  title: string;
+  subtitle?: string;
+  content: string;
+  updatedAt: Timestamp;
+}
+
+export interface LanguageDoc {
+  id: string;
+  code: string;
+  name: string;
+  nativeName: string;
+  flag?: string;
+  isDefault: boolean;
+  isActive: boolean;
+  direction: 'ltr' | 'rtl';
+  order: number;
+  updatedAt?: Timestamp;
+}
+
 // --- Script-level site configuration (new) ---
 
 export interface ThemeTokens {
@@ -165,6 +298,22 @@ export interface ThemeTokens {
   accent: string;
   radius: string;
   fontFamily?: string;
+}
+
+export interface FontTokens {
+  body: string;
+  headline: string;
+  /** Optional Google Fonts family list (e.g. `Montserrat:wght@400;700`). When set the provider injects the <link> tag. */
+  googleFamilies?: string[];
+}
+
+export interface HeroTokens {
+  title: string;
+  subtitle: string;
+  cta: string;
+  /** Optional call-to-action destination (default: /products). */
+  ctaHref?: string;
+  imageUrl?: string;
 }
 
 export interface FeatureFlags {
@@ -185,6 +334,10 @@ export interface ScriptSettings {
   supportedLocales: string[];
   stripePublicKey: string | null;
   theme: ThemeTokens;
+  /** Optional — added in v1.1 for later phases. Consumers can ignore. */
+  fonts?: FontTokens;
+  /** Optional — added in v1.1 for later phases. Consumers can ignore. */
+  hero?: HeroTokens;
   features: FeatureFlags;
   updatedAt: Timestamp;
 }
@@ -202,6 +355,16 @@ export const DEFAULT_SCRIPT_SETTINGS: Omit<ScriptSettings, 'updatedAt'> = {
     primaryForeground: '#ffffff',
     accent: '#f5a8b8',
     radius: '0.5rem',
+  },
+  fonts: {
+    body: 'system-ui, -apple-system, sans-serif',
+    headline: 'system-ui, -apple-system, sans-serif',
+  },
+  hero: {
+    title: 'Shop our latest collection',
+    subtitle: 'Curated essentials delivered to your door.',
+    cta: 'Shop now',
+    ctaHref: '/products',
   },
   features: {
     reviews: true,

@@ -2,6 +2,45 @@
 
 All notable changes will be documented in this file.
 
+## v1.1.0 — Stripe + i18n parity for hadiyyam migration
+
+Groundwork release for the hadiyyam migration. Brings the package's Stripe server logic and i18n capabilities to parity with hadiyyam's production setup so phase-1 migration can install this tag and retire a big chunk of the native implementation. No breaking changes — everything is additive.
+
+### Added
+- **Cloud Functions — `createStripeCheckoutSession`** rewritten to match hadiyyam's `/api/checkout/create-session`:
+  - Server-side cart validation (product exists, `isActive`, per-size stock).
+  - Server-side promo code resolution from the `promoCodes` collection with `isActive` / `minOrderAmount` / `maxDiscount` honored. Coupon created on Stripe when a valid discount applies.
+  - Optional shipping cost added as a line item; shipping details passed through via session metadata.
+  - Rich session metadata (`userId`, `userEmail`, `items` JSON, `shippingInfo` JSON, `shippingCost`, `discount`, `promoCode`, `locale`) for the webhook to reconstruct the order.
+- **Cloud Functions — `stripeWebhook`** upgraded:
+  - Duplicate-event detection by `payment.stripeSessionId`.
+  - Enriched `payment` object with card brand + last4 from the retrieved payment intent.
+  - Full order doc matching hadiyyam's schema (`subtotal`, `shippingCost`, `discount`, `promoCode`, `total`, serverTimestamps, `shippingInfo`).
+  - Per-size stock decrement, best-effort with try/catch.
+  - Cart clearing after order creation.
+- **Cloud Functions — new `getStripeSession`** callable. Maps a Stripe session ID → Firestore order ID (parity with hadiyyam's `/api/checkout/session`). Useful on the order-success page.
+- **`useCheckout`** gains:
+  - Optional `endpoint: string` — when set, posts JSON to the consumer's URL (with a bearer `Authorization` header) instead of invoking the callable. Lets Next.js consumers keep existing API routes.
+  - Optional `promoCode`, `shippingCost`, `shippingInfo`, `locale` fields on `StartCheckoutOptions`.
+  - Exports the new `CheckoutShippingInfoInput` type.
+- **`validatePromoCode(db, code, subtotal)`** — client-side preview helper that mirrors the server's discount math. Returns `AppliedPromoCode` or `null`. Display-only; server still re-validates at checkout.
+- **i18n — `LocaleProvider`** gains:
+  - New `messagesByLocale?: Record<string, MessageDict>` prop for multi-locale sites. Active `locale` selects the dict; `fr-CA` → `fr` falls back to the primary subtag.
+  - Automatic `dir="rtl"` CSS custom property (`--caspian-direction`) for Arabic / Hebrew / Farsi / Urdu locales.
+  - New `useDirection()`, `useFormatNumber()`, `useFormatCurrency(currency)`, `useFormatDate()` hooks wrapping the native `Intl` API with locale awareness.
+  - `isRtl(locale)` helper exported.
+- **`interpolate`** upgraded to a minimal ICU plural subset: `{count, plural, =0 {none} one {one} other {# items}}`. Simple `{placeholder}` substitution still works.
+- **`CaspianStoreProvider`** forwards `messagesByLocale` to the LocaleProvider.
+- **Types** — new exports matching hadiyyam's Firestore schema: `FaqItem`, `JournalArticle`, `Subscriber`, `SocialLink`, `SiteSettings`, `PromoCode`, `AppliedPromoCode`, `ShippingMethod`, `ProductCategoryDoc`, `ProductBrandDoc`, `ProductCollectionDoc`, `PageContent`, `LanguageDoc`, plus `FontTokens` and `HeroTokens`.
+- **`ScriptSettings`** gains optional `fonts` and `hero` blocks (seeded with sensible defaults). Consumers can ignore both; they become active in v1.2.
+- **`DEFAULT_MESSAGES`** gains ~30 keys for home / journal / FAQs / content pages / size guide / shipping so forthcoming phases don't redefine them mid-migration.
+
+### Changed
+- Bundle grew from 40 KB → 47 KB (`.d.ts`) to cover new exports. No runtime-size regression for tree-shaken consumers.
+
+### Migration notes
+Consumers upgrading from v1.0.0 have nothing to do — all changes are additive. Before deploying the new Cloud Functions, set the existing `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` secrets; nothing else changed about the deploy flow.
+
 ## v1.0.0 — Stable release
 
 The public API is now frozen. All user-facing surfaces route through `useT()`, a `LocaleSwitcher` ships, and the six-stage roadmap closes out.
