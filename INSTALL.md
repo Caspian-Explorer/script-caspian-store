@@ -7,7 +7,7 @@ This document covers installing `@caspian-explorer/script-caspian-store` into a 
 The package ships from the private GitHub repo. Consumers must have read access.
 
 ```bash
-npm install github:Caspian-Explorer/script-caspian-store#v0.3.0 firebase
+npm install github:Caspian-Explorer/script-caspian-store#v0.4.0 firebase
 # or pin to a commit:
 # npm install github:Caspian-Explorer/script-caspian-store#<sha>
 ```
@@ -257,7 +257,82 @@ import { WishlistButton } from '@caspian-explorer/script-caspian-store';
 <WishlistButton productId={product.id} />
 ```
 
-## 9. Visit `/settings` (or whatever route you mount)
+## 9. Mount the admin panel (v0.4.0)
+
+```tsx
+// app/admin/layout.tsx
+'use client';
+import type { ReactNode } from 'react';
+import { AdminGuard, AdminShell } from '@caspian-explorer/script-caspian-store';
+
+export default function AdminLayout({ children }: { children: ReactNode }) {
+  return (
+    <AdminGuard>
+      <AdminShell>{children}</AdminShell>
+    </AdminGuard>
+  );
+}
+
+// app/admin/page.tsx
+'use client';
+import { AdminDashboard } from '@caspian-explorer/script-caspian-store';
+export default function AdminHome() { return <AdminDashboard />; }
+
+// app/admin/products/page.tsx
+'use client';
+import { AdminProductsList } from '@caspian-explorer/script-caspian-store';
+export default function Page() { return <AdminProductsList />; }
+
+// app/admin/products/new/page.tsx
+'use client';
+import { AdminProductEditor } from '@caspian-explorer/script-caspian-store';
+export default function Page() { return <AdminProductEditor />; }
+
+// app/admin/products/[id]/edit/page.tsx
+'use client';
+import { useParams } from 'next/navigation';
+import { AdminProductEditor } from '@caspian-explorer/script-caspian-store';
+export default function Page() {
+  const { id } = useParams<{ id: string }>();
+  return <AdminProductEditor productId={id} />;
+}
+
+// app/admin/orders/page.tsx
+'use client';
+import { AdminOrdersList } from '@caspian-explorer/script-caspian-store';
+export default function Page() { return <AdminOrdersList />; }
+
+// app/admin/orders/[id]/page.tsx
+'use client';
+import { useParams } from 'next/navigation';
+import { AdminOrderDetail } from '@caspian-explorer/script-caspian-store';
+export default function Page() {
+  const { id } = useParams<{ id: string }>();
+  return <AdminOrderDetail orderId={id} />;
+}
+
+// app/admin/reviews/page.tsx
+'use client';
+import { AdminReviewsModeration } from '@caspian-explorer/script-caspian-store';
+export default function Page() { return <AdminReviewsModeration />; }
+```
+
+Customize the sidebar by passing `navItems` to `<AdminShell>`:
+
+```tsx
+import { AdminShell, type AdminNavItem } from '@caspian-explorer/script-caspian-store';
+const items: AdminNavItem[] = [
+  { href: '/admin', label: 'Dashboard' },
+  { href: '/admin/products', label: 'Products' },
+  { href: '/admin/orders', label: 'Orders' },
+  { href: '/admin/reviews', label: 'Reviews' },
+  { href: '/admin/settings', label: 'Settings' },
+  { href: '/admin/my-custom-page', label: 'My page' },
+];
+<AdminShell navItems={items}>{children}</AdminShell>
+```
+
+## 10. Visit `/settings` (or whatever route you mount)
 
 Mount the Script Settings page on any protected route in your app:
 
@@ -276,7 +351,7 @@ Set brand info, currency, theme colors, and feature flags. Changes are live — 
 Pin to a tag and bump when ready:
 
 ```bash
-npm install github:Caspian-Explorer/script-caspian-store#v0.3.0
+npm install github:Caspian-Explorer/script-caspian-store#v0.4.0
 ```
 
 See [CHANGELOG.md](./CHANGELOG.md) for release notes.

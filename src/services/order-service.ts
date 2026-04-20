@@ -6,6 +6,8 @@ import {
   limit as firestoreLimit,
   orderBy,
   query,
+  Timestamp,
+  updateDoc,
   where,
   type Firestore,
 } from 'firebase/firestore';
@@ -32,6 +34,29 @@ export async function getOrdersByUser(
   );
   const snap = await getDocs(q);
   return snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Order, 'id'>) }));
+}
+
+/** Admin: list all orders, newest first. */
+export async function listAllOrders(db: Firestore, max = 500): Promise<Order[]> {
+  const q = query(
+    collection(db, 'orders'),
+    orderBy('createdAt', 'desc'),
+    firestoreLimit(max),
+  );
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Order, 'id'>) }));
+}
+
+/** Admin: update the status of an order. */
+export async function updateOrderStatus(
+  db: Firestore,
+  orderId: string,
+  status: OrderStatus,
+): Promise<void> {
+  await updateDoc(doc(db, 'orders', orderId), {
+    status,
+    updatedAt: Timestamp.now(),
+  });
 }
 
 export async function hasUserPurchasedProduct(

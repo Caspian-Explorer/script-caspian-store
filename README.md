@@ -2,12 +2,12 @@
 
 Framework-agnostic React e-commerce store. **Bring your own Firebase.** Install into any React app (Next.js, Vite, CRA).
 
-> **Status: `v0.3.0` — Stage 2 checkout & account landed.** Stripe checkout, order confirmation, order history, and wishlist are installable. Admin panel + auth pages come in v0.4–v0.5. See [Roadmap](#roadmap).
+> **Status: `v0.4.0` — Stage 3 admin panel landed.** Full admin surface (shell, dashboard, product CRUD, orders, reviews moderation) is installable. Auth pages come in v0.5; i18n/theming polish in v0.6. See [Roadmap](#roadmap).
 
 ## Quickstart
 
 ```bash
-npm install github:Caspian-Explorer/script-caspian-store#v0.3.0 firebase
+npm install github:Caspian-Explorer/script-caspian-store#v0.4.0 firebase
 ```
 
 ```tsx
@@ -71,7 +71,7 @@ See [INSTALL.md](./INSTALL.md) for **Vite** and **CRA** snippets, Firebase rules
 | **Order confirmation:** `<OrderConfirmationPage />` — polls Firestore for the webhook-created order | ✅ |
 | **Order history:** `<OrderHistoryList />` | ✅ |
 | **Wishlist:** `useWishlist()` + `<WishlistButton />` | ✅ |
-| Admin panel (`/admin` pages) | ⏳ v0.4 |
+| **Admin:** `<AdminGuard />`, `<AdminShell />`, `<AdminDashboard />`, product CRUD, orders + status, reviews moderation | ✅ |
 | Auth pages (login/register/account) | ⏳ v0.5 |
 | i18n + theming polish | ⏳ v0.6 |
 
@@ -95,6 +95,12 @@ StarIcon, StarRatingInput
 
 // Client hooks
 useCheckout, useWishlist
+
+// Admin surface
+AdminGuard, AdminShell, DEFAULT_ADMIN_NAV, AdminDashboard,
+AdminProductsList, AdminProductEditor,
+AdminOrdersList, AdminOrderDetail,
+AdminReviewsModeration
 
 // UI primitives (also consumable)
 Button, Input, Textarea, Label, Dialog,
@@ -143,8 +149,8 @@ Stripe is handled by Firebase Cloud Functions (callable + webhook), so the packa
 
 - **v0.1.0-alpha** — scaffolding, provider, Script Settings. ✅
 - **v0.2.0** — storefront (PLP, PDP), Reviews & Q&A, cart primitives, cart drawer, UI primitives. ✅
-- **v0.3.0 (now)** — Stripe checkout client hook, checkout page, order confirmation, order history, wishlist. ✅
-- **v0.4.0** — admin panel pages (products, orders, reviews moderation).
+- **v0.3.0** — Stripe checkout client hook, checkout page, order confirmation, order history, wishlist. ✅
+- **v0.4.0 (now)** — admin panel: shell, dashboard, product CRUD, orders, reviews moderation. ✅
 - **v0.5.0** — auth pages (login, register, forgot password, account).
 - **v0.6.0** — i18n (locale provider), theming polish, presets.
 - **v1.0.0** — stable API, changelog freeze.

@@ -5,3 +5,4 @@ export { Tabs, TabsList, TabsTrigger, TabsContent, type TabsProps } from './tabs
 export { Select, type SelectProps, type SelectOption } from './select';
 export { Skeleton, Badge, Avatar, Separator } from './misc';
 export { ToastProvider, useToast, type ToastMessage } from './toast';
+export { Table, THead, TBody, TR, TH, TD } from './table';

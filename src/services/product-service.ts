@@ -1,12 +1,17 @@
 import {
+  addDoc,
   collection,
+  deleteDoc,
   doc,
   getDoc,
   getDocs,
   query,
+  setDoc,
+  updateDoc,
   where,
   orderBy,
   limit as firestoreLimit,
+  Timestamp,
   type Firestore,
   type QueryDocumentSnapshot,
   type DocumentSnapshot,
@@ -87,6 +92,43 @@ export async function getProductsByIds(db: Firestore, ids: string[]): Promise<Pr
     out.push(...snap.docs.map(docToProduct));
   }
   return out;
+}
+
+/** List every product (admin-only). */
+export async function listAllProducts(db: Firestore): Promise<Product[]> {
+  const q = query(collection(db, 'products'), orderBy('createdAt', 'desc'));
+  const snap = await getDocs(q);
+  return snap.docs.map(docToProduct);
+}
+
+export type ProductWriteInput = Omit<Product, 'id' | 'createdAt' | 'updatedAt'>;
+
+export async function createProduct(
+  db: Firestore,
+  data: ProductWriteInput,
+  /** Optional document ID; if omitted, Firestore assigns one. */
+  id?: string,
+): Promise<string> {
+  const now = Timestamp.now();
+  const payload = { ...data, createdAt: now, updatedAt: now };
+  if (id) {
+    await setDoc(doc(db, 'products', id), payload);
+    return id;
+  }
+  const ref = await addDoc(collection(db, 'products'), payload);
+  return ref.id;
+}
+
+export async function updateProduct(
+  db: Firestore,
+  id: string,
+  data: Partial<ProductWriteInput>,
+): Promise<void> {
+  await updateDoc(doc(db, 'products', id), { ...data, updatedAt: Timestamp.now() });
+}
+
+export async function deleteProduct(db: Firestore, id: string): Promise<void> {
+  await deleteDoc(doc(db, 'products', id));
 }
 
 export async function getRelatedProducts(

@@ -94,6 +94,12 @@ export {
   Separator,
   useToast,
   type ToastMessage,
+  Table,
+  THead,
+  TBody,
+  TR,
+  TH,
+  TD,
 } from './ui';
 
 // --- Services ---
@@ -102,7 +108,12 @@ export {
   getProductById,
   getProductsByIds,
   getRelatedProducts,
+  listAllProducts,
+  createProduct,
+  updateProduct,
+  deleteProduct,
   type ProductFilters,
+  type ProductWriteInput,
 } from './services/product-service';
 export {
   getApprovedReviewsForProduct,
@@ -129,6 +140,8 @@ export {
   hasUserPurchasedProduct,
   getOrderById,
   getOrdersByUser,
+  listAllOrders,
+  updateOrderStatus,
 } from './services/order-service';
 export { loadUserCart, saveUserCart } from './services/cart-service';
 export { addToWishlist, removeFromWishlist } from './services/wishlist-service';
@@ -136,6 +149,27 @@ export { addToWishlist, removeFromWishlist } from './services/wishlist-service';
 // --- Client hooks ---
 export { useCheckout, type StartCheckoutOptions } from './hooks/use-checkout';
 export { useWishlist } from './hooks/use-wishlist';
+
+// --- Admin surface ---
+export {
+  AdminGuard,
+  AdminShell,
+  DEFAULT_ADMIN_NAV,
+  AdminDashboard,
+  AdminProductsList,
+  AdminProductEditor,
+  AdminOrdersList,
+  AdminOrderDetail,
+  AdminReviewsModeration,
+  type AdminGuardProps,
+  type AdminShellProps,
+  type AdminNavItem,
+  type AdminDashboardProps,
+  type AdminProductsListProps,
+  type AdminProductEditorProps,
+  type AdminOrdersListProps,
+  type AdminOrderDetailProps,
+} from './admin';
 
 // --- Types ---
 export type {
