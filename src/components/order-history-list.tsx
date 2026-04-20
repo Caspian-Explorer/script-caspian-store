@@ -5,6 +5,7 @@ import type { Order } from '../types';
 import { getOrdersByUser } from '../services/order-service';
 import { useAuth } from '../context/auth-context';
 import { useCaspianFirebase, useCaspianLink } from '../provider/caspian-store-provider';
+import { useT } from '../i18n/locale-context';
 import { Skeleton, Badge } from '../ui/misc';
 
 export interface OrderHistoryListProps {
@@ -19,12 +20,13 @@ export function OrderHistoryList({
   getOrderHref = (id) => `/orders/${id}`,
   formatPrice = (n) => `$${n.toFixed(2)}`,
   max = 50,
-  emptyMessage = "You haven't placed any orders yet.",
+  emptyMessage,
   className,
 }: OrderHistoryListProps) {
   const { user, loading: authLoading } = useAuth();
   const { db } = useCaspianFirebase();
   const Link = useCaspianLink();
+  const t = useT();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -59,11 +61,11 @@ export function OrderHistoryList({
   }
 
   if (!user) {
-    return <p className={className} style={{ color: '#888' }}>Sign in to view your orders.</p>;
+    return <p className={className} style={{ color: '#888' }}>{t('orderHistory.signInHint')}</p>;
   }
 
   if (orders.length === 0) {
-    return <p className={className} style={{ color: '#888' }}>{emptyMessage}</p>;
+    return <p className={className} style={{ color: '#888' }}>{emptyMessage ?? t('orderHistory.empty')}</p>;
   }
 
   return (
@@ -85,9 +87,11 @@ export function OrderHistoryList({
                 }}
               >
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{ margin: 0, fontWeight: 600, fontSize: 14 }}>Order #{order.id.slice(0, 10)}</p>
+                  <p style={{ margin: 0, fontWeight: 600, fontSize: 14 }}>
+                    {t('orderHistory.orderPrefix')}{order.id.slice(0, 10)}
+                  </p>
                   <p style={{ margin: '2px 0 0', fontSize: 12, color: '#888' }}>
-                    {placed?.toLocaleDateString()} · {count} item{count === 1 ? '' : 's'}
+                    {placed?.toLocaleDateString()} · {t('orderHistory.itemsCount', { count })}
                   </p>
                 </div>
                 <Badge variant="secondary">{order.status}</Badge>

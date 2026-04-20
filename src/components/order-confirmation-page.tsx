@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import type { Order } from '../types';
 import { getOrderById } from '../services/order-service';
 import { useCaspianFirebase, useCaspianLink } from '../provider/caspian-store-provider';
+import { useT } from '../i18n/locale-context';
 import { Skeleton, Separator, Badge } from '../ui/misc';
 
 export interface OrderConfirmationPageProps {
@@ -26,6 +27,7 @@ export function OrderConfirmationPage({
 }: OrderConfirmationPageProps) {
   const { db } = useCaspianFirebase();
   const Link = useCaspianLink();
+  const t = useT();
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [attempts, setAttempts] = useState(0);
@@ -77,11 +79,15 @@ export function OrderConfirmationPage({
   if (!order) {
     return (
       <div className={className} style={{ padding: 40, textAlign: 'center' }}>
-        <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>We're still processing your order</h1>
+        <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>
+          {t('orderConfirmation.stillProcessing.title')}
+        </h1>
         <p style={{ color: '#666', marginTop: 8 }}>
-          This usually takes a few seconds. Please refresh in a moment — you'll also receive a confirmation email.
+          {t('orderConfirmation.stillProcessing.subtitle')}
         </p>
-        <p style={{ color: '#888', fontSize: 13, marginTop: 16 }}>Order ID: {orderId}</p>
+        <p style={{ color: '#888', fontSize: 13, marginTop: 16 }}>
+          {t('orderConfirmation.orderIdLabel', { id: orderId })}
+        </p>
       </div>
     );
   }
@@ -91,25 +97,29 @@ export function OrderConfirmationPage({
   return (
     <div className={className}>
       <header style={{ textAlign: 'center', marginBottom: 32 }}>
-        <h1 style={{ fontSize: 28, fontWeight: 700, margin: 0 }}>Thank you for your order!</h1>
+        <h1 style={{ fontSize: 28, fontWeight: 700, margin: 0 }}>{t('orderConfirmation.title')}</h1>
         <p style={{ color: '#666', marginTop: 6 }}>
-          A confirmation was sent to {order.userEmail || 'your email'}.
+          {t('orderConfirmation.emailConfirmation', {
+            email: order.userEmail || t('orderConfirmation.defaultEmail'),
+          })}
         </p>
         <p style={{ color: '#888', fontSize: 13, marginTop: 12 }}>
-          Order #{order.id.slice(0, 10)} · <Badge variant="secondary">{order.status}</Badge>
+          {t('orderConfirmation.orderLine', { id: order.id.slice(0, 10) })}
+          <Badge variant="secondary">{order.status}</Badge>
           {placedAt && ` · ${placedAt.toLocaleDateString()}`}
         </p>
       </header>
 
       <section style={sectionStyle}>
-        <h2 style={h2Style}>Items</h2>
+        <h2 style={h2Style}>{t('orderConfirmation.items')}</h2>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {order.items.map((item, i) => (
             <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14 }}>
               <div style={{ minWidth: 0, flex: 1 }}>
                 <p style={{ margin: 0, fontWeight: 500 }}>{item.name}</p>
                 <p style={{ margin: '2px 0 0', fontSize: 12, color: '#888' }}>
-                  {item.selectedSize && `Size ${item.selectedSize} · `}Qty {item.quantity}
+                  {item.selectedSize && `${t('cart.sizePrefix')} ${item.selectedSize} · `}
+                  {t('checkout.qtyShort')} {item.quantity}
                 </p>
               </div>
               <span style={{ fontWeight: 600 }}>{formatPrice(item.price * item.quantity)}</span>
@@ -117,18 +127,18 @@ export function OrderConfirmationPage({
           ))}
         </div>
         <Separator />
-        <SummaryRow label="Subtotal" value={formatPrice(order.subtotal)} />
+        <SummaryRow label={t('cart.subtotal')} value={formatPrice(order.subtotal)} />
         {order.shippingCost > 0 && (
-          <SummaryRow label="Shipping" value={formatPrice(order.shippingCost)} />
+          <SummaryRow label={t('orderConfirmation.shipping')} value={formatPrice(order.shippingCost)} />
         )}
         {order.discount > 0 && (
-          <SummaryRow label="Discount" value={`−${formatPrice(order.discount)}`} />
+          <SummaryRow label={t('orderConfirmation.discount')} value={`−${formatPrice(order.discount)}`} />
         )}
-        <SummaryRow label="Total" value={formatPrice(order.total)} strong />
+        <SummaryRow label={t('orderConfirmation.total')} value={formatPrice(order.total)} strong />
       </section>
 
       <div style={{ textAlign: 'center', marginTop: 24 }}>
-        <Link href={continueHref}>Continue shopping</Link>
+        <Link href={continueHref}>{t('orderConfirmation.continueShopping')}</Link>
       </div>
     </div>
   );

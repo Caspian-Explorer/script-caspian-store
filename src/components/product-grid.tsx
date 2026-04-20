@@ -3,6 +3,7 @@
 import type { Product } from '../types';
 import { ProductCard } from './product-card';
 import { Skeleton } from '../ui/misc';
+import { useT } from '../i18n/locale-context';
 import { cn } from '../utils/cn';
 
 export interface ProductGridProps {
@@ -21,9 +22,11 @@ export function ProductGrid({
   getProductHref,
   formatPrice,
   minCardWidth = 220,
-  emptyMessage = 'No products found.',
+  emptyMessage,
   className,
 }: ProductGridProps) {
+  const t = useT();
+  const empty = emptyMessage ?? t('storefront.empty');
   const gridStyle: React.CSSProperties = {
     display: 'grid',
     gridTemplateColumns: `repeat(auto-fill, minmax(${minCardWidth}px, 1fr))`,
@@ -45,7 +48,7 @@ export function ProductGrid({
   }
 
   if (products.length === 0) {
-    return <p style={{ color: '#888', textAlign: 'center', padding: 40 }}>{emptyMessage}</p>;
+    return <p style={{ color: '#888', textAlign: 'center', padding: 40 }}>{empty}</p>;
   }
 
   return (

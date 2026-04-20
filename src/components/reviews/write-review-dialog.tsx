@@ -7,6 +7,7 @@ import { Label, Textarea } from '../../ui/input';
 import { useToast } from '../../ui/toast';
 import { useAuth } from '../../context/auth-context';
 import { useCaspianFirebase } from '../../provider/caspian-store-provider';
+import { useT } from '../../i18n/locale-context';
 import {
   createReview,
   hasUserReviewedProduct,
@@ -27,6 +28,7 @@ export function WriteReviewDialog({
   const { db } = useCaspianFirebase();
   const { user, userProfile } = useAuth();
   const { toast } = useToast();
+  const t = useT();
   const [rating, setRating] = useState(0);
   const [text, setText] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -39,21 +41,21 @@ export function WriteReviewDialog({
 
   const handleSubmit = async () => {
     if (!user || !userProfile) {
-      toast({ title: 'Sign in required', variant: 'destructive' });
+      toast({ title: t('reviews.dialog.signInRequired'), variant: 'destructive' });
       return;
     }
     if (rating < 1) {
-      toast({ title: 'Please select a rating', variant: 'destructive' });
+      toast({ title: t('reviews.dialog.ratingRequired'), variant: 'destructive' });
       return;
     }
     if (!text.trim()) {
-      toast({ title: 'Please write a review', variant: 'destructive' });
+      toast({ title: t('reviews.dialog.textRequired'), variant: 'destructive' });
       return;
     }
     setSubmitting(true);
     try {
       if (await hasUserReviewedProduct(db, user.uid, productId)) {
-        toast({ title: 'You already reviewed this product', variant: 'destructive' });
+        toast({ title: t('reviews.dialog.alreadyReviewed'), variant: 'destructive' });
         setSubmitting(false);
         return;
       }
@@ -66,13 +68,16 @@ export function WriteReviewDialog({
           photoURL: userProfile.photoURL,
         },
       );
-      toast({ title: 'Submitted!', description: 'Your review is pending approval.' });
+      toast({
+        title: t('reviews.dialog.submitted'),
+        description: t('reviews.dialog.submittedDesc'),
+      });
       reset();
       onOpenChange(false);
       onSubmitted?.();
     } catch (error) {
       console.error('Failed to submit review:', error);
-      toast({ title: 'Something went wrong', variant: 'destructive' });
+      toast({ title: t('reviews.dialog.somethingWrong'), variant: 'destructive' });
       setSubmitting(false);
     }
   };
@@ -84,16 +89,16 @@ export function WriteReviewDialog({
         if (!o) reset();
         onOpenChange(o);
       }}
-      title="Write a review"
-      description="Share your experience — reviews are published after moderation."
+      title={t('reviews.dialog.writeTitle')}
+      description={t('reviews.dialog.writeDescription')}
       footer={
         user ? (
           <>
             <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button onClick={handleSubmit} loading={submitting}>
-              {submitting ? 'Submitting…' : 'Submit'}
+              {submitting ? t('reviews.dialog.submitting') : t('reviews.dialog.submit')}
             </Button>
           </>
         ) : null
@@ -101,23 +106,23 @@ export function WriteReviewDialog({
     >
       {!user ? (
         <div style={{ padding: '8px 0' }}>
-          <p style={{ color: '#666', fontSize: 14 }}>Please sign in to leave a review.</p>
+          <p style={{ color: '#666', fontSize: 14 }}>{t('reviews.dialog.signInHint')}</p>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div>
-            <Label>Your rating</Label>
+            <Label>{t('reviews.dialog.ratingLabel')}</Label>
             <StarRatingInput value={rating} onChange={setRating} />
           </div>
           <div>
-            <Label htmlFor="review-text">Your review</Label>
+            <Label htmlFor="review-text">{t('reviews.dialog.reviewLabel')}</Label>
             <Textarea
               id="review-text"
               value={text}
               onChange={(e) => setText(e.target.value)}
               rows={5}
               maxLength={2000}
-              placeholder="What did you like or dislike about this product?"
+              placeholder={t('reviews.dialog.reviewPlaceholder')}
             />
             <p style={{ fontSize: 12, color: '#888', textAlign: 'right', marginTop: 4 }}>{text.length}/2000</p>
           </div>

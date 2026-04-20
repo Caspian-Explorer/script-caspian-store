@@ -2,6 +2,7 @@
 
 import type { Product } from '../types';
 import { useCaspianLink, useCaspianImage } from '../provider/caspian-store-provider';
+import { useT } from '../i18n/locale-context';
 import { Badge } from '../ui/misc';
 import { cn } from '../utils/cn';
 
@@ -22,6 +23,7 @@ export function ProductCard({
 }: ProductCardProps) {
   const Link = useCaspianLink();
   const Image = useCaspianImage();
+  const t = useT();
   const img = product.images?.[0];
 
   return (
@@ -50,12 +52,12 @@ export function ProductCard({
                 fontSize: 13,
               }}
             >
-              No image
+              {t('storefront.noImage')}
             </div>
           )}
           <div style={{ position: 'absolute', top: 8, left: 8, display: 'flex', gap: 4 }}>
-            {product.isNew && <Badge variant="secondary">New</Badge>}
-            {product.limited && <Badge variant="destructive">Limited</Badge>}
+            {product.isNew && <Badge variant="secondary">{t('storefront.badges.new')}</Badge>}
+            {product.limited && <Badge variant="destructive">{t('storefront.badges.limited')}</Badge>}
           </div>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>

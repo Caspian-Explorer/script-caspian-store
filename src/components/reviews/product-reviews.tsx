@@ -5,6 +5,7 @@ import type { FirestoreQuestion, FirestoreReview } from '../../types';
 import { getApprovedReviewsForProduct, type ReviewSortBy } from '../../services/review-service';
 import { getApprovedQuestionsForProduct } from '../../services/question-service';
 import { useCaspianFirebase } from '../../provider/caspian-store-provider';
+import { useT } from '../../i18n/locale-context';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../ui/tabs';
 import { Select } from '../../ui/select';
 import { Skeleton } from '../../ui/misc';
@@ -35,6 +36,7 @@ export function ProductReviews({
   onSummaryChange?: (s: ReviewSummaryData) => void;
 }) {
   const { db } = useCaspianFirebase();
+  const t = useT();
   const [reviews, setReviews] = useState<FirestoreReview[]>([]);
   const [questions, setQuestions] = useState<FirestoreQuestion[]>([]);
   const [sortBy, setSortBy] = useState<ReviewSortBy>('recent');
@@ -78,7 +80,7 @@ export function ProductReviews({
 
   return (
     <section style={{ marginTop: 48, borderTop: '1px solid #eee', paddingTop: 32 }}>
-      <h2 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>Product Reviews</h2>
+      <h2 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>{t('reviews.title')}</h2>
 
       {loading ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '32px 0' }}>
@@ -106,18 +108,18 @@ export function ProductReviews({
               }}
             >
               <TabsList>
-                <TabsTrigger value="reviews">Reviews ({reviews.length})</TabsTrigger>
-                <TabsTrigger value="questions">Questions ({questions.length})</TabsTrigger>
+                <TabsTrigger value="reviews">{t('reviews.tab.reviews', { count: reviews.length })}</TabsTrigger>
+                <TabsTrigger value="questions">{t('reviews.tab.questions', { count: questions.length })}</TabsTrigger>
               </TabsList>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ fontSize: 13, color: '#666' }}>Sort by:</span>
+                <span style={{ fontSize: 13, color: '#666' }}>{t('reviews.sortBy')}</span>
                 <Select
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value as ReviewSortBy)}
                   options={[
-                    { value: 'recent', label: 'Most Recent' },
-                    { value: 'highest', label: 'Highest Rated' },
-                    { value: 'lowest', label: 'Lowest Rated' },
+                    { value: 'recent', label: t('reviews.sort.recent') },
+                    { value: 'highest', label: t('reviews.sort.highest') },
+                    { value: 'lowest', label: t('reviews.sort.lowest') },
                   ]}
                 />
               </div>

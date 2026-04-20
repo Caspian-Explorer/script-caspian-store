@@ -2,6 +2,28 @@
 
 All notable changes will be documented in this file.
 
+## v1.0.0 — Stable release
+
+The public API is now frozen. All user-facing surfaces route through `useT()`, a `LocaleSwitcher` ships, and the six-stage roadmap closes out.
+
+### Added
+- **Full string migration** — every user-visible literal in storefront (product card, grid, list/detail pages, cart sheet), reviews & Q&A (summary, list, items, dialogs), checkout + order confirmation + order history, wishlist button, and the account cards (profile, address book, change password, script settings page) now flows through `useT()`. `DEFAULT_MESSAGES` gained ~140 keys covering these surfaces.
+- **`<LocaleSwitcher />`** — minimal dropdown UI for switching locales. Consumers own where the chosen code is persisted (URL, cookie, user profile) and feed it back into the provider's `locale` prop.
+
+### Changed
+- Minor: components that previously accepted `emptyMessage` / `subtitle` / `title` string props now default to `useT(...)` keys when those props are omitted — explicit overrides still win.
+
+### API surface
+Stable as of v1.0 (see [README §Package surface](./README.md#package-surface)):
+- Provider: `CaspianStoreProvider`, `useCaspianStore` + `useCaspian{Link,Image,Navigation,Collections,Firebase}`
+- Hooks: `useAuth`, `useCart`, `useCheckout`, `useWishlist`, `useScriptSettings`, `useT`, `useLocale`, `useToast`
+- Storefront: `ProductListPage`, `ProductGrid`, `ProductCard`, `ProductDetailPage`, `ProductGallery`, `SizeSelector`, `QuantitySelector`, `CartSheet`, `StarRatingInput`
+- Reviews: `ProductReviews`, `ReviewSummary`, `ReviewList`, `ReviewItem`, `QuestionList`, `QuestionItem`, `WriteReviewDialog`, `AskQuestionDialog`
+- Checkout + account: `CheckoutPage`, `OrderConfirmationPage`, `OrderHistoryList`, `WishlistButton`, `LoginPage`, `RegisterPage`, `ForgotPasswordPage`, `AccountPage`, `ProfileCard`, `AddressBook`, `ChangePasswordCard`, `ProfilePhotoCard`, `DeleteAccountCard`, `ScriptSettingsPage`
+- Admin: `AdminGuard`, `AdminShell`, `AdminDashboard`, `AdminProductsList`, `AdminProductEditor`, `AdminOrdersList`, `AdminOrderDetail`, `AdminReviewsModeration`
+- Theming + i18n: `ThemePresetPicker`, `THEME_PRESETS`, `LocaleProvider`, `LocaleSwitcher`, `DEFAULT_MESSAGES`
+- UI primitives: `Button`, `Dialog`, `Input`, `Textarea`, `Label`, `Tabs`, `Select`, `Skeleton`, `Badge`, `Avatar`, `Separator`, `Table`
+
 ## v0.6.0 — Stage 5 i18n, theming presets, profile photo, delete account
 
 Rounds out the customer + account surface with localization infrastructure, theme presets, Firebase Storage-backed profile photos, and a safe delete-account flow. This is the last feature release before v1.0 stabilizes the API.

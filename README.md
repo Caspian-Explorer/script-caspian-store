@@ -2,12 +2,12 @@
 
 Framework-agnostic React e-commerce store. **Bring your own Firebase.** Install into any React app (Next.js, Vite, CRA).
 
-> **Status: `v0.6.0` — Stage 5 i18n, theming presets, profile photo, delete account landed.** Customer + account + admin surfaces are feature-complete. v1.0 will be API-freeze + full string migration. See [Roadmap](#roadmap).
+> **Status: `v1.0.0` — stable.** All user-facing surfaces route through `useT()`, `LocaleSwitcher` ships, and the public API is frozen. See [CHANGELOG](./CHANGELOG.md).
 
 ## Quickstart
 
 ```bash
-npm install github:Caspian-Explorer/script-caspian-store#v0.6.0 firebase
+npm install github:Caspian-Explorer/script-caspian-store#v1.0.0 firebase
 ```
 
 ```tsx
@@ -73,7 +73,7 @@ See [INSTALL.md](./INSTALL.md) for **Vite** and **CRA** snippets, Firebase rules
 | **Wishlist:** `useWishlist()` + `<WishlistButton />` | ✅ |
 | **Admin:** `<AdminGuard />`, `<AdminShell />`, `<AdminDashboard />`, product CRUD, orders + status, reviews moderation | ✅ |
 | **Auth:** `<LoginPage />`, `<RegisterPage />`, `<ForgotPasswordPage />`, `<AccountPage />` (profile, password, addresses, orders) | ✅ |
-| **i18n:** `<LocaleProvider>` + `useT()` + `DEFAULT_MESSAGES` (auth pages migrated) | ✅ |
+| **i18n:** `<LocaleProvider>` + `useT()` + `DEFAULT_MESSAGES` + `<LocaleSwitcher />` (all surfaces migrated) | ✅ |
 | **Theming:** 6 `THEME_PRESETS` + `<ThemePresetPicker />` | ✅ |
 | **Profile photo:** `<ProfilePhotoCard />` (Firebase Storage, JPEG/PNG/WebP ≤5 MB) | ✅ |
 | **Delete account:** `<DeleteAccountCard />` with reauth + typed confirmation | ✅ |
@@ -111,7 +111,8 @@ AccountPage, ProfileCard, AddressBook, ChangePasswordCard,
 ProfilePhotoCard, DeleteAccountCard
 
 // i18n
-LocaleProvider, useT, useLocale, DEFAULT_MESSAGES, interpolate
+LocaleProvider, LocaleSwitcher, useT, useLocale,
+DEFAULT_MESSAGES, interpolate
 
 // Theming
 THEME_PRESETS, THEME_PRESET_LABELS, ThemePresetPicker
@@ -166,8 +167,8 @@ Stripe is handled by Firebase Cloud Functions (callable + webhook), so the packa
 - **v0.3.0** — Stripe checkout client hook, checkout page, order confirmation, order history, wishlist. ✅
 - **v0.4.0** — admin panel: shell, dashboard, product CRUD, orders, reviews moderation. ✅
 - **v0.5.0** — auth pages (login, register, forgot password) + account page (profile, password, addresses, order history). ✅
-- **v0.6.0 (now)** — i18n provider + `useT()`, theming presets + picker, profile photo upload, delete-account flow. ✅
-- **v1.0.0** — full string migration to `useT()`, API freeze, optional locale-switcher component.
+- **v0.6.0** — i18n provider + `useT()`, theming presets + picker, profile photo upload, delete-account flow. ✅
+- **v1.0.0 (now)** — full string migration across all surfaces, `<LocaleSwitcher />`, stable API. ✅
 
 ## License
 

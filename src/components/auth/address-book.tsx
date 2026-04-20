@@ -15,6 +15,7 @@ import { Input, Label } from '../../ui/input';
 import { Badge } from '../../ui/misc';
 import { Dialog } from '../../ui/dialog';
 import { useToast } from '../../ui/toast';
+import { useT } from '../../i18n/locale-context';
 
 const emptyAddress: Omit<UserAddress, 'id'> = {
   name: '',
@@ -29,6 +30,7 @@ export function AddressBook({ className }: { className?: string }) {
   const { user, userProfile, refreshProfile } = useAuth();
   const { db } = useCaspianFirebase();
   const { toast } = useToast();
+  const t = useT();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<UserAddress | null>(null);
   const [form, setForm] = useState<Omit<UserAddress, 'id'>>(emptyAddress);
@@ -63,30 +65,30 @@ export function AddressBook({ className }: { className?: string }) {
     try {
       if (editing) {
         await updateAddress(db, user.uid, { ...editing, ...form });
-        toast({ title: 'Address updated' });
+        toast({ title: t('addresses.updated') });
       } else {
         await addAddress(db, user.uid, form);
-        toast({ title: 'Address added' });
+        toast({ title: t('addresses.added') });
       }
       await refreshProfile();
       setDialogOpen(false);
     } catch (error) {
       console.error('[caspian-store] Save address failed:', error);
-      toast({ title: 'Save failed', variant: 'destructive' });
+      toast({ title: t('addresses.saveFailed'), variant: 'destructive' });
     } finally {
       setSaving(false);
     }
   };
 
   const handleDelete = async (addr: UserAddress) => {
-    if (!confirm(`Delete address "${addr.name}"?`)) return;
+    if (!confirm(t('addresses.deleteConfirm', { name: addr.name }))) return;
     try {
       await deleteAddress(db, user.uid, addr.id);
       await refreshProfile();
-      toast({ title: 'Address deleted' });
+      toast({ title: t('addresses.deleted') });
     } catch (error) {
       console.error('[caspian-store] Delete address failed:', error);
-      toast({ title: 'Delete failed', variant: 'destructive' });
+      toast({ title: t('addresses.saveFailed'), variant: 'destructive' });
     }
   };
 
@@ -94,10 +96,10 @@ export function AddressBook({ className }: { className?: string }) {
     try {
       await setDefaultAddress(db, user.uid, addr.id);
       await refreshProfile();
-      toast({ title: 'Default address updated' });
+      toast({ title: t('addresses.updated') });
     } catch (error) {
       console.error('[caspian-store] Set default failed:', error);
-      toast({ title: 'Action failed', variant: 'destructive' });
+      toast({ title: t('addresses.saveFailed'), variant: 'destructive' });
     }
   };
 
@@ -107,15 +109,15 @@ export function AddressBook({ className }: { className?: string }) {
       style={{ padding: 20, border: '1px solid #eee', borderRadius: 'var(--caspian-radius, 8px)' }}
     >
       <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-        <h2 style={{ fontSize: 16, fontWeight: 600, margin: 0 }}>Addresses</h2>
+        <h2 style={{ fontSize: 16, fontWeight: 600, margin: 0 }}>{t('addresses.title')}</h2>
         <Button variant="outline" size="sm" onClick={openCreate}>
-          + Add address
+          {t('addresses.add')}
         </Button>
       </header>
 
       {addresses.length === 0 ? (
         <p style={{ color: '#888', fontSize: 14, padding: '16px 0', margin: 0 }}>
-          No addresses yet. Add one for faster checkout.
+          {t('addresses.empty')}
         </p>
       ) : (
         <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -134,7 +136,7 @@ export function AddressBook({ className }: { className?: string }) {
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <p style={{ margin: 0, fontWeight: 500 }}>{addr.name}</p>
-                  {addr.isDefault && <Badge variant="secondary">Default</Badge>}
+                  {addr.isDefault && <Badge variant="secondary">{t('addresses.default')}</Badge>}
                 </div>
                 <p style={{ margin: '4px 0 0', fontSize: 13, color: '#555', lineHeight: 1.4 }}>
                   {addr.address}
@@ -147,14 +149,14 @@ export function AddressBook({ className }: { className?: string }) {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-end' }}>
                 {!addr.isDefault && (
                   <Button variant="ghost" size="sm" onClick={() => handleSetDefault(addr)}>
-                    Set default
+                    {t('addresses.setDefault')}
                   </Button>
                 )}
                 <Button variant="outline" size="sm" onClick={() => openEdit(addr)}>
-                  Edit
+                  {t('common.edit')}
                 </Button>
                 <Button variant="destructive" size="sm" onClick={() => handleDelete(addr)}>
-                  Delete
+                  {t('common.delete')}
                 </Button>
               </div>
             </li>
@@ -165,39 +167,39 @@ export function AddressBook({ className }: { className?: string }) {
       <Dialog
         open={dialogOpen}
         onOpenChange={setDialogOpen}
-        title={editing ? 'Edit address' : 'Add address'}
+        title={editing ? t('addresses.editTitle') : t('addresses.addTitle')}
         footer={
           <>
             <Button variant="outline" onClick={() => setDialogOpen(false)} disabled={saving}>
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button onClick={handleSave as unknown as () => void} loading={saving}>
-              Save
+              {t('common.save')}
             </Button>
           </>
         }
       >
         <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div>
-            <Label>Full name</Label>
+            <Label>{t('addresses.fullName')}</Label>
             <Input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} required />
           </div>
           <div>
-            <Label>Address</Label>
+            <Label>{t('addresses.address')}</Label>
             <Input value={form.address} onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))} required />
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 8 }}>
             <div>
-              <Label>City</Label>
+              <Label>{t('addresses.city')}</Label>
               <Input value={form.city} onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))} required />
             </div>
             <div>
-              <Label>ZIP</Label>
+              <Label>{t('addresses.zip')}</Label>
               <Input value={form.zip} onChange={(e) => setForm((f) => ({ ...f, zip: e.target.value }))} required />
             </div>
           </div>
           <div>
-            <Label>Country</Label>
+            <Label>{t('addresses.country')}</Label>
             <Input value={form.country} onChange={(e) => setForm((f) => ({ ...f, country: e.target.value }))} required />
           </div>
           <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 14 }}>
@@ -206,7 +208,7 @@ export function AddressBook({ className }: { className?: string }) {
               checked={form.isDefault}
               onChange={(e) => setForm((f) => ({ ...f, isDefault: e.target.checked }))}
             />
-            Set as default address
+            {t('addresses.makeDefault')}
           </label>
         </form>
       </Dialog>

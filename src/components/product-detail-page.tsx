@@ -5,6 +5,7 @@ import type { Product } from '../types';
 import { getProductById } from '../services/product-service';
 import { useCaspianFirebase } from '../provider/caspian-store-provider';
 import { useCart } from '../context/cart-context';
+import { useT } from '../i18n/locale-context';
 import { useToast } from '../ui/toast';
 import { Button } from '../ui/button';
 import { Badge, Separator, Skeleton } from '../ui/misc';
@@ -35,6 +36,7 @@ export function ProductDetailPage({
   const { db } = useCaspianFirebase();
   const { addToCart } = useCart();
   const { toast } = useToast();
+  const t = useT();
   const [product, setProduct] = useState<Product | null>(externalProduct ?? null);
   const [loading, setLoading] = useState(!externalProduct);
   const [selectedSize, setSelectedSize] = useState<string | undefined>();
@@ -86,18 +88,18 @@ export function ProductDetailPage({
   }
 
   if (!product) {
-    return <p style={{ textAlign: 'center', padding: 40, color: '#888' }}>Product not found.</p>;
+    return <p style={{ textAlign: 'center', padding: 40, color: '#888' }}>{t('product.notFound')}</p>;
   }
 
   const hasSizes = product.sizes && product.sizes.length > 0;
 
   const handleAddToCart = () => {
     if (hasSizes && !selectedSize) {
-      toast({ title: 'Select a size', variant: 'destructive' });
+      toast({ title: t('product.selectSize'), variant: 'destructive' });
       return;
     }
     addToCart(product, quantity, selectedSize);
-    toast({ title: 'Added to cart', description: product.name });
+    toast({ title: t('product.addedToCart'), description: product.name });
     setQuantity(1);
   };
 
@@ -107,8 +109,8 @@ export function ProductDetailPage({
         <ProductGallery images={product.images} />
         <div style={{ display: 'flex', flexDirection: 'column' }}>
           <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
-            {product.isNew && <Badge variant="secondary">New</Badge>}
-            {product.limited && <Badge variant="destructive">Limited</Badge>}
+            {product.isNew && <Badge variant="secondary">{t('storefront.badges.new')}</Badge>}
+            {product.limited && <Badge variant="destructive">{t('storefront.badges.limited')}</Badge>}
           </div>
           <p style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#888', margin: 0 }}>
             {product.brand}
@@ -117,7 +119,7 @@ export function ProductDetailPage({
 
           {totalReviews > 0 && (
             <p style={{ color: '#666', fontSize: 14, marginTop: 0 }}>
-              {avg.toFixed(1)} ★ · {totalReviews} review{totalReviews === 1 ? '' : 's'}
+              {t('product.reviewsSummary', { avg: avg.toFixed(1), count: totalReviews })}
             </p>
           )}
 
@@ -127,24 +129,24 @@ export function ProductDetailPage({
 
           {hasSizes && (
             <div style={{ marginBottom: 16 }}>
-              <p style={{ fontSize: 13, fontWeight: 500, marginBottom: 8 }}>Size</p>
+              <p style={{ fontSize: 13, fontWeight: 500, marginBottom: 8 }}>{t('product.size')}</p>
               <SizeSelector sizes={product.sizes!} value={selectedSize} onChange={setSelectedSize} />
             </div>
           )}
 
           <div style={{ marginBottom: 16 }}>
-            <p style={{ fontSize: 13, fontWeight: 500, marginBottom: 8 }}>Quantity</p>
+            <p style={{ fontSize: 13, fontWeight: 500, marginBottom: 8 }}>{t('product.quantity')}</p>
             <QuantitySelector value={quantity} onChange={setQuantity} />
           </div>
 
           <Button size="lg" onClick={handleAddToCart}>
-            Add to cart
+            {t('product.addToCart')}
           </Button>
 
           <Separator />
 
           <div>
-            <h2 style={{ fontSize: 14, fontWeight: 600, marginBottom: 8 }}>Description</h2>
+            <h2 style={{ fontSize: 14, fontWeight: 600, marginBottom: 8 }}>{t('product.description')}</h2>
             <p style={{ color: '#555', lineHeight: 1.6, margin: 0 }}>{product.description}</p>
           </div>
         </div>

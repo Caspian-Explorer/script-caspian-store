@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import type { CartItem } from '../types';
 import { useCart } from '../context/cart-context';
 import { useCaspianImage, useCaspianLink } from '../provider/caspian-store-provider';
+import { useT } from '../i18n/locale-context';
 import { Button } from '../ui/button';
 import { cn } from '../utils/cn';
 
@@ -26,6 +27,7 @@ export function CartSheet({
 }: CartSheetProps) {
   const { items, subtotal, updateQuantity, removeFromCart } = useCart();
   const Link = useCaspianLink();
+  const t = useT();
 
   useEffect(() => {
     if (!open) return;
@@ -71,10 +73,10 @@ export function CartSheet({
         }}
       >
         <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-          <h2 style={{ fontSize: 18, fontWeight: 600, margin: 0 }}>Your Cart ({items.length})</h2>
+          <h2 style={{ fontSize: 18, fontWeight: 600, margin: 0 }}>{t('cart.title', { count: items.length })}</h2>
           <button
             type="button"
-            aria-label="Close cart"
+            aria-label={t('cart.close')}
             onClick={() => onOpenChange(false)}
             style={{ background: 'transparent', border: 0, fontSize: 20, cursor: 'pointer', lineHeight: 1 }}
           >
@@ -84,7 +86,7 @@ export function CartSheet({
 
         <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12 }}>
           {items.length === 0 ? (
-            <p style={{ color: '#888', textAlign: 'center', padding: '40px 0' }}>Your cart is empty.</p>
+            <p style={{ color: '#888', textAlign: 'center', padding: '40px 0' }}>{t('cart.empty')}</p>
           ) : (
             items.map((item) => (
               <CartRow
@@ -102,7 +104,7 @@ export function CartSheet({
         {items.length > 0 && (
           <footer style={{ borderTop: '1px solid #eee', paddingTop: 16, marginTop: 16 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12, fontWeight: 600 }}>
-              <span>Subtotal</span>
+              <span>{t('cart.subtotal')}</span>
               <span>{formatPrice(subtotal)}</span>
             </div>
             <Button
@@ -114,10 +116,10 @@ export function CartSheet({
                 if (typeof window !== 'undefined') window.location.assign(checkoutHref);
               }}
             >
-              Checkout
+              {t('cart.checkout')}
             </Button>
             <div style={{ textAlign: 'center', marginTop: 8 }}>
-              <Link href="/cart">View full cart</Link>
+              <Link href="/cart">{t('cart.viewFullCart')}</Link>
             </div>
           </footer>
         )}
@@ -141,6 +143,7 @@ function CartRow({
 }) {
   const Image = useCaspianImage();
   const Link = useCaspianLink();
+  const t = useT();
   const img = item.product.images?.[0];
   return (
     <div style={{ display: 'flex', gap: 12 }}>
@@ -165,7 +168,9 @@ function CartRow({
         </Link>
         {(item.selectedSize || item.selectedColor) && (
           <p style={{ fontSize: 12, color: '#888', margin: '2px 0 0' }}>
-            {[item.selectedSize && `Size ${item.selectedSize}`, item.selectedColor].filter(Boolean).join(' · ')}
+            {[item.selectedSize && `${t('cart.sizePrefix')} ${item.selectedSize}`, item.selectedColor]
+              .filter(Boolean)
+              .join(' · ')}
           </p>
         )}
         <p style={{ fontSize: 14, fontWeight: 600, margin: '4px 0 0' }}>{formatPrice(item.product.price)}</p>
@@ -195,7 +200,7 @@ function CartRow({
               padding: 0,
             }}
           >
-            Remove
+            {t('cart.remove')}
           </button>
         </div>
       </div>

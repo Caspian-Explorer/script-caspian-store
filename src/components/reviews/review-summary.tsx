@@ -2,6 +2,7 @@
 
 import { StarIcon } from '../star-icon';
 import { Button } from '../../ui/button';
+import { useT } from '../../i18n/locale-context';
 
 export interface ReviewSummaryData {
   average: number;
@@ -19,6 +20,7 @@ export function ReviewSummary({
   onAskQuestion: () => void;
 }) {
   const { average, total, distribution } = summary;
+  const t = useT();
   return (
     <div
       style={{
@@ -44,7 +46,7 @@ export function ReviewSummary({
             />
           ))}
         </div>
-        <p style={{ color: '#888', fontSize: 13 }}>{total} review{total === 1 ? '' : 's'}</p>
+        <p style={{ color: '#888', fontSize: 13 }}>{t('reviews.count', { count: total })}</p>
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -75,9 +77,9 @@ export function ReviewSummary({
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12, alignItems: 'center' }}>
-        <Button onClick={onWriteReview}>Write a Review</Button>
+        <Button onClick={onWriteReview}>{t('reviews.writeReview')}</Button>
         <Button variant="outline" onClick={onAskQuestion}>
-          Ask a Question
+          {t('reviews.askQuestion')}
         </Button>
       </div>
     </div>

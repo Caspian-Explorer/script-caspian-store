@@ -7,6 +7,7 @@ import { Label, Textarea } from '../../ui/input';
 import { useToast } from '../../ui/toast';
 import { useAuth } from '../../context/auth-context';
 import { useCaspianFirebase } from '../../provider/caspian-store-provider';
+import { useT } from '../../i18n/locale-context';
 import { createQuestion } from '../../services/question-service';
 
 export function AskQuestionDialog({
@@ -23,16 +24,17 @@ export function AskQuestionDialog({
   const { db } = useCaspianFirebase();
   const { user, userProfile } = useAuth();
   const { toast } = useToast();
+  const t = useT();
   const [text, setText] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async () => {
     if (!user || !userProfile) {
-      toast({ title: 'Sign in required', variant: 'destructive' });
+      toast({ title: t('reviews.dialog.signInRequired'), variant: 'destructive' });
       return;
     }
     if (!text.trim()) {
-      toast({ title: 'Please type your question', variant: 'destructive' });
+      toast({ title: t('reviews.dialog.questionRequired'), variant: 'destructive' });
       return;
     }
     setSubmitting(true);
@@ -46,13 +48,16 @@ export function AskQuestionDialog({
           photoURL: userProfile.photoURL,
         },
       );
-      toast({ title: 'Submitted!', description: 'Your question is pending approval.' });
+      toast({
+        title: t('reviews.dialog.submitted'),
+        description: t('reviews.dialog.questionSubmittedDesc'),
+      });
       setText('');
       onOpenChange(false);
       onSubmitted?.();
     } catch (error) {
       console.error('Failed to submit question:', error);
-      toast({ title: 'Something went wrong', variant: 'destructive' });
+      toast({ title: t('reviews.dialog.somethingWrong'), variant: 'destructive' });
     } finally {
       setSubmitting(false);
     }
@@ -68,33 +73,33 @@ export function AskQuestionDialog({
         }
         onOpenChange(o);
       }}
-      title="Ask a question"
-      description="We'll reply as soon as possible."
+      title={t('reviews.dialog.askTitle')}
+      description={t('reviews.dialog.askDescription')}
       footer={
         user ? (
           <>
             <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button onClick={handleSubmit} loading={submitting}>
-              {submitting ? 'Submitting…' : 'Submit'}
+              {submitting ? t('reviews.dialog.submitting') : t('reviews.dialog.submit')}
             </Button>
           </>
         ) : null
       }
     >
       {!user ? (
-        <p style={{ color: '#666', fontSize: 14 }}>Please sign in to ask a question.</p>
+        <p style={{ color: '#666', fontSize: 14 }}>{t('reviews.dialog.askSignInHint')}</p>
       ) : (
         <div>
-          <Label htmlFor="question-text">Your question</Label>
+          <Label htmlFor="question-text">{t('reviews.dialog.questionLabel')}</Label>
           <Textarea
             id="question-text"
             value={text}
             onChange={(e) => setText(e.target.value)}
             rows={4}
             maxLength={1000}
-            placeholder="Type your question here..."
+            placeholder={t('reviews.dialog.questionPlaceholder')}
           />
           <p style={{ fontSize: 12, color: '#888', textAlign: 'right', marginTop: 4 }}>{text.length}/1000</p>
         </div>

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useScriptSettings } from '../context/script-settings-context';
 import { useAuth } from '../context/auth-context';
+import { useT } from '../i18n/locale-context';
 import { ThemePresetPicker } from '../theme/theme-preset-picker';
 import type { FeatureFlags, ThemeTokens } from '../types';
 
@@ -28,6 +29,7 @@ export function ScriptSettingsPage({
 }: ScriptSettingsPageProps) {
   const { settings, loading, saving, save } = useScriptSettings();
   const { userProfile, loading: authLoading } = useAuth();
+  const t = useT();
 
   const [draft, setDraft] = useState(() => ({
     brandName: settings.brandName,
@@ -53,13 +55,13 @@ export function ScriptSettingsPage({
   }, [settings]);
 
   if (authLoading || loading) {
-    return <div className={className}>Loading…</div>;
+    return <div className={className}>{t('common.loading')}</div>;
   }
 
   if (requireAdminRole && userProfile?.role !== 'admin') {
     return (
       <div className={className}>
-        <p>You need admin role to access script settings.</p>
+        <p>{t('settings.needAdminRole')}</p>
       </div>
     );
   }
@@ -87,22 +89,20 @@ export function ScriptSettingsPage({
   return (
     <div className={className}>
       <header style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0 }}>Script Settings</h1>
-        <p style={{ color: '#666', marginTop: 4 }}>
-          Site-level configuration for your Caspian Store installation.
-        </p>
+        <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0 }}>{t('settings.title')}</h1>
+        <p style={{ color: '#666', marginTop: 4 }}>{t('settings.subtitle')}</p>
       </header>
 
       <section style={sectionStyle}>
-        <h2 style={h2Style}>Brand</h2>
-        <Field label="Brand name">
+        <h2 style={h2Style}>{t('settings.sections.brand')}</h2>
+        <Field label={t('settings.brandName')}>
           <input
             style={inputStyle}
             value={draft.brandName}
             onChange={(e) => setDraft((d) => ({ ...d, brandName: e.target.value }))}
           />
         </Field>
-        <Field label="Brand description">
+        <Field label={t('settings.brandDescription')}>
           <input
             style={inputStyle}
             value={draft.brandDescription}
@@ -112,8 +112,8 @@ export function ScriptSettingsPage({
       </section>
 
       <section style={sectionStyle}>
-        <h2 style={h2Style}>Localization</h2>
-        <Field label="Default currency (ISO 4217)">
+        <h2 style={h2Style}>{t('settings.sections.localization')}</h2>
+        <Field label={t('settings.defaultCurrency')}>
           <input
             style={inputStyle}
             value={draft.defaultCurrency}
@@ -121,7 +121,7 @@ export function ScriptSettingsPage({
             maxLength={3}
           />
         </Field>
-        <Field label="Default locale">
+        <Field label={t('settings.defaultLocale')}>
           <input
             style={inputStyle}
             value={draft.defaultLocale}
@@ -131,8 +131,8 @@ export function ScriptSettingsPage({
       </section>
 
       <section style={sectionStyle}>
-        <h2 style={h2Style}>Payments</h2>
-        <Field label="Stripe publishable key (pk_...)">
+        <h2 style={h2Style}>{t('settings.sections.payments')}</h2>
+        <Field label={t('settings.stripePublicKey')}>
           <input
             style={inputStyle}
             value={draft.stripePublicKey}
@@ -143,33 +143,35 @@ export function ScriptSettingsPage({
       </section>
 
       <section style={sectionStyle}>
-        <h2 style={h2Style}>Theme</h2>
+        <h2 style={h2Style}>{t('settings.sections.theme')}</h2>
         <div style={{ marginBottom: 16 }}>
-          <p style={{ fontSize: 12, fontWeight: 600, color: '#555', margin: '0 0 8px' }}>Presets</p>
+          <p style={{ fontSize: 12, fontWeight: 600, color: '#555', margin: '0 0 8px' }}>
+            {t('settings.theme.presets')}
+          </p>
           <ThemePresetPicker />
         </div>
-        <Field label="Primary color">
+        <Field label={t('settings.theme.primary')}>
           <input
             type="color"
             value={draft.theme.primary}
             onChange={(e) => updateTheme('primary', e.target.value)}
           />
         </Field>
-        <Field label="Primary foreground">
+        <Field label={t('settings.theme.primaryForeground')}>
           <input
             type="color"
             value={draft.theme.primaryForeground}
             onChange={(e) => updateTheme('primaryForeground', e.target.value)}
           />
         </Field>
-        <Field label="Accent">
+        <Field label={t('settings.theme.accent')}>
           <input
             type="color"
             value={draft.theme.accent}
             onChange={(e) => updateTheme('accent', e.target.value)}
           />
         </Field>
-        <Field label="Corner radius">
+        <Field label={t('settings.theme.radius')}>
           <input
             style={inputStyle}
             value={draft.theme.radius}
@@ -179,7 +181,7 @@ export function ScriptSettingsPage({
       </section>
 
       <section style={sectionStyle}>
-        <h2 style={h2Style}>Features</h2>
+        <h2 style={h2Style}>{t('settings.sections.features')}</h2>
         {(Object.keys(draft.features) as Array<keyof FeatureFlags>).map((key) => (
           <label key={key} style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '4px 0' }}>
             <input
@@ -205,7 +207,7 @@ export function ScriptSettingsPage({
           fontWeight: 600,
         }}
       >
-        {saving ? 'Saving…' : 'Save settings'}
+        {saving ? t('settings.saving') : t('settings.saveButton')}
       </button>
     </div>
   );

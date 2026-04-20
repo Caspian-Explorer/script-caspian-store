@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useWishlist } from '../hooks/use-wishlist';
 import { useToast } from '../ui/toast';
+import { useT } from '../i18n/locale-context';
 import { cn } from '../utils/cn';
 
 export interface WishlistButtonProps {
@@ -20,21 +21,22 @@ export function WishlistButton({
 }: WishlistButtonProps) {
   const { isSaved, toggle, signedIn } = useWishlist();
   const { toast } = useToast();
+  const t = useT();
   const [busy, setBusy] = useState(false);
   const saved = isSaved(productId);
 
   const handleClick = async () => {
     if (!signedIn) {
-      toast({ title: 'Sign in to save items', variant: 'destructive' });
+      toast({ title: t('wishlist.savePrompt'), variant: 'destructive' });
       return;
     }
     setBusy(true);
     try {
       await toggle(productId);
-      toast({ title: saved ? 'Removed from wishlist' : 'Saved to wishlist' });
+      toast({ title: saved ? t('wishlist.removed') : t('wishlist.saved') });
     } catch (error) {
       console.error('[caspian-store] Wishlist toggle failed:', error);
-      toast({ title: 'Something went wrong', variant: 'destructive' });
+      toast({ title: t('wishlist.failed'), variant: 'destructive' });
     } finally {
       setBusy(false);
     }
@@ -43,7 +45,7 @@ export function WishlistButton({
   return (
     <button
       type="button"
-      aria-label={ariaLabel ?? (saved ? 'Remove from wishlist' : 'Save to wishlist')}
+      aria-label={ariaLabel ?? (saved ? t('wishlist.aria.remove') : t('wishlist.aria.save'))}
       aria-pressed={saved}
       onClick={handleClick}
       disabled={busy}

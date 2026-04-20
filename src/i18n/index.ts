@@ -6,3 +6,8 @@ export {
   type LocaleProviderProps,
   type TranslateFn,
 } from './locale-context';
+export {
+  LocaleSwitcher,
+  type LocaleSwitcherProps,
+  type LocaleOption,
+} from './locale-switcher';

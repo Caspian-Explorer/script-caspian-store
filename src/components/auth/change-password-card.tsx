@@ -8,6 +8,7 @@ import {
 } from 'firebase/auth';
 import { useAuth } from '../../context/auth-context';
 import { useCaspianFirebase } from '../../provider/caspian-store-provider';
+import { useT } from '../../i18n/locale-context';
 import { Button } from '../../ui/button';
 import { Input, Label } from '../../ui/input';
 import { useToast } from '../../ui/toast';
@@ -22,6 +23,7 @@ export function ChangePasswordCard({
   const { user } = useAuth();
   const { auth } = useCaspianFirebase();
   const { toast } = useToast();
+  const t = useT();
   const [currentPassword, setCurrent] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirm, setConfirm] = useState('');
@@ -41,15 +43,15 @@ export function ChangePasswordCard({
 
   const handleSave = async () => {
     if (newPassword.length < minPasswordLength) {
-      toast({ title: `Password must be at least ${minPasswordLength} characters`, variant: 'destructive' });
+      toast({ title: t('password.tooShort', { min: minPasswordLength }), variant: 'destructive' });
       return;
     }
     if (newPassword !== confirm) {
-      toast({ title: 'Passwords do not match', variant: 'destructive' });
+      toast({ title: t('password.mismatch'), variant: 'destructive' });
       return;
     }
     if (!user.email) {
-      toast({ title: 'No email associated with this account', variant: 'destructive' });
+      toast({ title: t('password.noEmail'), variant: 'destructive' });
       return;
     }
     setSaving(true);
@@ -57,13 +59,13 @@ export function ChangePasswordCard({
       const credential = EmailAuthProvider.credential(user.email, currentPassword);
       await reauthenticateWithCredential(user, credential);
       await updatePassword(user, newPassword);
-      toast({ title: 'Password updated' });
+      toast({ title: t('password.updated') });
       reset();
     } catch (error) {
       console.error('[caspian-store] Password change failed:', error);
       const code = (error as { code?: string })?.code;
       toast({
-        title: code === 'auth/wrong-password' ? 'Current password is incorrect' : 'Password change failed',
+        title: code === 'auth/wrong-password' ? t('password.wrongCurrent') : t('password.updateFailed'),
         variant: 'destructive',
       });
     } finally {
@@ -79,22 +81,20 @@ export function ChangePasswordCard({
       style={{ padding: 20, border: '1px solid #eee', borderRadius: 'var(--caspian-radius, 8px)' }}
     >
       <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-        <h2 style={{ fontSize: 16, fontWeight: 600, margin: 0 }}>Password</h2>
+        <h2 style={{ fontSize: 16, fontWeight: 600, margin: 0 }}>{t('password.title')}</h2>
         {!open && !isGoogleAccount && (
           <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
-            Change
+            {t('password.change')}
           </Button>
         )}
       </header>
 
       {isGoogleAccount ? (
-        <p style={{ fontSize: 14, color: '#666', margin: 0 }}>
-          You signed in with Google — manage your password in your Google account.
-        </p>
+        <p style={{ fontSize: 14, color: '#666', margin: 0 }}>{t('password.googleHint')}</p>
       ) : open ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div>
-            <Label>Current password</Label>
+            <Label>{t('password.current')}</Label>
             <Input
               type="password"
               autoComplete="current-password"
@@ -103,7 +103,7 @@ export function ChangePasswordCard({
             />
           </div>
           <div>
-            <Label>New password</Label>
+            <Label>{t('password.new')}</Label>
             <Input
               type="password"
               autoComplete="new-password"
@@ -113,7 +113,7 @@ export function ChangePasswordCard({
             />
           </div>
           <div>
-            <Label>Confirm new password</Label>
+            <Label>{t('password.confirmNew')}</Label>
             <Input
               type="password"
               autoComplete="new-password"
@@ -123,15 +123,15 @@ export function ChangePasswordCard({
           </div>
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
             <Button variant="outline" onClick={reset} disabled={saving}>
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button onClick={handleSave} loading={saving}>
-              Update password
+              {t('password.update')}
             </Button>
           </div>
         </div>
       ) : (
-        <p style={{ fontSize: 14, color: '#666', margin: 0 }}>Change your sign-in password.</p>
+        <p style={{ fontSize: 14, color: '#666', margin: 0 }}>{t('password.subtitle')}</p>
       )}
     </section>
   );

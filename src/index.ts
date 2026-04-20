@@ -93,9 +93,12 @@ export {
   useLocale,
   DEFAULT_MESSAGES,
   interpolate,
+  LocaleSwitcher,
   type LocaleProviderProps,
   type TranslateFn,
   type MessageDict,
+  type LocaleSwitcherProps,
+  type LocaleOption,
 } from './i18n';
 
 // Theming presets
