@@ -2,6 +2,26 @@
 
 All notable changes will be documented in this file.
 
+## v0.5.0 — Stage 4 auth & account
+
+Ships the user-facing auth surface — sign-in, sign-up, forgot password — plus a full account page with profile editing, addresses, password change, and order history.
+
+### Added
+- **`<LoginPage>`** — email/password form + "Continue with Google" + remember-me + forgot-password link. Uses `useAuth().signIn` / `signInWithGoogle`.
+- **`<RegisterPage>`** — name/email/password/confirm form + "Continue with Google". Validates confirm + minimum password length.
+- **`<ForgotPasswordPage>`** — email → `sendPasswordResetEmail` with a success state.
+- **`<ProfileCard>`** — inline edit for `displayName`; email is read-only.
+- **`<AddressBook>`** — list, add, edit, delete, and set-default on `users.addresses`. First address auto-set as default; removing the default promotes the next entry.
+- **`<ChangePasswordCard>`** — re-authenticates with `EmailAuthProvider` and calls `updatePassword`. Detects Google-provider accounts and shows a friendly hint.
+- **`<AccountPage>`** — compound page stacking `ProfileCard` + `ChangePasswordCard` + `AddressBook` + `OrderHistoryList`. Section-level hide props (`hideOrders`, `hideAddresses`, `hidePassword`). Sign out in the header.
+- **Service** — `user-service`: `updateDisplayName`, `addAddress`, `updateAddress`, `deleteAddress`, `setDefaultAddress`.
+- **Example routes** — `/login`, `/register`, `/forgot-password`; `/account` now mounts `<AccountPage />`.
+
+### Known limitations (land in v0.6+)
+- Profile photo upload + delete-account flow are staged for v0.6 alongside Firebase Storage wiring.
+- No social providers beyond Google yet.
+- Email verification banner not enforced — Firebase still sends the verification email on sign-up; we just don't render a UI around it.
+
 ## v0.4.0 — Stage 3 admin panel
 
 Adds a complete admin surface: role-gated shell, dashboard, product CRUD, orders management, and the reviews/questions moderation page.

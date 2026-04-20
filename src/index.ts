@@ -69,6 +69,21 @@ export {
   type ScriptSettingsPageProps,
 } from './components/script-settings-page';
 
+// Auth pages + account surface
+export {
+  LoginPage,
+  RegisterPage,
+  ForgotPasswordPage,
+  ProfileCard,
+  AddressBook,
+  ChangePasswordCard,
+  AccountPage,
+  type LoginPageProps,
+  type RegisterPageProps,
+  type ForgotPasswordPageProps,
+  type AccountPageProps,
+} from './components/auth';
+
 // --- UI primitives (consumable) ---
 export {
   Button,
@@ -145,6 +160,13 @@ export {
 } from './services/order-service';
 export { loadUserCart, saveUserCart } from './services/cart-service';
 export { addToWishlist, removeFromWishlist } from './services/wishlist-service';
+export {
+  updateDisplayName,
+  addAddress,
+  updateAddress,
+  deleteAddress,
+  setDefaultAddress,
+} from './services/user-service';
 
 // --- Client hooks ---
 export { useCheckout, type StartCheckoutOptions } from './hooks/use-checkout';

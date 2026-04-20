@@ -7,7 +7,7 @@ This document covers installing `@caspian-explorer/script-caspian-store` into a 
 The package ships from the private GitHub repo. Consumers must have read access.
 
 ```bash
-npm install github:Caspian-Explorer/script-caspian-store#v0.4.0 firebase
+npm install github:Caspian-Explorer/script-caspian-store#v0.5.0 firebase
 # or pin to a commit:
 # npm install github:Caspian-Explorer/script-caspian-store#<sha>
 ```
@@ -332,7 +332,53 @@ const items: AdminNavItem[] = [
 <AdminShell navItems={items}>{children}</AdminShell>
 ```
 
-## 10. Visit `/settings` (or whatever route you mount)
+## 10. Mount auth & account pages (v0.5.0)
+
+```tsx
+// app/login/page.tsx
+'use client';
+import { LoginPage } from '@caspian-explorer/script-caspian-store';
+export default function Page() { return <LoginPage />; }
+
+// app/register/page.tsx
+'use client';
+import { RegisterPage } from '@caspian-explorer/script-caspian-store';
+export default function Page() { return <RegisterPage />; }
+
+// app/forgot-password/page.tsx
+'use client';
+import { ForgotPasswordPage } from '@caspian-explorer/script-caspian-store';
+export default function Page() { return <ForgotPasswordPage />; }
+
+// app/account/page.tsx
+'use client';
+import { AccountPage } from '@caspian-explorer/script-caspian-store';
+export default function Page() { return <AccountPage />; }
+```
+
+If you'd rather compose the account page yourself, use the individual cards:
+
+```tsx
+import {
+  ProfileCard,
+  AddressBook,
+  ChangePasswordCard,
+  OrderHistoryList,
+} from '@caspian-explorer/script-caspian-store';
+
+export function MyAccount() {
+  return (
+    <>
+      <ProfileCard />
+      <ChangePasswordCard />
+      <AddressBook />
+      <OrderHistoryList />
+    </>
+  );
+}
+```
+
+## 11. Visit `/settings` (or whatever route you mount)
 
 Mount the Script Settings page on any protected route in your app:
 
@@ -351,7 +397,7 @@ Set brand info, currency, theme colors, and feature flags. Changes are live — 
 Pin to a tag and bump when ready:
 
 ```bash
-npm install github:Caspian-Explorer/script-caspian-store#v0.4.0
+npm install github:Caspian-Explorer/script-caspian-store#v0.5.0
 ```
 
 See [CHANGELOG.md](./CHANGELOG.md) for release notes.

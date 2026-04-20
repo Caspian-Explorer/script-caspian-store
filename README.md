@@ -2,12 +2,12 @@
 
 Framework-agnostic React e-commerce store. **Bring your own Firebase.** Install into any React app (Next.js, Vite, CRA).
 
-> **Status: `v0.4.0` — Stage 3 admin panel landed.** Full admin surface (shell, dashboard, product CRUD, orders, reviews moderation) is installable. Auth pages come in v0.5; i18n/theming polish in v0.6. See [Roadmap](#roadmap).
+> **Status: `v0.5.0` — Stage 4 auth & account landed.** Login / Register / Forgot-password / Account pages (profile, password change, addresses, order history) are installable. Theming + i18n polish comes in v0.6; v1.0 stabilizes the API. See [Roadmap](#roadmap).
 
 ## Quickstart
 
 ```bash
-npm install github:Caspian-Explorer/script-caspian-store#v0.4.0 firebase
+npm install github:Caspian-Explorer/script-caspian-store#v0.5.0 firebase
 ```
 
 ```tsx
@@ -72,7 +72,7 @@ See [INSTALL.md](./INSTALL.md) for **Vite** and **CRA** snippets, Firebase rules
 | **Order history:** `<OrderHistoryList />` | ✅ |
 | **Wishlist:** `useWishlist()` + `<WishlistButton />` | ✅ |
 | **Admin:** `<AdminGuard />`, `<AdminShell />`, `<AdminDashboard />`, product CRUD, orders + status, reviews moderation | ✅ |
-| Auth pages (login/register/account) | ⏳ v0.5 |
+| **Auth:** `<LoginPage />`, `<RegisterPage />`, `<ForgotPasswordPage />`, `<AccountPage />` (profile, password, addresses, orders) | ✅ |
 | i18n + theming polish | ⏳ v0.6 |
 
 ## Package surface (v0.2.0)
@@ -101,6 +101,10 @@ AdminGuard, AdminShell, DEFAULT_ADMIN_NAV, AdminDashboard,
 AdminProductsList, AdminProductEditor,
 AdminOrdersList, AdminOrderDetail,
 AdminReviewsModeration
+
+// Auth + account
+LoginPage, RegisterPage, ForgotPasswordPage,
+AccountPage, ProfileCard, AddressBook, ChangePasswordCard
 
 // UI primitives (also consumable)
 Button, Input, Textarea, Label, Dialog,
@@ -150,9 +154,9 @@ Stripe is handled by Firebase Cloud Functions (callable + webhook), so the packa
 - **v0.1.0-alpha** — scaffolding, provider, Script Settings. ✅
 - **v0.2.0** — storefront (PLP, PDP), Reviews & Q&A, cart primitives, cart drawer, UI primitives. ✅
 - **v0.3.0** — Stripe checkout client hook, checkout page, order confirmation, order history, wishlist. ✅
-- **v0.4.0 (now)** — admin panel: shell, dashboard, product CRUD, orders, reviews moderation. ✅
-- **v0.5.0** — auth pages (login, register, forgot password, account).
-- **v0.6.0** — i18n (locale provider), theming polish, presets.
+- **v0.4.0** — admin panel: shell, dashboard, product CRUD, orders, reviews moderation. ✅
+- **v0.5.0 (now)** — auth pages (login, register, forgot password) + account page (profile, password, addresses, order history). ✅
+- **v0.6.0** — i18n (locale provider), theming polish, presets, profile photo upload, delete-account flow.
 - **v1.0.0** — stable API, changelog freeze.
 
 ## License
