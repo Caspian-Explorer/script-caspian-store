@@ -2,6 +2,29 @@
 
 All notable changes will be documented in this file.
 
+## v0.3.0 — Stage 2 checkout & account
+
+Completes the customer purchase flow: client-side Stripe redirect, post-payment confirmation with order polling, account order history, and wishlist.
+
+### Added
+- **`useCheckout()` hook** — wraps the `createStripeCheckoutSession` Firebase callable. Validates cart/sign-in, passes cart items + success/cancel URLs, auto-appends `{CHECKOUT_SESSION_ID}` to the success URL, clears the local cart optimistically, and redirects to Stripe.
+- **`<CheckoutPage>`** — shipping form + order summary + "Continue to payment" button. Empty-cart and sign-in gates built in.
+- **`<OrderConfirmationPage>`** — resolves an order from Firestore by ID (= Stripe session ID per our webhook). Polls up to ~9 s to cover webhook latency before showing a soft "still processing" message.
+- **`<OrderHistoryList>`** — signed-in users see their past orders with status + total; links into order confirmation pages.
+- **`useWishlist()` hook + `<WishlistButton>`** — heart toggle backed by the existing `users.wishlist` array on Firestore. Unsigned users get a sign-in toast.
+- **Order service** — `getOrderById`, `getOrdersByUser`.
+- **Wishlist service** — `addToWishlist`, `removeFromWishlist`.
+- **Example routes** — `/checkout`, `/orders/success?session_id=…`, `/orders/[id]`, `/account`.
+
+### Flow
+1. Cart → `/checkout` → `useCheckout().startCheckout({ successUrl, cancelUrl })`.
+2. Stripe Checkout → `success_url=…&session_id={CHECKOUT_SESSION_ID}` → `/orders/success`.
+3. Our webhook creates the order doc keyed by the Stripe session ID. `OrderConfirmationPage` polls until it appears.
+
+### Known limitations (land in v0.4+)
+- Shipping-method picker + promo-code redemption are still pass-through — the client forwards them to the callable but the callable doesn't yet resolve server-side pricing. Stripe collects whatever flat rate you configure on the Checkout session.
+- Dedicated account page wrapper and address/profile editing stage for v0.4 alongside admin moderation.
+
 ## v0.2.0 — Stage 1 storefront
 
 Ports the full storefront surface — product listing, product detail, reviews & Q&A — plus a persistent cart, cart drawer, and a library of internal UI primitives. No Tailwind required; everything is styled via inline styles driven by the `--caspian-*` CSS variables set from script settings.

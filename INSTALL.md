@@ -7,7 +7,7 @@ This document covers installing `@caspian-explorer/script-caspian-store` into a 
 The package ships from the private GitHub repo. Consumers must have read access.
 
 ```bash
-npm install github:Caspian-Explorer/script-caspian-store#v0.2.0 firebase
+npm install github:Caspian-Explorer/script-caspian-store#v0.3.0 firebase
 # or pin to a commit:
 # npm install github:Caspian-Explorer/script-caspian-store#<sha>
 ```
@@ -215,7 +215,49 @@ export function CartButton() {
 }
 ```
 
-## 8. Visit `/settings` (or whatever route you mount)
+## 8. Mount checkout + order confirmation (v0.3.0)
+
+```tsx
+// app/checkout/page.tsx
+'use client';
+import { CheckoutPage } from '@caspian-explorer/script-caspian-store';
+export default function CheckoutRoute() {
+  const origin = typeof window !== 'undefined' ? window.location.origin : '';
+  return (
+    <CheckoutPage
+      successUrl={`${origin}/orders/success`}
+      cancelUrl={`${origin}/checkout`}
+    />
+  );
+}
+
+// app/orders/success/page.tsx
+'use client';
+import { useSearchParams } from 'next/navigation';
+import { OrderConfirmationPage } from '@caspian-explorer/script-caspian-store';
+export default function OrderSuccess() {
+  const sessionId = useSearchParams().get('session_id');
+  return sessionId ? <OrderConfirmationPage orderId={sessionId} /> : null;
+}
+```
+
+**Stripe webhook setup** — in your Stripe dashboard, add an endpoint pointing at the deployed `stripeWebhook` HTTPS function (e.g. `https://<region>-<project>.cloudfunctions.net/stripeWebhook`) and subscribe to `checkout.session.completed`. Put the resulting `whsec_…` into the `STRIPE_WEBHOOK_SECRET` secret (see step 5).
+
+**Order history on an account page:**
+
+```tsx
+import { OrderHistoryList } from '@caspian-explorer/script-caspian-store';
+<OrderHistoryList />
+```
+
+**Wishlist button on a product card:**
+
+```tsx
+import { WishlistButton } from '@caspian-explorer/script-caspian-store';
+<WishlistButton productId={product.id} />
+```
+
+## 9. Visit `/settings` (or whatever route you mount)
 
 Mount the Script Settings page on any protected route in your app:
 
@@ -234,7 +276,7 @@ Set brand info, currency, theme colors, and feature flags. Changes are live — 
 Pin to a tag and bump when ready:
 
 ```bash
-npm install github:Caspian-Explorer/script-caspian-store#v0.2.0
+npm install github:Caspian-Explorer/script-caspian-store#v0.3.0
 ```
 
 See [CHANGELOG.md](./CHANGELOG.md) for release notes.

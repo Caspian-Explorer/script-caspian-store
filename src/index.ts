@@ -42,6 +42,16 @@ export { ProductGallery } from './components/product-gallery';
 export { SizeSelector, QuantitySelector } from './components/product-selectors';
 export { ProductDetailPage, type ProductDetailPageProps } from './components/product-detail-page';
 export { CartSheet, type CartSheetProps } from './components/cart-sheet';
+export { CheckoutPage, type CheckoutPageProps } from './components/checkout-page';
+export {
+  OrderConfirmationPage,
+  type OrderConfirmationPageProps,
+} from './components/order-confirmation-page';
+export {
+  OrderHistoryList,
+  type OrderHistoryListProps,
+} from './components/order-history-list';
+export { WishlistButton, type WishlistButtonProps } from './components/wishlist-button';
 
 // Reviews & Questions
 export { ProductReviews, type ReviewSummaryData } from './components/reviews/product-reviews';
@@ -115,8 +125,17 @@ export {
   type CreateQuestionInput,
   type CreateQuestionAuthor,
 } from './services/question-service';
-export { hasUserPurchasedProduct } from './services/order-service';
+export {
+  hasUserPurchasedProduct,
+  getOrderById,
+  getOrdersByUser,
+} from './services/order-service';
 export { loadUserCart, saveUserCart } from './services/cart-service';
+export { addToWishlist, removeFromWishlist } from './services/wishlist-service';
+
+// --- Client hooks ---
+export { useCheckout, type StartCheckoutOptions } from './hooks/use-checkout';
+export { useWishlist } from './hooks/use-wishlist';
 
 // --- Types ---
 export type {

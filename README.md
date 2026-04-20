@@ -2,12 +2,12 @@
 
 Framework-agnostic React e-commerce store. **Bring your own Firebase.** Install into any React app (Next.js, Vite, CRA).
 
-> **Status: `v0.2.0` — Stage 1 storefront landed.** Storefront (product list + product detail), Reviews & Q&A, and cart are now installable. Checkout client-hook + admin panel + auth pages come in v0.3–v0.5. See [Roadmap](#roadmap).
+> **Status: `v0.3.0` — Stage 2 checkout & account landed.** Stripe checkout, order confirmation, order history, and wishlist are installable. Admin panel + auth pages come in v0.4–v0.5. See [Roadmap](#roadmap).
 
 ## Quickstart
 
 ```bash
-npm install github:Caspian-Explorer/script-caspian-store#v0.2.0 firebase
+npm install github:Caspian-Explorer/script-caspian-store#v0.3.0 firebase
 ```
 
 ```tsx
@@ -67,7 +67,10 @@ See [INSTALL.md](./INSTALL.md) for **Vite** and **CRA** snippets, Firebase rules
 | **Reviews & Q&A:** `<ProductReviews />` with summary, list, sort, write/ask dialogs, Verified Purchase badge | ✅ |
 | **Cart:** `<CartProvider />`, `useCart()`, `<CartSheet />` drawer — Firestore-persisted for signed-in users, localStorage otherwise | ✅ |
 | UI primitives: Button, Dialog, Input, Textarea, Label, Tabs, Select, Skeleton, Badge, Avatar, Separator, Toast | ✅ |
-| Checkout client hook (`startCheckout()`) | ⏳ v0.3 |
+| **Checkout:** `useCheckout()` + `<CheckoutPage />` — Stripe redirect via Cloud Function | ✅ |
+| **Order confirmation:** `<OrderConfirmationPage />` — polls Firestore for the webhook-created order | ✅ |
+| **Order history:** `<OrderHistoryList />` | ✅ |
+| **Wishlist:** `useWishlist()` + `<WishlistButton />` | ✅ |
 | Admin panel (`/admin` pages) | ⏳ v0.4 |
 | Auth pages (login/register/account) | ⏳ v0.5 |
 | i18n + theming polish | ⏳ v0.6 |
@@ -86,8 +89,12 @@ ProductListPage, ProductGrid, ProductCard,
 ProductDetailPage, ProductGallery, SizeSelector, QuantitySelector,
 ProductReviews, ReviewSummary, ReviewList, ReviewItem,
 QuestionList, QuestionItem, WriteReviewDialog, AskQuestionDialog,
-CartSheet, ScriptSettingsPage,
+CartSheet, CheckoutPage, OrderConfirmationPage, OrderHistoryList,
+WishlistButton, ScriptSettingsPage,
 StarIcon, StarRatingInput
+
+// Client hooks
+useCheckout, useWishlist
 
 // UI primitives (also consumable)
 Button, Input, Textarea, Label, Dialog,
@@ -135,8 +142,8 @@ Stripe is handled by Firebase Cloud Functions (callable + webhook), so the packa
 ## Roadmap
 
 - **v0.1.0-alpha** — scaffolding, provider, Script Settings. ✅
-- **v0.2.0 (now)** — storefront (PLP, PDP), Reviews & Q&A, cart primitives, cart drawer, UI primitives. ✅
-- **v0.3.0** — Stripe checkout client hook, checkout page, order confirmation, wishlist.
+- **v0.2.0** — storefront (PLP, PDP), Reviews & Q&A, cart primitives, cart drawer, UI primitives. ✅
+- **v0.3.0 (now)** — Stripe checkout client hook, checkout page, order confirmation, order history, wishlist. ✅
 - **v0.4.0** — admin panel pages (products, orders, reviews moderation).
 - **v0.5.0** — auth pages (login, register, forgot password, account).
 - **v0.6.0** — i18n (locale provider), theming polish, presets.
