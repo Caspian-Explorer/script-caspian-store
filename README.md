@@ -2,12 +2,12 @@
 
 Framework-agnostic React e-commerce store. **Bring your own Firebase.** Install into any React app (Next.js, Vite, CRA).
 
-> **Status: `v0.5.0` — Stage 4 auth & account landed.** Login / Register / Forgot-password / Account pages (profile, password change, addresses, order history) are installable. Theming + i18n polish comes in v0.6; v1.0 stabilizes the API. See [Roadmap](#roadmap).
+> **Status: `v0.6.0` — Stage 5 i18n, theming presets, profile photo, delete account landed.** Customer + account + admin surfaces are feature-complete. v1.0 will be API-freeze + full string migration. See [Roadmap](#roadmap).
 
 ## Quickstart
 
 ```bash
-npm install github:Caspian-Explorer/script-caspian-store#v0.5.0 firebase
+npm install github:Caspian-Explorer/script-caspian-store#v0.6.0 firebase
 ```
 
 ```tsx
@@ -73,7 +73,10 @@ See [INSTALL.md](./INSTALL.md) for **Vite** and **CRA** snippets, Firebase rules
 | **Wishlist:** `useWishlist()` + `<WishlistButton />` | ✅ |
 | **Admin:** `<AdminGuard />`, `<AdminShell />`, `<AdminDashboard />`, product CRUD, orders + status, reviews moderation | ✅ |
 | **Auth:** `<LoginPage />`, `<RegisterPage />`, `<ForgotPasswordPage />`, `<AccountPage />` (profile, password, addresses, orders) | ✅ |
-| i18n + theming polish | ⏳ v0.6 |
+| **i18n:** `<LocaleProvider>` + `useT()` + `DEFAULT_MESSAGES` (auth pages migrated) | ✅ |
+| **Theming:** 6 `THEME_PRESETS` + `<ThemePresetPicker />` | ✅ |
+| **Profile photo:** `<ProfilePhotoCard />` (Firebase Storage, JPEG/PNG/WebP ≤5 MB) | ✅ |
+| **Delete account:** `<DeleteAccountCard />` with reauth + typed confirmation | ✅ |
 
 ## Package surface (v0.2.0)
 
@@ -104,7 +107,14 @@ AdminReviewsModeration
 
 // Auth + account
 LoginPage, RegisterPage, ForgotPasswordPage,
-AccountPage, ProfileCard, AddressBook, ChangePasswordCard
+AccountPage, ProfileCard, AddressBook, ChangePasswordCard,
+ProfilePhotoCard, DeleteAccountCard
+
+// i18n
+LocaleProvider, useT, useLocale, DEFAULT_MESSAGES, interpolate
+
+// Theming
+THEME_PRESETS, THEME_PRESET_LABELS, ThemePresetPicker
 
 // UI primitives (also consumable)
 Button, Input, Textarea, Label, Dialog,
@@ -155,9 +165,9 @@ Stripe is handled by Firebase Cloud Functions (callable + webhook), so the packa
 - **v0.2.0** — storefront (PLP, PDP), Reviews & Q&A, cart primitives, cart drawer, UI primitives. ✅
 - **v0.3.0** — Stripe checkout client hook, checkout page, order confirmation, order history, wishlist. ✅
 - **v0.4.0** — admin panel: shell, dashboard, product CRUD, orders, reviews moderation. ✅
-- **v0.5.0 (now)** — auth pages (login, register, forgot password) + account page (profile, password, addresses, order history). ✅
-- **v0.6.0** — i18n (locale provider), theming polish, presets, profile photo upload, delete-account flow.
-- **v1.0.0** — stable API, changelog freeze.
+- **v0.5.0** — auth pages (login, register, forgot password) + account page (profile, password, addresses, order history). ✅
+- **v0.6.0 (now)** — i18n provider + `useT()`, theming presets + picker, profile photo upload, delete-account flow. ✅
+- **v1.0.0** — full string migration to `useT()`, API freeze, optional locale-switcher component.
 
 ## License
 

@@ -15,6 +15,8 @@ import { CartProvider } from '../context/cart-context';
 import { ScriptSettingsProvider } from '../context/script-settings-context';
 import { ThemeInjector } from '../context/theme-context';
 import { ToastProvider } from '../ui/toast';
+import { LocaleProvider } from '../i18n/locale-context';
+import type { MessageDict } from '../i18n/messages';
 
 export interface CaspianStoreProviderProps {
   /** Firebase project config (apiKey, authDomain, projectId, etc.). */
@@ -29,6 +31,10 @@ export interface CaspianStoreProviderProps {
   adapters?: Partial<FrameworkAdapters>;
   /** Optional Firebase app name when mounting more than one store per page. */
   appName?: string;
+  /** Locale code (BCP-47). Default: `en`. Does not change the messages dict on its own — pair with `messages`. */
+  locale?: string;
+  /** Partial or full message dictionary overriding the built-in English defaults. Missing keys fall through. */
+  messages?: MessageDict;
   children: ReactNode;
 }
 
@@ -45,6 +51,8 @@ export function CaspianStoreProvider({
   functionsRegion,
   adapters,
   appName,
+  locale,
+  messages,
   children,
 }: CaspianStoreProviderProps) {
   const value = useMemo<CaspianStoreContextValue>(() => {
@@ -66,16 +74,18 @@ export function CaspianStoreProvider({
 
   return (
     <CaspianStoreContext.Provider value={value}>
-      <ToastProvider>
-        <AuthProvider firebase={value.firebase}>
-          <CartProvider db={value.firebase.db}>
-            <ScriptSettingsProvider collections={value.collections}>
-              <ThemeInjector />
-              {children}
-            </ScriptSettingsProvider>
-          </CartProvider>
-        </AuthProvider>
-      </ToastProvider>
+      <LocaleProvider locale={locale} messages={messages}>
+        <ToastProvider>
+          <AuthProvider firebase={value.firebase}>
+            <CartProvider db={value.firebase.db}>
+              <ScriptSettingsProvider collections={value.collections}>
+                <ThemeInjector />
+                {children}
+              </ScriptSettingsProvider>
+            </CartProvider>
+          </AuthProvider>
+        </ToastProvider>
+      </LocaleProvider>
     </CaspianStoreContext.Provider>
   );
 }

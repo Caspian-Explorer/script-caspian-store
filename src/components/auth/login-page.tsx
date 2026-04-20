@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from 'react';
 import { useAuth } from '../../context/auth-context';
 import { useCaspianLink, useCaspianNavigation } from '../../provider/caspian-store-provider';
+import { useT } from '../../i18n/locale-context';
 import { Button } from '../../ui/button';
 import { Input, Label } from '../../ui/input';
 import { Separator } from '../../ui/misc';
@@ -22,14 +23,15 @@ export function LoginPage({
   redirectTo = '/account',
   registerHref = '/register',
   forgotPasswordHref = '/forgot-password',
-  title = 'Sign in',
-  subtitle = 'Welcome back. Sign in to continue.',
+  title,
+  subtitle,
   className,
 }: LoginPageProps) {
   const { signIn, signInWithGoogle } = useAuth();
   const nav = useCaspianNavigation();
   const Link = useCaspianLink();
   const { toast } = useToast();
+  const t = useT();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -44,7 +46,11 @@ export function LoginPage({
       nav.push(redirectTo);
     } catch (error) {
       console.error('[caspian-store] Sign-in failed:', error);
-      toast({ title: 'Sign-in failed', description: 'Check your email and password.', variant: 'destructive' });
+      toast({
+        title: t('auth.login.failed'),
+        description: t('auth.login.failedDesc'),
+        variant: 'destructive',
+      });
     } finally {
       setSubmitting(false);
     }
@@ -57,7 +63,7 @@ export function LoginPage({
       nav.push(redirectTo);
     } catch (error) {
       console.error('[caspian-store] Google sign-in failed:', error);
-      toast({ title: 'Google sign-in failed', variant: 'destructive' });
+      toast({ title: t('auth.login.failed'), variant: 'destructive' });
       setSubmitting(false);
     }
   };
@@ -65,13 +71,13 @@ export function LoginPage({
   return (
     <div className={className} style={{ maxWidth: 420, margin: '0 auto' }}>
       <header style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 28, fontWeight: 700, margin: 0 }}>{title}</h1>
-        <p style={{ color: '#666', marginTop: 4 }}>{subtitle}</p>
+        <h1 style={{ fontSize: 28, fontWeight: 700, margin: 0 }}>{title ?? t('auth.login.title')}</h1>
+        <p style={{ color: '#666', marginTop: 4 }}>{subtitle ?? t('auth.login.subtitle')}</p>
       </header>
 
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         <div>
-          <Label htmlFor="login-email">Email</Label>
+          <Label htmlFor="login-email">{t('auth.login.email')}</Label>
           <Input
             id="login-email"
             type="email"
@@ -82,7 +88,7 @@ export function LoginPage({
           />
         </div>
         <div>
-          <Label htmlFor="login-password">Password</Label>
+          <Label htmlFor="login-password">{t('auth.login.password')}</Label>
           <Input
             id="login-password"
             type="password"
@@ -99,23 +105,23 @@ export function LoginPage({
               checked={rememberMe}
               onChange={(e) => setRememberMe(e.target.checked)}
             />
-            Remember me
+            {t('auth.login.rememberMe')}
           </label>
-          <Link href={forgotPasswordHref}>Forgot password?</Link>
+          <Link href={forgotPasswordHref}>{t('auth.login.forgotPassword')}</Link>
         </div>
         <Button type="submit" size="lg" loading={submitting}>
-          {submitting ? 'Signing in…' : 'Sign in'}
+          {submitting ? t('auth.login.submitting') : t('auth.login.submit')}
         </Button>
       </form>
 
       <Separator />
 
       <Button variant="outline" size="lg" onClick={handleGoogle} disabled={submitting} style={{ width: '100%' }}>
-        Continue with Google
+        {t('auth.login.googleCta')}
       </Button>
 
       <p style={{ textAlign: 'center', marginTop: 24, fontSize: 14, color: '#666' }}>
-        Don't have an account? <Link href={registerHref}>Create one</Link>
+        {t('auth.login.noAccount')} <Link href={registerHref}>{t('auth.login.createOne')}</Link>
       </p>
     </div>
   );

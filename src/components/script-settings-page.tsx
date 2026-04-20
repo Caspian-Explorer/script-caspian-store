@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useScriptSettings } from '../context/script-settings-context';
 import { useAuth } from '../context/auth-context';
+import { ThemePresetPicker } from '../theme/theme-preset-picker';
 import type { FeatureFlags, ThemeTokens } from '../types';
 
 export interface ScriptSettingsPageProps {
@@ -143,6 +144,10 @@ export function ScriptSettingsPage({
 
       <section style={sectionStyle}>
         <h2 style={h2Style}>Theme</h2>
+        <div style={{ marginBottom: 16 }}>
+          <p style={{ fontSize: 12, fontWeight: 600, color: '#555', margin: '0 0 8px' }}>Presets</p>
+          <ThemePresetPicker />
+        </div>
         <Field label="Primary color">
           <input
             type="color"

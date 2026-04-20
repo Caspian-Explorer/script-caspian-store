@@ -77,12 +77,35 @@ export {
   ProfileCard,
   AddressBook,
   ChangePasswordCard,
+  ProfilePhotoCard,
+  DeleteAccountCard,
   AccountPage,
   type LoginPageProps,
   type RegisterPageProps,
   type ForgotPasswordPageProps,
   type AccountPageProps,
 } from './components/auth';
+
+// i18n
+export {
+  LocaleProvider,
+  useT,
+  useLocale,
+  DEFAULT_MESSAGES,
+  interpolate,
+  type LocaleProviderProps,
+  type TranslateFn,
+  type MessageDict,
+} from './i18n';
+
+// Theming presets
+export {
+  THEME_PRESETS,
+  THEME_PRESET_LABELS,
+  ThemePresetPicker,
+  type ThemePresetName,
+  type ThemePresetPickerProps,
+} from './theme';
 
 // --- UI primitives (consumable) ---
 export {
@@ -167,6 +190,13 @@ export {
   deleteAddress,
   setDefaultAddress,
 } from './services/user-service';
+export {
+  uploadProfilePhoto,
+  removeProfilePhoto,
+  MAX_PROFILE_PHOTO_BYTES,
+  ALLOWED_PROFILE_PHOTO_TYPES,
+  type UploadProfilePhotoInput,
+} from './services/storage-service';
 
 // --- Client hooks ---
 export { useCheckout, type StartCheckoutOptions } from './hooks/use-checkout';

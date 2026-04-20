@@ -2,6 +2,26 @@
 
 All notable changes will be documented in this file.
 
+## v0.6.0 — Stage 5 i18n, theming presets, profile photo, delete account
+
+Rounds out the customer + account surface with localization infrastructure, theme presets, Firebase Storage-backed profile photos, and a safe delete-account flow. This is the last feature release before v1.0 stabilizes the API.
+
+### Added
+- **i18n** — `<LocaleProvider>` + `useT()` hook + `DEFAULT_MESSAGES` dictionary. `CaspianStoreProvider` now accepts `locale` and `messages` props; partial overrides merge onto the defaults, so consumers can ship a tiny override dict or a complete translation. The login / register / forgot-password / account pages have been migrated to `useT()` as reference implementations; other surfaces still read defaults and can be migrated incrementally.
+- **Theming presets** — `THEME_PRESETS` constants (`minimalLight`, `minimalDark`, `boutique`, `neon`, `pastel`, `monochrome`) plus a `<ThemePresetPicker />` swatch grid that writes the chosen preset to `scriptSettings/site`. Integrated into the existing `<ScriptSettingsPage />` above the manual color inputs.
+- **Profile photo** — `<ProfilePhotoCard />` with upload-or-remove controls. Uploads to `users/{uid}/avatar.{ext}` in Firebase Storage (JPEG/PNG/WebP, ≤5 MB), then mirrors the download URL into the user's Firestore doc *and* `auth.currentUser.photoURL`.
+- **Delete account** — `<DeleteAccountCard />` with a two-step dialog: re-enter password (skipped for Google accounts), type `DELETE` to confirm. On confirm, clears the user's Firestore docs (`users/{uid}`, `carts/{uid}`), calls `deleteUser`, signs out, and redirects. Order history is intentionally preserved for records.
+- **Storage service** — `uploadProfilePhoto`, `removeProfilePhoto`, plus `MAX_PROFILE_PHOTO_BYTES` / `ALLOWED_PROFILE_PHOTO_TYPES` constants.
+- **Storage rules** — `firebase/storage.rules` published for consumers to deploy (`firebase deploy --only storage`). Reads public (review avatars), writes scoped to the authenticated user's own path with 5 MB / image-mime enforcement.
+- **AccountPage** — now stacks `ProfilePhotoCard` + `ProfileCard` + `ChangePasswordCard` + `AddressBook` + order history + `DeleteAccountCard`. New section-level hide props: `hidePhoto`, `hideDeleteAccount`.
+
+### Changed
+- `CaspianStoreProvider` now wraps `LocaleProvider` at the top of the tree so `useT()` works from anywhere inside.
+
+### Known limitations (land in v1.0)
+- String migration is partial — only auth + account views use `useT()`. Storefront, checkout, admin, and reviews still render English literals. Migration is mechanical; will happen before v1.0 API freeze.
+- No locale-switcher component yet; consumers set `locale` + `messages` at the provider level.
+
 ## v0.5.0 — Stage 4 auth & account
 
 Ships the user-facing auth surface — sign-in, sign-up, forgot password — plus a full account page with profile editing, addresses, password change, and order history.

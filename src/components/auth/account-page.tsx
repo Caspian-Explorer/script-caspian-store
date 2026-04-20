@@ -2,11 +2,14 @@
 
 import { useAuth } from '../../context/auth-context';
 import { useCaspianLink, useCaspianNavigation } from '../../provider/caspian-store-provider';
+import { useT } from '../../i18n/locale-context';
 import { Button } from '../../ui/button';
 import { OrderHistoryList } from '../order-history-list';
 import { ProfileCard } from './profile-card';
 import { AddressBook } from './address-book';
 import { ChangePasswordCard } from './change-password-card';
+import { ProfilePhotoCard } from './profile-photo-card';
+import { DeleteAccountCard } from './delete-account-card';
 
 export interface AccountPageProps {
   signInHref?: string;
@@ -14,6 +17,8 @@ export interface AccountPageProps {
   hideOrders?: boolean;
   hideAddresses?: boolean;
   hidePassword?: boolean;
+  hidePhoto?: boolean;
+  hideDeleteAccount?: boolean;
   className?: string;
 }
 
@@ -22,21 +27,26 @@ export function AccountPage({
   hideOrders,
   hideAddresses,
   hidePassword,
+  hidePhoto,
+  hideDeleteAccount,
   className,
 }: AccountPageProps) {
   const { user, userProfile, loading, signOut } = useAuth();
   const Link = useCaspianLink();
   const nav = useCaspianNavigation();
+  const t = useT();
 
-  if (loading) return <p style={{ padding: 40, color: '#888' }}>Loading…</p>;
+  if (loading) return <p style={{ padding: 40, color: '#888' }}>{t('common.loading')}</p>;
 
   if (!user) {
     return (
       <div className={className} style={{ padding: 40, textAlign: 'center' }}>
-        <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>Sign in to your account</h1>
-        <p style={{ color: '#666', marginTop: 8 }}>Manage orders, addresses, and preferences.</p>
+        <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>
+          {t('account.signInRequired.title')}
+        </h1>
+        <p style={{ color: '#666', marginTop: 8 }}>{t('account.signInRequired.subtitle')}</p>
         <div style={{ marginTop: 16 }}>
-          <Link href={signInHref}>Sign in</Link>
+          <Link href={signInHref}>{t('signInGate.signInLink')}</Link>
         </div>
       </div>
     );
@@ -46,6 +56,8 @@ export function AccountPage({
     await signOut();
     nav.push('/');
   };
+
+  const displayedName = userProfile?.displayName || user.email;
 
   return (
     <div className={className}>
@@ -58,26 +70,28 @@ export function AccountPage({
         }}
       >
         <div>
-          <h1 style={{ fontSize: 28, fontWeight: 700, margin: 0 }}>My account</h1>
+          <h1 style={{ fontSize: 28, fontWeight: 700, margin: 0 }}>{t('account.title')}</h1>
           <p style={{ color: '#666', marginTop: 4 }}>
-            Signed in as {userProfile?.displayName || user.email}
+            {t('account.signedInAs', { name: displayedName ?? '' })}
           </p>
         </div>
         <Button variant="outline" onClick={handleSignOut}>
-          Sign out
+          {t('account.signOut')}
         </Button>
       </header>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        {!hidePhoto && <ProfilePhotoCard />}
         <ProfileCard />
         {!hidePassword && <ChangePasswordCard />}
         {!hideAddresses && <AddressBook />}
         {!hideOrders && (
           <section style={sectionStyle}>
-            <h2 style={h2Style}>Recent orders</h2>
+            <h2 style={h2Style}>{t('account.sections.recentOrders')}</h2>
             <OrderHistoryList />
           </section>
         )}
+        {!hideDeleteAccount && <DeleteAccountCard />}
       </div>
     </div>
   );

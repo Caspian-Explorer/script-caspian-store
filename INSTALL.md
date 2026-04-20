@@ -7,7 +7,7 @@ This document covers installing `@caspian-explorer/script-caspian-store` into a 
 The package ships from the private GitHub repo. Consumers must have read access.
 
 ```bash
-npm install github:Caspian-Explorer/script-caspian-store#v0.5.0 firebase
+npm install github:Caspian-Explorer/script-caspian-store#v0.6.0 firebase
 # or pin to a commit:
 # npm install github:Caspian-Explorer/script-caspian-store#<sha>
 ```
@@ -378,7 +378,47 @@ export function MyAccount() {
 }
 ```
 
-## 11. Visit `/settings` (or whatever route you mount)
+## 11. i18n, theming presets, profile photos (v0.6.0)
+
+### Pass a locale + message overrides to the provider
+
+```tsx
+import {
+  CaspianStoreProvider,
+  DEFAULT_MESSAGES,
+} from '@caspian-explorer/script-caspian-store';
+
+const messages = {
+  ...DEFAULT_MESSAGES,
+  'auth.login.title': 'Welcome back',
+  'auth.login.submit': 'Log in',
+};
+
+<CaspianStoreProvider firebaseConfig={...} locale="en" messages={messages}>
+  {children}
+</CaspianStoreProvider>
+```
+
+Use translations in your own components via `useT()`:
+
+```tsx
+import { useT } from '@caspian-explorer/script-caspian-store';
+export function MyHeader() {
+  const t = useT();
+  return <h1>{t('account.title')}</h1>;
+}
+```
+
+### Deploy Storage rules (profile photos)
+
+```bash
+cp node_modules/@caspian-explorer/script-caspian-store/firebase/storage.rules storage.rules
+firebase deploy --only storage
+```
+
+The rules let users write only to `users/{uid}/avatar.{ext}`, capped at 5 MB and image mimetype. Public read so product cards can display review avatars.
+
+## 12. Visit `/settings` (or whatever route you mount)
 
 Mount the Script Settings page on any protected route in your app:
 
@@ -397,7 +437,7 @@ Set brand info, currency, theme colors, and feature flags. Changes are live — 
 Pin to a tag and bump when ready:
 
 ```bash
-npm install github:Caspian-Explorer/script-caspian-store#v0.5.0
+npm install github:Caspian-Explorer/script-caspian-store#v0.6.0
 ```
 
 See [CHANGELOG.md](./CHANGELOG.md) for release notes.

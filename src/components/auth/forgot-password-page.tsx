@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from 'react';
 import { useAuth } from '../../context/auth-context';
 import { useCaspianLink } from '../../provider/caspian-store-provider';
+import { useT } from '../../i18n/locale-context';
 import { Button } from '../../ui/button';
 import { Input, Label } from '../../ui/input';
 import { useToast } from '../../ui/toast';
@@ -16,13 +17,14 @@ export interface ForgotPasswordPageProps {
 
 export function ForgotPasswordPage({
   loginHref = '/login',
-  title = 'Reset your password',
-  subtitle = 'Enter your email and we\'ll send a reset link.',
+  title,
+  subtitle,
   className,
 }: ForgotPasswordPageProps) {
   const { resetPassword } = useAuth();
   const Link = useCaspianLink();
   const { toast } = useToast();
+  const t = useT();
   const [email, setEmail] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [sent, setSent] = useState(false);
@@ -35,7 +37,11 @@ export function ForgotPasswordPage({
       setSent(true);
     } catch (error) {
       console.error('[caspian-store] Password reset failed:', error);
-      toast({ title: 'Reset failed', description: 'Please check the email address.', variant: 'destructive' });
+      toast({
+        title: t('auth.forgot.failed'),
+        description: t('auth.forgot.failedDesc'),
+        variant: 'destructive',
+      });
     } finally {
       setSubmitting(false);
     }
@@ -44,8 +50,8 @@ export function ForgotPasswordPage({
   return (
     <div className={className} style={{ maxWidth: 420, margin: '0 auto' }}>
       <header style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 28, fontWeight: 700, margin: 0 }}>{title}</h1>
-        <p style={{ color: '#666', marginTop: 4 }}>{subtitle}</p>
+        <h1 style={{ fontSize: 28, fontWeight: 700, margin: 0 }}>{title ?? t('auth.forgot.title')}</h1>
+        <p style={{ color: '#666', marginTop: 4 }}>{subtitle ?? t('auth.forgot.subtitle')}</p>
       </header>
 
       {sent ? (
@@ -57,15 +63,15 @@ export function ForgotPasswordPage({
             borderRadius: 'var(--caspian-radius, 6px)',
           }}
         >
-          <p style={{ margin: 0, fontWeight: 600, color: '#166534' }}>Check your inbox</p>
+          <p style={{ margin: 0, fontWeight: 600, color: '#166534' }}>{t('auth.forgot.successTitle')}</p>
           <p style={{ margin: '4px 0 0', color: '#166534', fontSize: 14 }}>
-            We sent a password reset link to {email}.
+            {t('auth.forgot.successDesc', { email })}
           </p>
         </div>
       ) : (
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div>
-            <Label htmlFor="fp-email">Email address</Label>
+            <Label htmlFor="fp-email">{t('auth.login.email')}</Label>
             <Input
               id="fp-email"
               type="email"
@@ -76,13 +82,13 @@ export function ForgotPasswordPage({
             />
           </div>
           <Button type="submit" size="lg" loading={submitting}>
-            {submitting ? 'Sending…' : 'Send reset link'}
+            {submitting ? t('auth.forgot.submitting') : t('auth.forgot.submit')}
           </Button>
         </form>
       )}
 
       <p style={{ textAlign: 'center', marginTop: 24, fontSize: 14 }}>
-        <Link href={loginHref}>Back to sign in</Link>
+        <Link href={loginHref}>{t('auth.forgot.backToLogin')}</Link>
       </p>
     </div>
   );

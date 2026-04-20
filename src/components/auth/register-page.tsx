@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from 'react';
 import { useAuth } from '../../context/auth-context';
 import { useCaspianLink, useCaspianNavigation } from '../../provider/caspian-store-provider';
+import { useT } from '../../i18n/locale-context';
 import { Button } from '../../ui/button';
 import { Input, Label } from '../../ui/input';
 import { Separator } from '../../ui/misc';
@@ -21,8 +22,8 @@ export interface RegisterPageProps {
 export function RegisterPage({
   redirectTo = '/account',
   loginHref = '/login',
-  title = 'Create your account',
-  subtitle = 'A quick sign-up lets you track orders and save favorites.',
+  title,
+  subtitle,
   minPasswordLength = 8,
   className,
 }: RegisterPageProps) {
@@ -30,6 +31,7 @@ export function RegisterPage({
   const nav = useCaspianNavigation();
   const Link = useCaspianLink();
   const { toast } = useToast();
+  const t = useT();
 
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
@@ -40,15 +42,18 @@ export function RegisterPage({
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!displayName.trim()) {
-      toast({ title: 'Please enter your name', variant: 'destructive' });
+      toast({ title: t('auth.register.nameRequired'), variant: 'destructive' });
       return;
     }
     if (password.length < minPasswordLength) {
-      toast({ title: `Password must be at least ${minPasswordLength} characters`, variant: 'destructive' });
+      toast({
+        title: t('auth.register.passwordTooShort', { min: minPasswordLength }),
+        variant: 'destructive',
+      });
       return;
     }
     if (password !== confirm) {
-      toast({ title: 'Passwords do not match', variant: 'destructive' });
+      toast({ title: t('auth.register.passwordMismatch'), variant: 'destructive' });
       return;
     }
     setSubmitting(true);
@@ -57,8 +62,8 @@ export function RegisterPage({
       nav.push(redirectTo);
     } catch (error) {
       console.error('[caspian-store] Sign-up failed:', error);
-      const msg = error instanceof Error ? error.message : 'Sign-up failed';
-      toast({ title: 'Sign-up failed', description: msg, variant: 'destructive' });
+      const msg = error instanceof Error ? error.message : t('auth.register.failed');
+      toast({ title: t('auth.register.failed'), description: msg, variant: 'destructive' });
     } finally {
       setSubmitting(false);
     }
@@ -71,7 +76,7 @@ export function RegisterPage({
       nav.push(redirectTo);
     } catch (error) {
       console.error('[caspian-store] Google sign-in failed:', error);
-      toast({ title: 'Google sign-in failed', variant: 'destructive' });
+      toast({ title: t('auth.register.failed'), variant: 'destructive' });
       setSubmitting(false);
     }
   };
@@ -79,13 +84,13 @@ export function RegisterPage({
   return (
     <div className={className} style={{ maxWidth: 420, margin: '0 auto' }}>
       <header style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 28, fontWeight: 700, margin: 0 }}>{title}</h1>
-        <p style={{ color: '#666', marginTop: 4 }}>{subtitle}</p>
+        <h1 style={{ fontSize: 28, fontWeight: 700, margin: 0 }}>{title ?? t('auth.register.title')}</h1>
+        <p style={{ color: '#666', marginTop: 4 }}>{subtitle ?? t('auth.register.subtitle')}</p>
       </header>
 
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         <div>
-          <Label htmlFor="reg-name">Full name</Label>
+          <Label htmlFor="reg-name">{t('auth.register.name')}</Label>
           <Input
             id="reg-name"
             autoComplete="name"
@@ -95,7 +100,7 @@ export function RegisterPage({
           />
         </div>
         <div>
-          <Label htmlFor="reg-email">Email</Label>
+          <Label htmlFor="reg-email">{t('auth.login.email')}</Label>
           <Input
             id="reg-email"
             type="email"
@@ -106,7 +111,7 @@ export function RegisterPage({
           />
         </div>
         <div>
-          <Label htmlFor="reg-password">Password</Label>
+          <Label htmlFor="reg-password">{t('auth.login.password')}</Label>
           <Input
             id="reg-password"
             type="password"
@@ -118,7 +123,7 @@ export function RegisterPage({
           />
         </div>
         <div>
-          <Label htmlFor="reg-confirm">Confirm password</Label>
+          <Label htmlFor="reg-confirm">{t('auth.register.confirmPassword')}</Label>
           <Input
             id="reg-confirm"
             type="password"
@@ -129,18 +134,18 @@ export function RegisterPage({
           />
         </div>
         <Button type="submit" size="lg" loading={submitting}>
-          {submitting ? 'Creating account…' : 'Create account'}
+          {submitting ? t('auth.register.submitting') : t('auth.register.submit')}
         </Button>
       </form>
 
       <Separator />
 
       <Button variant="outline" size="lg" onClick={handleGoogle} disabled={submitting} style={{ width: '100%' }}>
-        Continue with Google
+        {t('auth.login.googleCta')}
       </Button>
 
       <p style={{ textAlign: 'center', marginTop: 24, fontSize: 14, color: '#666' }}>
-        Already have an account? <Link href={loginHref}>Sign in</Link>
+        {t('auth.register.hasAccount')} <Link href={loginHref}>{t('auth.register.signIn')}</Link>
       </p>
     </div>
   );
