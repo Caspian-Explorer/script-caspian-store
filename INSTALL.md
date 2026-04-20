@@ -7,7 +7,7 @@ This document covers installing `@caspian-explorer/script-caspian-store` into a 
 The package ships from the private GitHub repo. Consumers must have read access.
 
 ```bash
-npm install github:Caspian-Explorer/script-caspian-store#v0.1.0-alpha firebase
+npm install github:Caspian-Explorer/script-caspian-store#v0.2.0 firebase
 # or pin to a commit:
 # npm install github:Caspian-Explorer/script-caspian-store#<sha>
 ```
@@ -177,7 +177,45 @@ users/{yourUid}
 
 Admin role gates `<ScriptSettingsPage />` and future admin surfaces.
 
-## 7. Visit `/settings` (or whatever route you mount)
+## 7. Mount storefront pages (v0.2.0)
+
+```tsx
+// app/shop/page.tsx
+'use client';
+import { ProductListPage } from '@caspian-explorer/script-caspian-store';
+export default function Shop() {
+  return <ProductListPage title="Shop" />;
+}
+
+// app/product/[id]/page.tsx
+'use client';
+import { useParams } from 'next/navigation';
+import { ProductDetailPage } from '@caspian-explorer/script-caspian-store';
+export default function Product() {
+  const { id } = useParams<{ id: string }>();
+  return <ProductDetailPage productId={id} />;
+}
+```
+
+A floating cart drawer can live anywhere:
+
+```tsx
+'use client';
+import { useState } from 'react';
+import { CartSheet, useCart, Button } from '@caspian-explorer/script-caspian-store';
+export function CartButton() {
+  const [open, setOpen] = useState(false);
+  const { count } = useCart();
+  return (
+    <>
+      <Button variant="outline" onClick={() => setOpen(true)}>Cart ({count})</Button>
+      <CartSheet open={open} onOpenChange={setOpen} />
+    </>
+  );
+}
+```
+
+## 8. Visit `/settings` (or whatever route you mount)
 
 Mount the Script Settings page on any protected route in your app:
 

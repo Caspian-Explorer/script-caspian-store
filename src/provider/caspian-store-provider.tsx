@@ -11,8 +11,10 @@ import {
   type FrameworkAdapters,
 } from '../primitives';
 import { AuthProvider } from '../context/auth-context';
+import { CartProvider } from '../context/cart-context';
 import { ScriptSettingsProvider } from '../context/script-settings-context';
 import { ThemeInjector } from '../context/theme-context';
+import { ToastProvider } from '../ui/toast';
 
 export interface CaspianStoreProviderProps {
   /** Firebase project config (apiKey, authDomain, projectId, etc.). */
@@ -64,12 +66,16 @@ export function CaspianStoreProvider({
 
   return (
     <CaspianStoreContext.Provider value={value}>
-      <AuthProvider firebase={value.firebase}>
-        <ScriptSettingsProvider collections={value.collections}>
-          <ThemeInjector />
-          {children}
-        </ScriptSettingsProvider>
-      </AuthProvider>
+      <ToastProvider>
+        <AuthProvider firebase={value.firebase}>
+          <CartProvider db={value.firebase.db}>
+            <ScriptSettingsProvider collections={value.collections}>
+              <ThemeInjector />
+              {children}
+            </ScriptSettingsProvider>
+          </CartProvider>
+        </AuthProvider>
+      </ToastProvider>
     </CaspianStoreContext.Provider>
   );
 }

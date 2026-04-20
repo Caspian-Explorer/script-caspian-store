@@ -40,6 +40,64 @@ export interface CartItemRef {
   selectedColor?: string;
 }
 
+/** Cart item = a cart line hydrated with its Product snapshot. */
+export interface CartItem {
+  product: Product;
+  quantity: number;
+  selectedSize?: string;
+  selectedColor?: string;
+}
+
+export interface FirestoreCart {
+  items: CartItemRef[];
+  updatedAt: Timestamp;
+}
+
+export interface OrderItem {
+  productId: string;
+  name: string;
+  brand: string;
+  price: number;
+  quantity: number;
+  selectedSize: string | null;
+  selectedColor: string | null;
+  imageUrl: string;
+}
+
+export interface OrderPayment {
+  stripeSessionId: string;
+  last4: string;
+  brand: string;
+  amount: number;
+}
+
+export interface ShippingInfo {
+  name: string;
+  address: string;
+  city: string;
+  zip: string;
+  country: string;
+  shippingMethod: string;
+  orderNotes?: string;
+}
+
+export interface Order {
+  id: string;
+  userId: string;
+  userEmail: string;
+  status: OrderStatus;
+  items: OrderItem[];
+  shippingInfo: ShippingInfo;
+  payment: OrderPayment;
+  subtotal: number;
+  shippingCost: number;
+  discount: number;
+  promoCode: string | null;
+  total: number;
+  createdAt: Timestamp;
+  updatedAt?: Timestamp;
+}
+
 export interface UserAddress {
   id: string;
   name: string;

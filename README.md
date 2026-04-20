@@ -2,12 +2,12 @@
 
 Framework-agnostic React e-commerce store. **Bring your own Firebase.** Install into any React app (Next.js, Vite, CRA).
 
-> **Status: `v0.1.0-alpha` — Stage 0 scaffolding.** The install path, provider, framework adapters, Firestore rules/indexes, Cloud Functions for Stripe, and a site-level Script Settings page are all in place. Porting of the full storefront, cart, checkout, and admin surfaces is staged — see [Roadmap](#roadmap).
+> **Status: `v0.2.0` — Stage 1 storefront landed.** Storefront (product list + product detail), Reviews & Q&A, and cart are now installable. Checkout client-hook + admin panel + auth pages come in v0.3–v0.5. See [Roadmap](#roadmap).
 
 ## Quickstart
 
 ```bash
-npm install github:Caspian-Explorer/script-caspian-store#v0.1.0-alpha firebase
+npm install github:Caspian-Explorer/script-caspian-store#v0.2.0 firebase
 ```
 
 ```tsx
@@ -53,48 +53,59 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
 See [INSTALL.md](./INSTALL.md) for **Vite** and **CRA** snippets, Firebase rules deployment, and Cloud Functions setup.
 
-## What's in v0.1.0-alpha
+## What's in v0.2.0
 
 | Surface | Status |
 | --- | --- |
-| `CaspianStoreProvider` + framework adapter contract (Link / Image / navigation) | ✅ |
-| Firebase init (BYOF), auth context, user profile bootstrapping | ✅ |
-| **Script Settings** — site-level config (theme tokens, feature flags, brand info, Stripe key) with `<ScriptSettingsPage>` | ✅ |
-| Theme tokens piped to CSS custom properties (`--caspian-primary`, `--caspian-accent`, `--caspian-radius`, …) | ✅ |
-| `firebase/firestore.rules` + `firebase/firestore.indexes.json` ready to deploy | ✅ |
-| Cloud Functions for Stripe checkout + webhook (`firebase/functions/`) | ✅ (scaffold) |
-| Proof-of-port component: `<StarRatingInput />` | ✅ |
-| `getProducts`, `getProductById` services | ✅ |
-| Storefront pages (PLP, PDP, cart, checkout flow) | ⏳ Stage 1–2 |
-| Admin panel (`/admin`) | ⏳ Stage 3 |
-| Auth pages (login/register/account) | ⏳ Stage 4 |
-| i18n + theming polish | ⏳ Stage 4 |
+| `CaspianStoreProvider` + framework adapter contract | ✅ |
+| Firebase init (BYOF), auth context, user profile bootstrap | ✅ |
+| **Script Settings** — `<ScriptSettingsPage />`, theme tokens via CSS vars | ✅ |
+| `firebase/firestore.rules` + `firebase/firestore.indexes.json` | ✅ |
+| Cloud Functions — Stripe callable + webhook | ✅ (deployed as scaffold) |
+| **Storefront — PLP:** `<ProductListPage />`, `<ProductGrid />`, `<ProductCard />` | ✅ |
+| **Storefront — PDP:** `<ProductDetailPage />`, `<ProductGallery />`, size/qty pickers, Add to cart | ✅ |
+| **Reviews & Q&A:** `<ProductReviews />` with summary, list, sort, write/ask dialogs, Verified Purchase badge | ✅ |
+| **Cart:** `<CartProvider />`, `useCart()`, `<CartSheet />` drawer — Firestore-persisted for signed-in users, localStorage otherwise | ✅ |
+| UI primitives: Button, Dialog, Input, Textarea, Label, Tabs, Select, Skeleton, Badge, Avatar, Separator, Toast | ✅ |
+| Checkout client hook (`startCheckout()`) | ⏳ v0.3 |
+| Admin panel (`/admin` pages) | ⏳ v0.4 |
+| Auth pages (login/register/account) | ⏳ v0.5 |
+| i18n + theming polish | ⏳ v0.6 |
 
-## Package surface
+## Package surface (v0.2.0)
 
 ```ts
 // Provider + hooks
 CaspianStoreProvider, useCaspianStore,
 useCaspianLink, useCaspianImage, useCaspianNavigation,
-useCaspianCollections, useCaspianFirebase
-useAuth, useScriptSettings
+useCaspianCollections, useCaspianFirebase,
+useAuth, useCart, useScriptSettings, useToast
 
-// Components
-StarIcon, StarRatingInput, ScriptSettingsPage
+// Storefront
+ProductListPage, ProductGrid, ProductCard,
+ProductDetailPage, ProductGallery, SizeSelector, QuantitySelector,
+ProductReviews, ReviewSummary, ReviewList, ReviewItem,
+QuestionList, QuestionItem, WriteReviewDialog, AskQuestionDialog,
+CartSheet, ScriptSettingsPage,
+StarIcon, StarRatingInput
+
+// UI primitives (also consumable)
+Button, Input, Textarea, Label, Dialog,
+Tabs, TabsList, TabsTrigger, TabsContent,
+Select, Skeleton, Badge, Avatar, Separator
 
 // Services
-getProducts, getProductById
+getProducts, getProductById, getProductsByIds, getRelatedProducts,
+getApprovedReviewsForProduct, hasUserReviewedProduct, createReview,
+listAllReviews, setReviewStatus, deleteReview,
+getApprovedQuestionsForProduct, createQuestion, listAllQuestions,
+setQuestionStatus, answerQuestion, deleteQuestion,
+hasUserPurchasedProduct, loadUserCart, saveUserCart
 
 // Framework adapter contract
 FrameworkAdapters, CaspianLinkProps, CaspianImageProps,
 CaspianNavigation, UseCaspianNavigation,
 DefaultCaspianLink, DefaultCaspianImage, useDefaultCaspianNavigation
-
-// Types
-Product, ProductImage, UserProfile, OrderStatus,
-FirestoreReview, FirestoreQuestion, ModerationStatus,
-ScriptSettings, ThemeTokens, FeatureFlags,
-DEFAULT_SCRIPT_SETTINGS
 ```
 
 And a sub-entrypoint for Firestore config:
@@ -123,10 +134,10 @@ Stripe is handled by Firebase Cloud Functions (callable + webhook), so the packa
 
 ## Roadmap
 
-- **v0.1.0-alpha (now)** — scaffolding, provider, Script Settings, one ported component.
-- **v0.2.0** — storefront: PLP, PDP, Reviews & Q&A components, cart primitives.
-- **v0.3.0** — cart persistence + Stripe checkout (client hook calling the callable).
-- **v0.4.0** — admin panel pages.
+- **v0.1.0-alpha** — scaffolding, provider, Script Settings. ✅
+- **v0.2.0 (now)** — storefront (PLP, PDP), Reviews & Q&A, cart primitives, cart drawer, UI primitives. ✅
+- **v0.3.0** — Stripe checkout client hook, checkout page, order confirmation, wishlist.
+- **v0.4.0** — admin panel pages (products, orders, reviews moderation).
 - **v0.5.0** — auth pages (login, register, forgot password, account).
 - **v0.6.0** — i18n (locale provider), theming polish, presets.
 - **v1.0.0** — stable API, changelog freeze.
