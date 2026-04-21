@@ -2,6 +2,18 @@
 
 All notable changes will be documented in this file.
 
+## v1.7.0 — Turnkey install (scaffolder + seed + rewritten INSTALL)
+
+No runtime changes. Makes the package trivial to install on a fresh domain.
+
+### Added
+- **`scaffold/create.mjs`** — Node scaffolder that generates a ready-to-run Next.js App Router consumer site wired up to the package. 48 pre-mounted routes (storefront + auth + account + editorial + admin), Next.js adapter code, Firebase config placeholders, tailored README with first-run checklist. Run with `node <path>/scaffold/create.mjs my-store [--package-tag vX.Y.Z]`.
+- **`firebase/seed/seed.mjs`** — idempotent Firestore seeder using `firebase-admin`. Writes the `languages` collection (en/ar/de/es/fr with English as default), `settings/site` brand placeholders, `scriptSettings/site` (theme + hero + fonts), and `shippingMethods` (standard + express). Optional `--admin <uid>` flag promotes a Firebase Auth user to admin.
+- **`INSTALL.md`** — fully rewritten for v1.6.0+. Covers the one-command scaffold path up front, then every surface added in phases 2–6 (homepage, journal, FAQs, shipping, size guide, admin CRUD pages, site shell), multi-locale i18n, theming, fonts, Troubleshooting section.
+
+### Packaging
+- `scaffold/` directory is now included in the published tarball so `node_modules/@caspian-explorer/script-caspian-store/scaffold/create.mjs` resolves after install.
+
 ## v1.6.0 — Site shell (header, footer, layout, favicon)
 
 Sixth and final release in the hadiyyam migration series. Ships the site chrome — header, footer, layout shell, and dynamic favicon — so consumers can drop their bespoke shell components and have a working storefront end-to-end out of the package. No breaking changes.
