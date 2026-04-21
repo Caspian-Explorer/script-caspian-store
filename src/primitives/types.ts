@@ -11,6 +11,7 @@ import type { ComponentType, ReactNode } from 'react';
 export interface CaspianLinkProps {
   href: string;
   className?: string;
+  style?: React.CSSProperties;
   children?: ReactNode;
   onClick?: (e: React.MouseEvent<HTMLAnchorElement>) => void;
   target?: string;

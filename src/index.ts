@@ -53,6 +53,21 @@ export {
 } from './components/order-history-list';
 export { WishlistButton, type WishlistButtonProps } from './components/wishlist-button';
 
+// Site shell (v1.6) — header / footer / layout / favicon
+export {
+  SiteHeader,
+  type SiteHeaderProps,
+  type SiteHeaderNavItem,
+} from './components/site-header';
+export {
+  SiteFooter,
+  type SiteFooterProps,
+  type SiteFooterLink,
+} from './components/site-footer';
+export { LayoutShell, type LayoutShellProps } from './components/layout-shell';
+export { DynamicFavicon } from './components/dynamic-favicon';
+export { SocialIcon } from './components/social-icon';
+
 // Homepage surface (v1.2)
 export {
   Hero,

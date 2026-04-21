@@ -336,6 +336,27 @@ export const DEFAULT_MESSAGES: MessageDict = {
   'shipping.title': 'Shipping & Returns',
   'shipping.subtitle': 'Everything you need to know about getting your order.',
   'shipping.methods.title': 'Shipping Methods',
+
+  // Site shell — header
+  'navigation.brand': 'STORE',
+  'navigation.shop': 'Shop',
+  'navigation.collections': 'Collections',
+  'navigation.pages': 'Pages',
+  'navigation.searchPlaceholder': 'Search…',
+  'navigation.signIn': 'Sign in',
+  'navigation.openCart': 'Open cart',
+  'navigation.wishlist': 'Wishlist',
+  'navigation.myAccount': 'My account',
+
+  // Site shell — footer
+  'footer.about.title': 'About',
+  'footer.customerCare.title': 'Customer care',
+  'footer.newsletter.title': 'Newsletter',
+  'footer.newsletter.description': 'Be the first to hear about new arrivals.',
+  'footer.newsletter.placeholder': 'you@example.com',
+  'footer.newsletter.success': 'Subscribed!',
+  'footer.newsletter.alreadySubscribed': 'Already subscribed',
+  'footer.newsletter.error': 'Subscribe failed',
 };
 
 /**

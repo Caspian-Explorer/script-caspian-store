@@ -2,6 +2,22 @@
 
 All notable changes will be documented in this file.
 
+## v1.6.0 — Site shell (header, footer, layout, favicon)
+
+Sixth and final release in the hadiyyam migration series. Ships the site chrome — header, footer, layout shell, and dynamic favicon — so consumers can drop their bespoke shell components and have a working storefront end-to-end out of the package. No breaking changes.
+
+### Added
+- **`<SiteHeader>`** — sticky header with brand (auto-loaded from `settings/site.brandName`, falls back to a `brandFallback` prop), configurable top-level nav, optional "Pages" dropdown for secondary nav, search slot, language-switcher slot, user-menu slot, wishlist + cart icon buttons. The cart button opens an inline `<CartSheet>` so consumers don't need to wire it up themselves.
+- **`<SiteFooter>`** — four-column footer (brand + description + social, About, Customer care, Newsletter). Brand description and social links read from `settings/site` automatically. Newsletter form posts to the `subscribers` collection via the already-shipped `subscribeEmail` helper. Social icons use a built-in `<SocialIcon>` SVG mapper for the 8 most-common platforms (instagram, facebook, twitter/x, youtube, tiktok, linkedin, pinterest); override via `renderSocialIcon` prop.
+- **`<LayoutShell>`** — wraps children with `<SiteHeader>` + `<SiteFooter>` and bypasses the chrome on routes whose pathname (after stripping the locale prefix) starts with one of `bypassPrefixes` (default `['/admin']`). Pass `header={null}` or `footer={null}` to disable either band; pass props through to override defaults.
+- **`<DynamicFavicon>`** — reads `settings/site.faviconUrl` and updates the document's `<link rel="icon">`. Mount once in your root layout.
+- **`<SocialIcon>`** — exported standalone for consumers who want to reuse the icon set elsewhere.
+- **i18n** — DEFAULT_MESSAGES gains 16 new keys under `navigation.*` and `footer.*` so the shell renders sensibly even with no consumer-supplied dict.
+- **Adapter contract** — `CaspianLinkProps` now accepts an optional `style` prop. Existing consumer Link adapters keep working; the package's defaults pass it through.
+
+### Migration note
+Upgrading from v1.5.x is drop-in. Hadiyyam PR #6 pins this tag, retires `src/components/header.tsx`, `footer.tsx`, `layout-shell.tsx`, and `dynamic-favicon.tsx`, and replaces them with one-line mounts of the package components. After PR #6 merges, hadiyyam's `src/` is roughly 80% smaller than at the start of the migration series.
+
 ## v1.5.0 — Remaining admin CRUD (promo codes, subscribers, categories, collections, languages, site settings)
 
 Fifth release in the hadiyyam migration series. Ships the last set of admin pages so consumers can retire every bespoke admin CRUD they still carry. No breaking changes.
