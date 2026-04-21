@@ -290,6 +290,23 @@ export interface LanguageDoc {
   updatedAt?: Timestamp;
 }
 
+/**
+ * A single item in the admin setup / operational todo list. Used by
+ * `<AdminTodoPage>` to track first-run actions ("deploy rules", "configure
+ * Stripe", etc.) and any follow-up tasks the admin adds. `isDefault` marks
+ * the seeded first-run tasks so they render distinctly.
+ */
+export interface AdminTodo {
+  id: string;
+  title: string;
+  description?: string;
+  done: boolean;
+  order: number;
+  isDefault: boolean;
+  createdAt: Timestamp;
+  updatedAt?: Timestamp;
+}
+
 // --- Script-level site configuration (new) ---
 
 export interface ThemeTokens {

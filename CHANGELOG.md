@@ -2,6 +2,22 @@
 
 All notable changes will be documented in this file.
 
+## v1.8.0 — Admin todo list + seeded setup checklist
+
+Adds an in-admin todo list so the person running the store has a single place to track setup actions and day-to-day operational tasks.
+
+### Added
+- **`<AdminTodoPage>`** — new admin page at `/admin/todos`. Lists tasks with checkboxes, progress bar (`N / M complete (X%)`), a "Hide completed" filter, inline add (press Enter to create), and per-row delete. Seeded tasks are tagged with a "Setup" badge so they're distinguishable from admin-added ones.
+- **Setup checklist** — 12 pre-written tasks covering the manual steps needed to make a fresh install production-ready: deploy rules, deploy Cloud Functions, configure Stripe webhook, grant admin role, edit site settings, activate languages, seed categories + products, verify shipping, edit hero, pin featured content. Empty `adminTodos` collection shows a "Seed setup checklist" button; clicking it writes the defaults idempotently (re-seeding skips existing ids).
+- **`admin-todo-service`** — `listAdminTodos` / `createAdminTodo` / `updateAdminTodo` / `deleteAdminTodo` / `seedDefaultAdminTodos` + `DEFAULT_ADMIN_TODOS` exported from the package root.
+- **Types** — `AdminTodo` interface exported.
+- **Nav** — `DEFAULT_ADMIN_NAV` gains a "Todo list" entry between Dashboard and Products.
+- **Firestore rules** — new `match /adminTodos/{id}` block (admin-only read + write).
+- **Scaffolder** — generates `src/app/admin/todos/page.tsx` and pins new installs to v1.8.0.
+
+### Migration note
+Drop-in from v1.7.0. Existing consumers get the new page automatically by bumping the tag; the `adminTodos` collection is empty until an admin clicks "Seed setup checklist".
+
 ## v1.7.0 — Turnkey install (scaffolder + seed + rewritten INSTALL)
 
 No runtime changes. Makes the package trivial to install on a fresh domain.

@@ -31,3 +31,4 @@ export { AdminProductCategoriesPage } from './admin-product-categories-page';
 export { AdminProductCollectionsPage } from './admin-product-collections-page';
 export { AdminLanguagesPage } from './admin-languages-page';
 export { AdminSiteSettingsPage } from './admin-site-settings-page';
+export { AdminTodoPage } from './admin-todo-page';

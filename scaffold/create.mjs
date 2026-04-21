@@ -27,7 +27,7 @@ import { fileURLToPath } from 'node:url';
 
 const { positionals, values: args } = parseArgs({
   options: {
-    'package-tag': { type: 'string', default: 'v1.7.0' },
+    'package-tag': { type: 'string', default: 'v1.8.0' },
     force: { type: 'boolean', default: false },
   },
   allowPositionals: true,
@@ -386,6 +386,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
 
 const adminRoutes = [
   ['', 'AdminDashboard'],
+  ['todos', 'AdminTodoPage'],
   ['products', 'AdminProductsList'],
   ['orders', 'AdminOrdersList'],
   ['reviews', 'AdminReviewsModeration'],
@@ -508,6 +509,7 @@ npm run dev                  # http://localhost:3000
 
 ### Admin (requires \`users/{uid}.role === 'admin'\`)
 - \`/admin\` — dashboard
+- \`/admin/todos\` — setup + operational checklist (seed defaults on first visit)
 - \`/admin/products\`, \`/admin/orders\`, \`/admin/reviews\`
 - \`/admin/journal\`, \`/admin/pages\`, \`/admin/faqs\`, \`/admin/shipping\`
 - \`/admin/promo-codes\`, \`/admin/subscribers\`
