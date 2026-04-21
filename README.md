@@ -2,12 +2,12 @@
 
 Framework-agnostic React e-commerce store. **Bring your own Firebase.** Install into any React app (Next.js, Vite, CRA).
 
-> **Status: `v1.1.0` — Stripe + i18n parity.** Additive release ahead of a six-phase migration that pulls hadiyyam's native surfaces into the package. Cloud Functions now match hadiyyam's server-side Stripe logic; multi-locale dicts + ICU plurals + RTL + Intl formatters ship. See [CHANGELOG](./CHANGELOG.md).
+> **Status: `v1.2.0` — homepage + font management.** `<HomePage>` + `<Hero>` + `<FeaturedCategoriesSection>` + `<TrendingProductsSection>` + `<NewsletterSignup>` ship. Fonts are now admin-editable from `<ScriptSettingsPage>` with optional Google Fonts injection. See [CHANGELOG](./CHANGELOG.md).
 
 ## Quickstart
 
 ```bash
-npm install github:Caspian-Explorer/script-caspian-store#v1.1.0 firebase
+npm install github:Caspian-Explorer/script-caspian-store#v1.2.0 firebase
 ```
 
 ```tsx

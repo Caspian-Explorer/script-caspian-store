@@ -2,6 +2,27 @@
 
 All notable changes will be documented in this file.
 
+## v1.2.0 — Homepage + font management
+
+Second release in the hadiyyam migration series. Ships the homepage surface and a font-management system so hadiyyam can retire its bespoke `[locale]/page.tsx` in a follow-up PR. No breaking changes.
+
+### Added
+- **`<Hero>`** — full-bleed homepage hero. Title / subtitle / CTA / background image all read from `scriptSettings.hero` (admin-editable). A gradient fallback renders when no image is set. Override any field inline via `<Hero hero={{ title, subtitle, cta, ctaHref, imageUrl }} />`.
+- **`<FeaturedCategoriesSection>`** — calls `getFeaturedCategories(db)` (new service) and renders a responsive card grid. Hides when the list is empty.
+- **`<TrendingProductsSection>`** — wraps `<ProductGrid>` with a `limit` (default 4) and title/label copy.
+- **`<NewsletterSignup>`** — email capture form backed by the new `subscribeEmail(db, email)` service. Idempotent: returns `'already-subscribed'` when the email is already in `subscribers/`. Ships full-section and `compact` layouts.
+- **`<HomePage>`** — compound component that stacks the four built-in sections with section-hide flags and `after*` slots for custom blocks.
+- **Font management** — new `<FontLoader>` auto-mounted inside `<CaspianStoreProvider>`. Pushes `--caspian-font-body` / `--caspian-font-headline` CSS variables from `scriptSettings.fonts`; when `fonts.googleFamilies` is populated it injects a `<link>` tag for `fonts.googleapis.com/css2?…` with preconnect hints. Admin-editable via `<ScriptSettingsPage>`, which gained a **Fonts** section and a **Homepage hero** section.
+- **Services** — `category-service.ts` (`listActiveCategories`, `getFeaturedCategories`) and `subscriber-service.ts` (`subscribeEmail`).
+- **Messages** — ~12 new keys under `settings.fonts.*`, `settings.hero.*`.
+
+### Changed
+- `<ScriptSettingsPage>` grew two new sections (Fonts, Homepage hero).
+- `<CaspianStoreProvider>` now mounts `<FontLoader />` as a sibling to `<ThemeInjector />`. No consumer change required.
+
+### Migration note
+Upgrading from v1.1.x is drop-in. Hadiyyam PR #2 pins this tag, replaces `[locale]/page.tsx` with `<HomePage>`, and deletes the hardcoded homepage. Hero title / subtitle / CTA / image that lived in next-intl JSON become editable from `/admin/settings`.
+
 ## v1.1.0 — Stripe + i18n parity for hadiyyam migration
 
 Groundwork release for the hadiyyam migration. Brings the package's Stripe server logic and i18n capabilities to parity with hadiyyam's production setup so phase-1 migration can install this tag and retire a big chunk of the native implementation. No breaking changes — everything is additive.

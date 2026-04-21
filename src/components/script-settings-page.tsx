@@ -5,7 +5,7 @@ import { useScriptSettings } from '../context/script-settings-context';
 import { useAuth } from '../context/auth-context';
 import { useT } from '../i18n/locale-context';
 import { ThemePresetPicker } from '../theme/theme-preset-picker';
-import type { FeatureFlags, ThemeTokens } from '../types';
+import type { FeatureFlags, FontTokens, HeroTokens, ThemeTokens } from '../types';
 
 export interface ScriptSettingsPageProps {
   /** Optional wrapper classname — unstyled by default. */
@@ -31,6 +31,19 @@ export function ScriptSettingsPage({
   const { userProfile, loading: authLoading } = useAuth();
   const t = useT();
 
+  const defaultFonts: FontTokens = settings.fonts ?? {
+    body: 'system-ui, sans-serif',
+    headline: 'system-ui, sans-serif',
+    googleFamilies: [],
+  };
+  const defaultHero: HeroTokens = settings.hero ?? {
+    title: '',
+    subtitle: '',
+    cta: '',
+    ctaHref: '/products',
+    imageUrl: '',
+  };
+
   const [draft, setDraft] = useState(() => ({
     brandName: settings.brandName,
     brandDescription: settings.brandDescription,
@@ -38,6 +51,8 @@ export function ScriptSettingsPage({
     defaultLocale: settings.defaultLocale,
     stripePublicKey: settings.stripePublicKey ?? '',
     theme: { ...settings.theme },
+    fonts: { ...defaultFonts, googleFamilies: defaultFonts.googleFamilies ?? [] },
+    hero: { ...defaultHero },
     features: { ...settings.features },
   }));
 
@@ -50,8 +65,21 @@ export function ScriptSettingsPage({
       defaultLocale: settings.defaultLocale,
       stripePublicKey: settings.stripePublicKey ?? '',
       theme: { ...settings.theme },
+      fonts: {
+        body: settings.fonts?.body ?? 'system-ui, sans-serif',
+        headline: settings.fonts?.headline ?? 'system-ui, sans-serif',
+        googleFamilies: settings.fonts?.googleFamilies ?? [],
+      },
+      hero: {
+        title: settings.hero?.title ?? '',
+        subtitle: settings.hero?.subtitle ?? '',
+        cta: settings.hero?.cta ?? '',
+        ctaHref: settings.hero?.ctaHref ?? '/products',
+        imageUrl: settings.hero?.imageUrl ?? '',
+      },
       features: { ...settings.features },
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [settings]);
 
   if (authLoading || loading) {
@@ -74,12 +102,32 @@ export function ScriptSettingsPage({
       defaultLocale: draft.defaultLocale.trim() || 'en',
       stripePublicKey: draft.stripePublicKey.trim() || null,
       theme: draft.theme,
+      fonts: {
+        body: draft.fonts.body.trim() || 'system-ui, sans-serif',
+        headline: draft.fonts.headline.trim() || 'system-ui, sans-serif',
+        googleFamilies: (draft.fonts.googleFamilies ?? []).filter((f) => f.trim().length > 0),
+      },
+      hero: {
+        title: draft.hero.title.trim(),
+        subtitle: draft.hero.subtitle.trim(),
+        cta: draft.hero.cta.trim(),
+        ctaHref: (draft.hero.ctaHref ?? '').trim() || '/products',
+        imageUrl: draft.hero.imageUrl?.trim() || undefined,
+      },
       features: draft.features,
     });
   };
 
   const updateTheme = <K extends keyof ThemeTokens>(key: K, value: ThemeTokens[K]) => {
     setDraft((d) => ({ ...d, theme: { ...d.theme, [key]: value } }));
+  };
+
+  const updateFonts = <K extends keyof FontTokens>(key: K, value: FontTokens[K]) => {
+    setDraft((d) => ({ ...d, fonts: { ...d.fonts, [key]: value } }));
+  };
+
+  const updateHero = <K extends keyof HeroTokens>(key: K, value: HeroTokens[K]) => {
+    setDraft((d) => ({ ...d, hero: { ...d.hero, [key]: value } }));
   };
 
   const toggleFeature = (key: keyof FeatureFlags) => {
@@ -176,6 +224,86 @@ export function ScriptSettingsPage({
             style={inputStyle}
             value={draft.theme.radius}
             onChange={(e) => updateTheme('radius', e.target.value)}
+          />
+        </Field>
+      </section>
+
+      <section style={sectionStyle}>
+        <h2 style={h2Style}>{t('settings.sections.fonts')}</h2>
+        <Field label={t('settings.fonts.body')}>
+          <input
+            style={inputStyle}
+            value={draft.fonts.body}
+            onChange={(e) => updateFonts('body', e.target.value)}
+            placeholder="Lato, sans-serif"
+          />
+        </Field>
+        <Field label={t('settings.fonts.headline')}>
+          <input
+            style={inputStyle}
+            value={draft.fonts.headline}
+            onChange={(e) => updateFonts('headline', e.target.value)}
+            placeholder="Montserrat, sans-serif"
+          />
+        </Field>
+        <Field label={t('settings.fonts.googleFamilies')}>
+          <input
+            style={inputStyle}
+            value={(draft.fonts.googleFamilies ?? []).join(', ')}
+            onChange={(e) =>
+              updateFonts(
+                'googleFamilies',
+                e.target.value
+                  .split(',')
+                  .map((s) => s.trim())
+                  .filter(Boolean),
+              )
+            }
+            placeholder="Montserrat:wght@400;700, Lato:wght@400;700"
+          />
+        </Field>
+        <p style={{ fontSize: 12, color: '#888', marginTop: 8 }}>
+          {t('settings.fonts.hint')}
+        </p>
+      </section>
+
+      <section style={sectionStyle}>
+        <h2 style={h2Style}>{t('settings.sections.hero')}</h2>
+        <Field label={t('settings.hero.title')}>
+          <input
+            style={inputStyle}
+            value={draft.hero.title}
+            onChange={(e) => updateHero('title', e.target.value)}
+          />
+        </Field>
+        <Field label={t('settings.hero.subtitle')}>
+          <input
+            style={inputStyle}
+            value={draft.hero.subtitle}
+            onChange={(e) => updateHero('subtitle', e.target.value)}
+          />
+        </Field>
+        <Field label={t('settings.hero.cta')}>
+          <input
+            style={inputStyle}
+            value={draft.hero.cta}
+            onChange={(e) => updateHero('cta', e.target.value)}
+          />
+        </Field>
+        <Field label={t('settings.hero.ctaHref')}>
+          <input
+            style={inputStyle}
+            value={draft.hero.ctaHref ?? '/products'}
+            onChange={(e) => updateHero('ctaHref', e.target.value)}
+            placeholder="/products"
+          />
+        </Field>
+        <Field label={t('settings.hero.imageUrl')}>
+          <input
+            style={inputStyle}
+            value={draft.hero.imageUrl ?? ''}
+            onChange={(e) => updateHero('imageUrl', e.target.value)}
+            placeholder="https://…"
           />
         </Field>
       </section>

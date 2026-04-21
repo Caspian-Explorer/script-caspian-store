@@ -53,6 +53,20 @@ export {
 } from './components/order-history-list';
 export { WishlistButton, type WishlistButtonProps } from './components/wishlist-button';
 
+// Homepage surface (v1.2)
+export {
+  Hero,
+  FeaturedCategoriesSection,
+  TrendingProductsSection,
+  NewsletterSignup,
+  HomePage,
+  type HeroProps,
+  type FeaturedCategoriesSectionProps,
+  type TrendingProductsSectionProps,
+  type NewsletterSignupProps,
+  type HomePageProps,
+} from './components/home';
+
 // Reviews & Questions
 export { ProductReviews, type ReviewSummaryData } from './components/reviews/product-reviews';
 export { ReviewSummary } from './components/reviews/review-summary';
@@ -214,6 +228,11 @@ export {
 } from './hooks/use-checkout';
 export { useWishlist } from './hooks/use-wishlist';
 export { validatePromoCode } from './services/promo-code-service';
+export { listActiveCategories, getFeaturedCategories } from './services/category-service';
+export {
+  subscribeEmail,
+  type SubscribeResult,
+} from './services/subscriber-service';
 
 // --- Admin surface ---
 export {

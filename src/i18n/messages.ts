@@ -284,6 +284,18 @@ export const DEFAULT_MESSAGES: MessageDict = {
   'settings.saveButton': 'Save settings',
   'settings.saving': 'Saving…',
   'settings.needAdminRole': 'You need admin role to access script settings.',
+  'settings.sections.fonts': 'Fonts',
+  'settings.fonts.body': 'Body font stack',
+  'settings.fonts.headline': 'Headline font stack',
+  'settings.fonts.googleFamilies': 'Google Fonts families (comma-separated)',
+  'settings.fonts.hint':
+    'Each entry should match a Google Fonts `family=` spec, e.g. `Montserrat:wght@400;700`.',
+  'settings.sections.hero': 'Homepage hero',
+  'settings.hero.title': 'Title',
+  'settings.hero.subtitle': 'Subtitle',
+  'settings.hero.cta': 'CTA button label',
+  'settings.hero.ctaHref': 'CTA link target',
+  'settings.hero.imageUrl': 'Background image URL',
 
   // --- Forward-looking keys for v1.2+ surfaces ---
 
