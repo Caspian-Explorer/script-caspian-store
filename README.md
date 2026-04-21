@@ -2,12 +2,12 @@
 
 Framework-agnostic React e-commerce store. **Bring your own Firebase.** Install into any React app (Next.js, Vite, CRA).
 
-> **Status: `v1.3.0` — journal + content pages.** `<JournalListPage>`, `<JournalDetailPage>`, `<AdminJournalPage>` with Firebase Storage uploads, and a generic `<PageContentView pageKey>` + `<AdminPagesPage>` for about / contact / privacy / terms / sustainability. See [CHANGELOG](./CHANGELOG.md).
+> **Status: `v1.4.0` — FAQs + shipping/returns + size guide.** Public `<FaqsPage>` / `<ShippingReturnsPage>` / `<SizeGuidePage>` + their admin CRUD shipped. See [CHANGELOG](./CHANGELOG.md).
 
 ## Quickstart
 
 ```bash
-npm install github:Caspian-Explorer/script-caspian-store#v1.3.0 firebase
+npm install github:Caspian-Explorer/script-caspian-store#v1.4.0 firebase
 ```
 
 ```tsx

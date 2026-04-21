@@ -81,6 +81,18 @@ export {
   type PageContentViewProps,
 } from './components/content';
 
+// FAQs + shipping + size guide (v1.4)
+export { FaqsPage, type FaqsPageProps } from './components/faqs';
+export {
+  ShippingReturnsPage,
+  type ShippingReturnsPageProps,
+} from './components/shipping';
+export {
+  SizeGuidePage,
+  DEFAULT_SIZE_GUIDE,
+  type SizeGuidePageProps,
+} from './components/size-guide';
+
 // Reviews & Questions
 export { ProductReviews, type ReviewSummaryData } from './components/reviews/product-reviews';
 export { ReviewSummary } from './components/reviews/review-summary';
@@ -262,6 +274,20 @@ export {
   type SavePageContentInput,
 } from './services/page-content-service';
 export {
+  listFaqs,
+  createFaq,
+  updateFaq,
+  deleteFaq,
+  type FaqWriteInput,
+} from './services/faq-service';
+export {
+  listShippingMethods,
+  createShippingMethod,
+  updateShippingMethod,
+  deleteShippingMethod,
+  type ShippingMethodWriteInput,
+} from './services/shipping-method-service';
+export {
   uploadAdminImage,
   deleteStorageObject,
 } from './services/storage-service';
@@ -279,6 +305,8 @@ export {
   AdminReviewsModeration,
   AdminJournalPage,
   AdminPagesPage,
+  AdminFaqsPage,
+  AdminShippingPage,
   DEFAULT_PAGE_KEYS,
   type AdminGuardProps,
   type AdminShellProps,
@@ -289,6 +317,7 @@ export {
   type AdminOrdersListProps,
   type AdminOrderDetailProps,
   type AdminPagesPageProps,
+  type AdminFaqsPageProps,
 } from './admin';
 
 // --- Types ---
@@ -313,6 +342,9 @@ export type {
   ThemeTokens,
   FontTokens,
   HeroTokens,
+  SizeTableRow,
+  SizeTable,
+  SizeGuideConfig,
   FeatureFlags,
   // v1.1 additions — Firestore admin types
   FaqItem,

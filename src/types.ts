@@ -316,6 +316,27 @@ export interface HeroTokens {
   imageUrl?: string;
 }
 
+/** Rows of a single size table rendered by `<SizeGuidePage>`. */
+export interface SizeTableRow {
+  /** Free-form label for the left-most column (e.g. 'XS', 'S', '6', 'EU 39'). */
+  label: string;
+  /** The remaining columns keyed by header. */
+  [column: string]: string;
+}
+
+export interface SizeTable {
+  /** Heading shown above the table. */
+  title: string;
+  /** Column headers in display order. The first entry is the label column. */
+  columns: string[];
+  rows: SizeTableRow[];
+}
+
+export interface SizeGuideConfig {
+  tips?: string;
+  tables: SizeTable[];
+}
+
 export interface FeatureFlags {
   reviews: boolean;
   questions: boolean;
@@ -338,6 +359,8 @@ export interface ScriptSettings {
   fonts?: FontTokens;
   /** Optional — added in v1.1 for later phases. Consumers can ignore. */
   hero?: HeroTokens;
+  /** Optional — added in v1.4. Drives the `<SizeGuidePage />`. */
+  sizeGuide?: SizeGuideConfig;
   features: FeatureFlags;
   updatedAt: Timestamp;
 }

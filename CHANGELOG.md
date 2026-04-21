@@ -2,6 +2,22 @@
 
 All notable changes will be documented in this file.
 
+## v1.4.0 — FAQs + shipping/returns + size guide
+
+Fourth release in the hadiyyam migration series. Rounds out the static-content surfaces with FAQs, shipping/returns, and a size guide, plus their admin editors. No breaking changes.
+
+### Added
+- **`<FaqsPage>`** — public accordion page grouping `faqs` docs by category. Configurable `categoryLabels`, `categoryOrder`, `title`, `subtitle`, `emptyMessage`.
+- **`<AdminFaqsPage>`** — CRUD editor with category select + per-row display order. Ships a sensible default category list (`orders` / `returns` / `products` / `account` / `general`); override via `categoryOptions`.
+- **`<ShippingReturnsPage>`** — renders active `shippingMethods` as a table with locale-aware price formatting, then appends the long-form returns copy from `pageContents/shipping-returns` (or whatever `returnsPageKey` you configure).
+- **`<AdminShippingPage>`** — shipping-method CRUD: name, slug (auto-generated from name), price, min/max estimated days, display order, active toggle with show/hide shortcut.
+- **`<SizeGuidePage>`** — reads `scriptSettings.sizeGuide` or falls back to the exported `DEFAULT_SIZE_GUIDE` (tops/bottoms/shoes tables). The size-guide config is now a typed `SizeGuideConfig` (tables + tips) that consumers can seed to Firestore per site.
+- **Types** — `SizeTableRow`, `SizeTable`, `SizeGuideConfig` exported. `ScriptSettings` gains an optional `sizeGuide?: SizeGuideConfig` field.
+- **Services** — `faq-service.ts` (`listFaqs`, `createFaq`, `updateFaq`, `deleteFaq`) and `shipping-method-service.ts` (`listShippingMethods` with `{ onlyActive }` filter, `createShippingMethod`, `updateShippingMethod`, `deleteShippingMethod`).
+
+### Migration note
+Upgrading from v1.3.x is drop-in. Hadiyyam PR #4 pins this tag, retires `faqs/page.tsx`, `shipping-returns/page.tsx`, `size-guide/page.tsx`, `admin/faqs/page.tsx`, and `admin/shipping/page.tsx`.
+
 ## v1.3.0 — Journal + generic content pages
 
 Third release in the hadiyyam migration series. Ships the editorial/journal surface plus a generic page-content system so hadiyyam can retire its hardcoded `journal/`, `about/`, `contact/`, `privacy/`, `terms/`, `sustainability/` pages in a follow-up PR. No breaking changes.

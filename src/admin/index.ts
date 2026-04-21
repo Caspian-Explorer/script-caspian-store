@@ -23,3 +23,5 @@ export {
   DEFAULT_PAGE_KEYS,
   type AdminPagesPageProps,
 } from './admin-pages-page';
+export { AdminFaqsPage, type AdminFaqsPageProps } from './admin-faqs-page';
+export { AdminShippingPage } from './admin-shipping-page';
