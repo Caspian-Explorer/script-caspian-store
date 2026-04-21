@@ -235,8 +235,8 @@ After every release, create a Discussion in the **Announcements** category. The 
 gh api graphql -F query=@- <<'EOF'
 mutation {
   createDiscussion(input: {
-    repositoryId: "<REPOSITORY_NODE_ID>",
-    categoryId: "<ANNOUNCEMENTS_CATEGORY_NODE_ID>",
+    repositoryId: "R_kgDOSHQDJw",
+    categoryId: "DIC_kwDOSHQDJ84C7XL9",
     title: "<TITLE>",
     body: "<BODY>"
   }) {

@@ -4,50 +4,68 @@
  * @caspian-explorer/script-caspian-store.
  *
  * Usage:
- *   node <path-to-package>/scaffold/create.mjs <project-dir> [--package-tag vX.Y.Z]
- *
- *   # Or, via tiged / degit (if network-installed):
- *   npx tiged Caspian-Explorer/script-caspian-store/scaffold/template my-shop
+ *   node <path-to-package>/scaffold/create.mjs <project-dir>
+ *     [--package-tag vX.Y.Z]   # defaults to the package's own version
+ *     [--with-functions]       # also copy firebase/functions/ (Stripe Cloud Functions)
+ *     [--force]                # scaffold into a non-empty dir (.git/.gitignore/README.md/LICENSE are preserved without --force)
  *
  * What you get:
  *   - Next.js 14 App Router project in <project-dir>/
  *   - All storefront + admin + content routes pre-mounted as one-liners
  *   - Next.js adapter code (Link/Image/useNavigation) for the package
- *   - Firestore rules + indexes copied in
- *   - .env.example with every required variable
+ *   - Real firestore.rules / firestore.indexes.json / storage.rules copied
+ *     from the package (deployable immediately)
+ *   - .env.example with Firebase + Stripe placeholders
  *   - Scripts in package.json for dev / typecheck / seed
  *
  * After scaffolding, `cd <project-dir> && npm install` and follow the README.
  */
 
-import { mkdirSync, writeFileSync, readFileSync, existsSync } from 'node:fs';
+import { mkdirSync, writeFileSync, readFileSync, readdirSync, existsSync, cpSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { fileURLToPath } from 'node:url';
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const packageRoot = resolve(__dirname, '..');
+const ownVersion = JSON.parse(readFileSync(join(packageRoot, 'package.json'), 'utf8')).version;
+
 const { positionals, values: args } = parseArgs({
   options: {
-    'package-tag': { type: 'string', default: 'v1.8.0' },
+    'package-tag': { type: 'string', default: `v${ownVersion}` },
     force: { type: 'boolean', default: false },
+    'with-functions': { type: 'boolean', default: false },
   },
   allowPositionals: true,
 });
 
 const targetDir = positionals[0];
 if (!targetDir) {
-  console.error('Usage: node create.mjs <project-dir> [--package-tag vX.Y.Z]');
+  console.error('Usage: node create.mjs <project-dir> [--package-tag vX.Y.Z] [--with-functions] [--force]');
   process.exit(1);
 }
 
+// Files a freshly-initialised repo might already contain — these are preserved
+// as-is during scaffolding. Anything else forces --force.
+const HARMLESS_FILES = new Set(['.git', '.gitignore', 'README.md', 'LICENSE']);
+
 const root = resolve(process.cwd(), targetDir);
 if (existsSync(root) && !args.force) {
-  console.error(`[create-caspian-store] ${root} already exists. Pass --force to overwrite.`);
-  process.exit(1);
+  const unrecognized = readdirSync(root).filter((name) => !HARMLESS_FILES.has(name));
+  if (unrecognized.length > 0) {
+    console.error(
+      `[create-caspian-store] ${root} contains files that would be overwritten: ${unrecognized.join(', ')}\n` +
+      `  Safe files (${[...HARMLESS_FILES].join(', ')}) would be preserved; pass --force to scaffold anyway.`
+    );
+    process.exit(1);
+  }
 }
 mkdirSync(root, { recursive: true });
 
 const packageTag = args['package-tag'];
 const packageSpec = `github:Caspian-Explorer/script-caspian-store#${packageTag}`;
+const sourceFirebaseDir = join(packageRoot, 'firebase');
 
 function write(relPath, content) {
   const abs = join(root, relPath);
@@ -127,6 +145,14 @@ NEXT_PUBLIC_FIREBASE_PROJECT_ID=
 NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=
 NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=
 NEXT_PUBLIC_FIREBASE_APP_ID=
+
+# Stripe publishable key (Stripe dashboard → Developers → API keys)
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=
+
+# Note: STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET are *Cloud Functions secrets*,
+# not env vars. Set them with:
+#   firebase functions:secrets:set STRIPE_SECRET_KEY
+#   firebase functions:secrets:set STRIPE_WEBHOOK_SECRET
 `);
 
 // ---- .gitignore ----
@@ -433,29 +459,35 @@ export default function Page() {
 }
 `);
 
-// ---- Firebase config placeholders ----
-// Copy rules/indexes from the package at install time — but since we don't
-// know the package location yet, emit instructions instead:
-write('firebase.json', JSON.stringify({
+// ---- Firebase config ----
+// Copy the real rule files from the package's own firebase/ tree, so the user
+// can `firebase deploy --only firestore:rules,firestore:indexes,storage`
+// immediately after scaffolding. Previously these were comment-only stubs,
+// which meant a user who ran `firebase deploy` before reading the file would
+// deploy an empty rules file and lock the database down.
+write('firestore.rules', readFileSync(join(sourceFirebaseDir, 'firestore.rules'), 'utf8'));
+write('firestore.indexes.json', readFileSync(join(sourceFirebaseDir, 'firestore.indexes.json'), 'utf8'));
+write('storage.rules', readFileSync(join(sourceFirebaseDir, 'storage.rules'), 'utf8'));
+
+// firebase.json omits the `functions` block by default. Generating a
+// functions block without the matching functions/ source tree made
+// `firebase deploy` fail for scaffolded projects. Opt in with --with-functions
+// to also copy the Stripe Cloud Functions source in.
+const firebaseConfig = {
   firestore: {
     rules: 'firestore.rules',
     indexes: 'firestore.indexes.json',
   },
   storage: { rules: 'storage.rules' },
-  functions: [{ source: 'functions', codebase: 'caspian-store' }],
-}, null, 2) + '\n');
+};
+if (args['with-functions']) {
+  firebaseConfig.functions = [{ source: 'functions', codebase: 'caspian-store' }];
+}
+write('firebase.json', JSON.stringify(firebaseConfig, null, 2) + '\n');
 
-write('firestore.rules', `// Copy this file from:
-//   node_modules/@caspian-explorer/script-caspian-store/firebase/firestore.rules
-// after running \`npm install\`. The package ships a deployable rules file.
-`);
-
-write('firestore.indexes.json', JSON.stringify({ indexes: [], fieldOverrides: [] }, null, 2) + `
-// Copy from node_modules/@caspian-explorer/script-caspian-store/firebase/firestore.indexes.json
-`);
-
-write('storage.rules', `// Copy from node_modules/@caspian-explorer/script-caspian-store/firebase/storage.rules
-`);
+if (args['with-functions']) {
+  cpSync(join(sourceFirebaseDir, 'functions'), join(root, 'functions'), { recursive: true });
+}
 
 // ---- README ----
 write('README.md', `# ${targetDir.split(/[\\/]/).pop()}
@@ -474,20 +506,17 @@ npm run dev                  # http://localhost:3000
 
 1. **Create a Firebase project** at <https://console.firebase.google.com>. Enable Authentication (Email/Password + Google), Firestore, Functions, Storage.
 2. **Populate \`.env.local\`** with the web config object from Project settings → Your apps.
-3. **Deploy Firestore rules + indexes + Storage rules:**
+3. **Deploy Firestore rules + indexes + Storage rules** (the scaffolder already dropped \`firestore.rules\`, \`firestore.indexes.json\`, and \`storage.rules\` alongside this README):
    \`\`\`bash
-   cp node_modules/@caspian-explorer/script-caspian-store/firebase/firestore.rules .
-   cp node_modules/@caspian-explorer/script-caspian-store/firebase/firestore.indexes.json .
-   cp node_modules/@caspian-explorer/script-caspian-store/firebase/storage.rules .
    firebase deploy --only firestore:rules,firestore:indexes,storage
    \`\`\`
-4. **Deploy Stripe Cloud Functions** (follow [package INSTALL.md §5](https://github.com/Caspian-Explorer/script-caspian-store/blob/main/INSTALL.md)).
+4. **Deploy Stripe Cloud Functions** (follow [package INSTALL.md §5](https://github.com/Caspian-Explorer/script-caspian-store/blob/main/INSTALL.md)). If you scaffolded with \`--with-functions\` the \`functions/\` tree is already in place; \`cd functions && npm install\` first, then set the secrets and deploy.
 5. **Seed Firestore:**
    \`\`\`bash
    # After downloading a service-account JSON:
    npm run firebase:seed -- --project <projectId> --credentials ./service-account.json
    \`\`\`
-6. **Grant yourself admin:** sign up at \`/auth/register\`, copy your uid from Firebase Auth, then:
+6. **Grant yourself admin:** sign up at \`/auth/register\`, then open \`/admin\` — the "access denied" screen shows your UID with a copy button. Paste it into:
    \`\`\`bash
    npm run firebase:seed -- --project <projectId> --credentials ./service-account.json --admin <your-uid>
    \`\`\`

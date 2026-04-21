@@ -1,6 +1,6 @@
 'use client';
 
-import { type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useAuth } from '../context/auth-context';
 import { useCaspianLink } from '../provider/caspian-store-provider';
 import { Skeleton } from '../ui/misc';
@@ -45,15 +45,61 @@ export function AdminGuard({ children, signInHref = '/login', fallback }: AdminG
 
   if (userProfile?.role !== 'admin') {
     if (fallback) return <>{fallback}</>;
-    return (
-      <div style={{ padding: 40, textAlign: 'center' }}>
-        <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>Access denied</h1>
-        <p style={{ color: '#666', marginTop: 8 }}>
-          Your account doesn't have the admin role. Ask an existing admin to promote your user.
-        </p>
-      </div>
-    );
+    return <AccessDenied uid={user.uid} />;
   }
 
   return <>{children}</>;
+}
+
+function AccessDenied({ uid }: { uid: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const copy = () => {
+    if (typeof navigator === 'undefined' || !navigator.clipboard) return;
+    navigator.clipboard.writeText(uid).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    });
+  };
+
+  return (
+    <div style={{ padding: 40, textAlign: 'center', maxWidth: 520, margin: '0 auto' }}>
+      <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>Access denied</h1>
+      <p style={{ color: '#666', marginTop: 8 }}>
+        Your account doesn't have the admin role. To grant yourself admin,
+        either set <code>users/{'{uid}'}.role = 'admin'</code> in Firestore
+        directly, or re-run the seed script with <code>--admin &lt;uid&gt;</code>.
+      </p>
+      <div
+        style={{
+          marginTop: 16,
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 8,
+          padding: '8px 12px',
+          border: '1px solid #ddd',
+          borderRadius: 6,
+          background: '#f7f7f7',
+          fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+          fontSize: 13,
+        }}
+      >
+        <span>{uid}</span>
+        <button
+          type="button"
+          onClick={copy}
+          style={{
+            padding: '4px 10px',
+            border: '1px solid #ccc',
+            borderRadius: 4,
+            background: copied ? '#e6f4ea' : '#fff',
+            cursor: 'pointer',
+            fontSize: 12,
+          }}
+        >
+          {copied ? 'Copied' : 'Copy UID'}
+        </button>
+      </div>
+    </div>
+  );
 }
