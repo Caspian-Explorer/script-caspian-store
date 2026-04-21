@@ -2,6 +2,22 @@
 
 All notable changes will be documented in this file.
 
+## v1.9.0 — Unblock installs (fixed `'use client'`, fixed `exports` map)
+
+Fresh installs into Next.js App Router now render. Two build-time bugs that had quietly shipped since tsup 8.5 upgraded the ESM/CJS filename convention are fixed.
+
+### Fixed
+- **`'use client'` preservation in the main bundle.** esbuild was stripping the module-level directive during bundling (warning: "Module level directives cause errors when bundled"), so consumers hit RSC-context errors the moment they imported anything from the package. The fix prepends `'use client';` to `dist/index.mjs` and `dist/index.js` via a tsup `onSuccess` hook — `banner: { js: "'use client';" }` does NOT work (esbuild strips it), and `esbuild-plugin-preserve-directives` was not preserving directives on Windows. The `./firebase` sub-entry is intentionally left unbannered so `initCaspianFirebase`, `caspianCollections`, and the Firestore rules/indexes constants stay callable from Node deploy scripts, Cloud Functions, and Server Components.
+- **`exports` map referenced files tsup no longer emits.** Under tsup 8.5, ESM outputs are `.mjs` and CJS outputs are `.js`. The `exports` map was pinned to the older tsup convention (`.js` for ESM, non-existent `.cjs` for CJS), so `require('@caspian-explorer/script-caspian-store')` failed to resolve. Exports now map `import` → `.mjs` and `require` → `.js` for both the root and `./firebase` entries.
+
+### Changed
+- [tsup.config.ts](tsup.config.ts) split into two configs — main entry (gets the directive) and firebase sub-entry (does not) — so the two can be banner'd independently.
+- [README.md](README.md) and [INSTALL.md](INSTALL.md) refreshed: stale version pins updated, the long-standing "a v0.1.1 release will preserve per-file directives automatically" promise removed (it's now actually preserved), the roadmap collapsed into a short release-history summary pointing at this CHANGELOG, and §0 (scaffolder) now branches cleanly from §1–§11 (manual install).
+
+### Added
+- **[CLAUDE.md](CLAUDE.md)** — orientation + workflow for AI coding sessions. Captures durable architecture invariants (two tsup entries, provider nesting order, framework-adapter contract, centralized Firestore collection refs, Server Component boundary), conventions (services signature, theming surface, i18n, class merging), the full release cycle (bump → docs → verify → commit → tag → push → release → announce), and the never-do list.
+- `.claude/` added to [.gitignore](.gitignore) so session-local Claude state stays out of the repo.
+
 ## v1.8.0 — Admin todo list + seeded setup checklist
 
 Adds an in-admin todo list so the person running the store has a single place to track setup actions and day-to-day operational tasks.

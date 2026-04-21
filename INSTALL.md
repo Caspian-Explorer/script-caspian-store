@@ -12,7 +12,7 @@ The package repo ships a scaffolder that generates a fresh Next.js App Router pr
 
 ```bash
 git clone https://github.com/Caspian-Explorer/script-caspian-store /tmp/scs
-node /tmp/scs/scaffold/create.mjs my-store --package-tag v1.6.0
+node /tmp/scs/scaffold/create.mjs my-store --package-tag v1.9.0
 
 cd my-store
 npm install
@@ -20,14 +20,16 @@ cp .env.example .env.local   # fill in Firebase web config
 npm run dev                  # http://localhost:3000
 ```
 
-The generated `README.md` walks through Firebase + Stripe + seeding. Read on for the details of each step (or if you want a manual install).
+**If you used the scaffolder, stop here and follow the generated `my-store/README.md`** for Firebase + Stripe + seeding. The remainder of this document (§1–§11) is the manual-install path for people embedding the package into an existing React app; you don't need it after scaffolding.
 
 ---
+
+## Manual install
 
 ## 1. Install the package
 
 ```bash
-npm install github:Caspian-Explorer/script-caspian-store#v1.6.0 firebase
+npm install github:Caspian-Explorer/script-caspian-store#v1.9.0 firebase
 # or pin to a commit:
 # npm install github:Caspian-Explorer/script-caspian-store#<sha>
 ```
@@ -439,7 +441,7 @@ Visit `/admin/settings` (site settings) and `/` → "Script settings" (or mount 
 Pin to a tag; bump when ready:
 
 ```bash
-npm install github:Caspian-Explorer/script-caspian-store#v1.6.1
+npm install github:Caspian-Explorer/script-caspian-store#vX.Y.Z
 ```
 
 See [CHANGELOG.md](./CHANGELOG.md) for release notes and migration guidance per version.

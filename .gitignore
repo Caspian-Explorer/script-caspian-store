@@ -1,6 +1,8 @@
 node_modules/
 dist/
 firebase/functions/lib/
+.claude/
+*.tgz
 .DS_Store
 *.log
 .env

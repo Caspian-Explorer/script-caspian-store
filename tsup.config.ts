@@ -1,14 +1,13 @@
-import { defineConfig } from 'tsup';
+import { defineConfig, type Options } from 'tsup';
+import { readFileSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 
-export default defineConfig({
-  entry: {
-    index: 'src/index.ts',
-    'firebase/index': 'src/firebase/index.ts',
-  },
+// Shared settings between the two builds.
+const shared = {
   format: ['esm', 'cjs'],
   dts: true,
   sourcemap: true,
-  clean: true,
+  clean: false, // the main config handles the clean so the firebase config doesn't wipe it
   splitting: false,
   treeshake: true,
   target: 'es2020',
@@ -22,7 +21,39 @@ export default defineConfig({
     'firebase/storage',
     'firebase/functions',
   ],
-  // Note: we rely on consumers marking their own import boundary with
-  // "use client". esbuild strips module-level directives from bundled output,
-  // so a banner here is ineffective. Track v0.1.1 for the esbuild plugin fix.
-});
+} satisfies Partial<Options>;
+
+// Prepend a raw `'use client';` to the main-entry output files AFTER tsup
+// writes them. Doing this via esbuild's `banner` option does not work: esbuild
+// detects the module-level directive in the bundled source and strips it with
+// the warning "Module level directives cause errors when bundled". The
+// post-write prepend is the only reliable path with tsup 8.5 + treeshake.
+//
+// Why only the main entry: `./firebase` exports `initCaspianFirebase` and
+// Firestore-rules/-index constants — callable from Node (deploy scripts,
+// Cloud Functions) and from Server Components. Marking it client-only
+// would break those callsites.
+function prependUseClient(format: 'esm' | 'cjs') {
+  const ext = format === 'esm' ? 'mjs' : 'js';
+  const file = join('dist', `index.${ext}`);
+  const contents = readFileSync(file, 'utf8');
+  if (!contents.startsWith("'use client'") && !contents.startsWith('"use client"')) {
+    writeFileSync(file, `'use client';\n${contents}`);
+  }
+}
+
+export default defineConfig([
+  {
+    ...shared,
+    entry: { index: 'src/index.ts' },
+    clean: true,
+    async onSuccess() {
+      prependUseClient('esm');
+      prependUseClient('cjs');
+    },
+  },
+  {
+    ...shared,
+    entry: { 'firebase/index': 'src/firebase/index.ts' },
+  },
+]);

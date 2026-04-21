@@ -2,12 +2,12 @@
 
 Framework-agnostic React e-commerce store. **Bring your own Firebase.** Install into any React app (Next.js, Vite, CRA).
 
-> **Status: `v1.4.0` — FAQs + shipping/returns + size guide.** Public `<FaqsPage>` / `<ShippingReturnsPage>` / `<SizeGuidePage>` + their admin CRUD shipped. See [CHANGELOG](./CHANGELOG.md).
+> **Status: `v1.9.0` — working RSC-boundary install.** The bundle now preserves `'use client'` so Next.js App Router consumers render out of the box, and the `exports` map resolves for both `import` and `require`. See [CHANGELOG](./CHANGELOG.md).
 
 ## Quickstart
 
 ```bash
-npm install github:Caspian-Explorer/script-caspian-store#v1.4.0 firebase
+npm install github:Caspian-Explorer/script-caspian-store#v1.9.0 firebase
 ```
 
 ```tsx
@@ -51,9 +51,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
 }
 ```
 
-See [INSTALL.md](./INSTALL.md) for **Vite** and **CRA** snippets, Firebase rules deployment, and Cloud Functions setup.
+See [INSTALL.md](./INSTALL.md) for the **one-command scaffolder**, **Vite** / **CRA** snippets, Firebase rules deployment, and Cloud Functions setup.
 
-## What's in v0.2.0
+## What's in the box
 
 | Surface | Status |
 | --- | --- |
@@ -78,7 +78,7 @@ See [INSTALL.md](./INSTALL.md) for **Vite** and **CRA** snippets, Firebase rules
 | **Profile photo:** `<ProfilePhotoCard />` (Firebase Storage, JPEG/PNG/WebP ≤5 MB) | ✅ |
 | **Delete account:** `<DeleteAccountCard />` with reauth + typed confirmation | ✅ |
 
-## Package surface (v0.2.0)
+## Package surface
 
 ```ts
 // Provider + hooks
@@ -156,19 +156,17 @@ Stripe is handled by Firebase Cloud Functions (callable + webhook), so the packa
 
 ## Usage notes
 
-- **`"use client"` boundary (Next.js App Router):** the package does not emit a `"use client"` directive in its bundle. Import our components/hooks from a consumer file marked with `'use client'` at the top — e.g. a `providers.tsx` or a dedicated client wrapper. See [`examples/nextjs/app/providers.tsx`](./examples/nextjs/app/providers.tsx). A v0.1.1 release will preserve per-file directives automatically.
-- **Tree-shaking:** the ESM bundle is side-effect-free except for `styles.css`, which you import once.
-- **One store per page:** pass `appName="my-shop"` if you need multiple `CaspianStoreProvider` instances (e.g., a preview alongside the live storefront).
+- **`"use client"` boundary (Next.js App Router):** the main entry bundle starts with `'use client';`, so package components and hooks can be imported directly from Server Component layouts and pages — the library *is* the client boundary. The `./firebase` sub-entry (`initCaspianFirebase`, `caspianCollections`, and the Firestore rules/indexes constants) is intentionally unbannered, so it stays callable from Node deploy scripts, Cloud Functions, and Server Components.
+- **Tree-shaking:** the ESM bundle is side-effect-free except for `styles.css`, which you import once at your app root.
+- **One store per page:** pass `appName="my-shop"` if you need multiple `CaspianStoreProvider` instances (e.g. a preview alongside the live storefront).
 
-## Roadmap
+## Release history
 
-- **v0.1.0-alpha** — scaffolding, provider, Script Settings. ✅
-- **v0.2.0** — storefront (PLP, PDP), Reviews & Q&A, cart primitives, cart drawer, UI primitives. ✅
-- **v0.3.0** — Stripe checkout client hook, checkout page, order confirmation, order history, wishlist. ✅
-- **v0.4.0** — admin panel: shell, dashboard, product CRUD, orders, reviews moderation. ✅
-- **v0.5.0** — auth pages (login, register, forgot password) + account page (profile, password, addresses, order history). ✅
-- **v0.6.0** — i18n provider + `useT()`, theming presets + picker, profile photo upload, delete-account flow. ✅
-- **v1.0.0 (now)** — full string migration across all surfaces, `<LocaleSwitcher />`, stable API. ✅
+The full release log lives in [CHANGELOG.md](./CHANGELOG.md). High-level:
+
+- **v0.1 – v1.0** — scaffolded the provider, storefront, reviews/Q&A, cart, checkout, admin, auth, account, i18n, theming.
+- **v1.1 – v1.8** — Stripe + i18n parity polish, homepage surface, journal + content pages, FAQs / shipping / size guide, remaining admin CRUD, site shell (header / footer / layout / favicon), turnkey scaffolder, admin todo list with setup checklist.
+- **v1.9** — fixed the long-standing `'use client'` stripping bug so a fresh install renders in Next.js App Router without RSC errors; fixed the `exports` map so both `import` and `require` resolve.
 
 ## License
 
