@@ -258,11 +258,32 @@ Idempotent — existing docs are skipped unless `--force` is passed. See [`fireb
 
 ## 7. Grant yourself admin
 
-1. Sign up at `/auth/register` with your real email.
-2. Copy your Firebase Auth uid from the console.
-3. Re-run the seed script with `--admin <your-uid>`, or set `users/{uid}.role = 'admin'` in Firestore directly.
+Pick one of three paths (in order of preference):
 
-Admin pages gate on `role === 'admin'`; without it `<AdminGuard>` renders an "access denied" screen.
+**Auto-promote (easiest, requires Cloud Functions).** The package ships an `onUserCreate` Firestore trigger that promotes whoever creates the first `users/{uid}` doc — and permanently stops the moment any admin exists, so it's only ever a first-install helper. Deploy the functions (§5), then sign up at `/auth/register` before anyone else does.
+
+**CLI (explicit, works any time).**
+
+```bash
+# by email (preferred):
+node node_modules/@caspian-explorer/script-caspian-store/firebase/seed/grant-admin.mjs \
+  --project <projectId> \
+  --credentials ./service-account.json \
+  --email you@example.com
+
+# or by uid — open /admin while signed in; the AdminGuard access-denied
+# screen renders your uid with a Copy button:
+node node_modules/@caspian-explorer/script-caspian-store/firebase/seed/grant-admin.mjs \
+  --project <projectId> \
+  --credentials ./service-account.json \
+  --uid <your-uid>
+```
+
+Scaffolded projects have this wired to `npm run grant-admin -- --email ...`.
+
+**Firestore console (fallback).** Set `users/{uid}.role = 'admin'` by hand.
+
+Admin pages gate on `role === 'admin'`; without it `<AdminGuard>` renders an access-denied screen with your uid pre-filled for copy-paste.
 
 ---
 

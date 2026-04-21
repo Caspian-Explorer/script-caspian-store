@@ -85,6 +85,7 @@ write('package.json', JSON.stringify({
     typecheck: 'tsc --noEmit',
     'firebase:deploy': 'firebase deploy',
     'firebase:seed': 'node node_modules/@caspian-explorer/script-caspian-store/firebase/seed/seed.mjs',
+    'grant-admin': 'node node_modules/@caspian-explorer/script-caspian-store/firebase/seed/grant-admin.mjs',
   },
   dependencies: {
     '@caspian-explorer/script-caspian-store': packageSpec,
@@ -516,10 +517,11 @@ npm run dev                  # http://localhost:3000
    # After downloading a service-account JSON:
    npm run firebase:seed -- --project <projectId> --credentials ./service-account.json
    \`\`\`
-6. **Grant yourself admin:** sign up at \`/auth/register\`, then open \`/admin\` — the "access denied" screen shows your UID with a copy button. Paste it into:
+6. **Grant yourself admin.** If you scaffolded with \`--with-functions\` and deployed them in §4, the \`onUserCreate\` trigger auto-promotes the first-ever user to admin — just sign up at \`/auth/register\` before anyone else does. Otherwise use the CLI:
    \`\`\`bash
-   npm run firebase:seed -- --project <projectId> --credentials ./service-account.json --admin <your-uid>
+   npm run grant-admin -- --project <projectId> --credentials ./service-account.json --email you@example.com
    \`\`\`
+   (If the auto-promote window has closed, this is the explicit path. The AdminGuard access-denied screen also shows your uid with a Copy button if you prefer \`--uid\`.)
 7. **Open /admin/settings** to set brand name, logo, social links.
 
 ## Routes

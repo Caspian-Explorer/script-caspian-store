@@ -2,6 +2,22 @@
 
 All notable changes will be documented in this file.
 
+## v1.11.0 — Admin onboarding: auto-promote + grant-admin CLI
+
+First-install admin grant no longer requires hunting for a uid in the Firebase console or editing Firestore by hand.
+
+### Added
+- **`onUserCreate` Firestore trigger** ([firebase/functions/src/on-user-create.ts](firebase/functions/src/on-user-create.ts)) — when the first-ever `users/{uid}` doc is created and no admin exists yet, promotes that user to `role: 'admin'`. Once any admin exists the trigger permanently short-circuits, so it's a strictly first-install helper. Exported from [firebase/functions/src/index.ts](firebase/functions/src/index.ts) alongside the Stripe handlers; deployed automatically when consumers run `firebase deploy --only functions`.
+- **`grant-admin.mjs` CLI** ([firebase/seed/grant-admin.mjs](firebase/seed/grant-admin.mjs)) — promotes an existing user by email or uid. Accepts `--project`, `--credentials`, `--email <addr>` OR `--uid <uid>`. When `--email` is passed, resolves the uid via `firebase-admin/auth` before writing `users/{uid}.role = 'admin'` with `{ merge: true }`. Fails loudly if the target hasn't signed in yet (no users/{uid} doc) or the email doesn't match a Firebase Auth record.
+- Scaffolder-generated `package.json` gains `"grant-admin"` as an npm script, pointing at `node_modules/@caspian-explorer/script-caspian-store/firebase/seed/grant-admin.mjs`.
+
+### Changed
+- **INSTALL.md §7** rewritten to present three paths — auto-promote (preferred), `grant-admin` CLI by email or uid (explicit), and hand-edit in the Firebase console (fallback) — instead of the old "find your uid in the console, re-run seed --admin".
+- **Scaffolder generated README** — the admin-grant step now points at auto-promote first and `npm run grant-admin -- --email` as the explicit path; no more Firebase-console uid hunting.
+
+### Security note
+The `onUserCreate` trigger has a small race window during initial deployment: between the function going live and the installer registering their account, any other sign-up wins the admin role. Mitigations: deploy the function immediately before signing up, or leave it disabled and use the CLI. The in-code "check for existing admin before promoting" guard protects against *later* auto-promotions, not this initial race.
+
 ## v1.10.0 — Scaffolder polish + AdminGuard UID helper
 
 The turnkey scaffolder produces a project that can now `firebase deploy` cleanly without any manual `cp` from `node_modules`, and a non-admin landing on `/admin` finally sees their own UID with a copy button instead of being told to hunt for it in the Firebase console.
