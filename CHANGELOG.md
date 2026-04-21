@@ -2,6 +2,20 @@
 
 All notable changes will be documented in this file.
 
+## v1.11.1 — `npm create caspian-store@latest` (thin sibling package)
+
+Main-package bump covers the doc updates; the actual new capability ships as a separate npm package.
+
+### Added
+- **`create-caspian-store` v0.1.0** ([create-caspian-store/](create-caspian-store/)) — a thin launcher published separately to npm. Enables `npm create caspian-store@latest <project-dir>` by cloning this repo shallowly into a temp dir, invoking [scaffold/create.mjs](scaffold/create.mjs) against the user's target with all flags forwarded, then cleaning up the clone. Requires `git` on `PATH` and Node ≥ 18.
+
+### Changed
+- [README.md](README.md) Quickstart now leads with `npm create caspian-store@latest`; the git-URL install remains as the "Manual install" path.
+- [INSTALL.md](INSTALL.md) §0 replaced with the `npm create` one-liner; the old `git clone + node scaffold/create.mjs` invocation kept as a fallback for offline / locked-network environments.
+
+### Not affected
+- No source, build, or public API changes in the main package — so no upgrade action is required. `npm install github:Caspian-Explorer/script-caspian-store#v1.11.0` and `#v1.11.1` are interchangeable for consumers of the main package.
+
 ## v1.11.0 — Admin onboarding: auto-promote + grant-admin CLI
 
 First-install admin grant no longer requires hunting for a uid in the Firebase console or editing Firestore by hand.

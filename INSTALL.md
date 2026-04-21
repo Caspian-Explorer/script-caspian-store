@@ -2,25 +2,36 @@
 
 Install `@caspian-explorer/script-caspian-store` into a React app and get a full e-commerce storefront + admin in ~15 minutes. Works with Next.js (App Router), Vite + React Router, or Create React App. Bring your own Firebase project + Stripe account.
 
-The fastest path is the [scaffolder](#zero-one-command-scaffold). Prefer a manual install? Skip to [§1](#1-install-the-package).
+The fastest path is the [one-command scaffolder](#zero-one-command-scaffold). Prefer a manual install? Skip to [§1](#1-install-the-package).
 
 ---
 
 ## 0. One-command scaffold
 
-The package repo ships a scaffolder that generates a fresh Next.js App Router project with every storefront / admin / content route pre-mounted, Next.js adapters, and Firebase config placeholders.
-
 ```bash
-git clone https://github.com/Caspian-Explorer/script-caspian-store /tmp/scs
-node /tmp/scs/scaffold/create.mjs my-store --package-tag v1.9.0
-
+npm create caspian-store@latest my-store
 cd my-store
 npm install
 cp .env.example .env.local   # fill in Firebase web config
 npm run dev                  # http://localhost:3000
 ```
 
+This generates a Next.js 14 App Router project with every storefront / admin / content route pre-mounted, Next.js adapter code (Link/Image/useNavigation), real deployable `firestore.rules` / `firestore.indexes.json` / `storage.rules`, and a `.env.example` with Firebase + Stripe placeholders.
+
+Flags:
+
+- `--package-tag vX.Y.Z` — pin the generated project to a specific release (default: latest)
+- `--with-functions` — also scaffold the Stripe Cloud Functions tree into `functions/` (the generated `firebase.json` gets the matching `functions` block)
+- `--force` — scaffold into a non-empty directory (`.git`, `.gitignore`, `README.md`, `LICENSE` are preserved automatically)
+
 **If you used the scaffolder, stop here and follow the generated `my-store/README.md`** for Firebase + Stripe + seeding. The remainder of this document (§1–§11) is the manual-install path for people embedding the package into an existing React app; you don't need it after scaffolding.
+
+If you can't use `npm create` (e.g. offline mirror, locked-down network), the same scaffolder can be invoked directly from a clone:
+
+```bash
+git clone https://github.com/Caspian-Explorer/script-caspian-store /tmp/scs
+node /tmp/scs/scaffold/create.mjs my-store --package-tag v1.11.0
+```
 
 ---
 

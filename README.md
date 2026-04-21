@@ -7,7 +7,18 @@ Framework-agnostic React e-commerce store. **Bring your own Firebase.** Install 
 ## Quickstart
 
 ```bash
-npm install github:Caspian-Explorer/script-caspian-store#v1.9.0 firebase
+npm create caspian-store@latest my-shop
+cd my-shop && npm install
+cp .env.example .env.local   # fill in Firebase config
+npm run dev                  # http://localhost:3000
+```
+
+`npm create caspian-store@latest` generates a Next.js 14 App Router project with every storefront, auth, content, and admin route pre-mounted, real deployable Firestore rules, and optional Stripe Cloud Functions (`--with-functions`). See [INSTALL.md](./INSTALL.md) for the full first-run checklist, or the manual-install path below for embedding into an existing app.
+
+### Manual install
+
+```bash
+npm install github:Caspian-Explorer/script-caspian-store#vX.Y.Z firebase
 ```
 
 ```tsx

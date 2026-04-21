@@ -1,0 +1,36 @@
+{
+  "name": "create-caspian-store",
+  "version": "0.1.0",
+  "description": "One-command scaffolder for @caspian-explorer/script-caspian-store. Enables `npm create caspian-store@latest <project-dir>`.",
+  "type": "module",
+  "bin": {
+    "create-caspian-store": "./index.mjs"
+  },
+  "files": [
+    "index.mjs",
+    "README.md"
+  ],
+  "license": "MIT",
+  "author": "Caspian-Explorer",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Caspian-Explorer/script-caspian-store.git",
+    "directory": "create-caspian-store"
+  },
+  "homepage": "https://github.com/Caspian-Explorer/script-caspian-store",
+  "keywords": [
+    "create",
+    "scaffold",
+    "e-commerce",
+    "react",
+    "nextjs",
+    "firebase",
+    "stripe"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
