@@ -253,12 +253,45 @@ export {
   type CheckoutShippingInfoInput,
 } from './hooks/use-checkout';
 export { useWishlist } from './hooks/use-wishlist';
-export { validatePromoCode } from './services/promo-code-service';
-export { listActiveCategories, getFeaturedCategories } from './services/category-service';
+export {
+  validatePromoCode,
+  listPromoCodes,
+  createPromoCode,
+  updatePromoCode,
+  deletePromoCode,
+  type PromoCodeWriteInput,
+} from './services/promo-code-service';
+export {
+  listActiveCategories,
+  getFeaturedCategories,
+  listAllCategories,
+  createCategory,
+  updateCategory,
+  deleteCategory,
+  type CategoryWriteInput,
+} from './services/category-service';
 export {
   subscribeEmail,
+  listSubscribers,
+  deleteSubscriber,
+  subscribersToCsv,
   type SubscribeResult,
 } from './services/subscriber-service';
+export {
+  listProductCollections,
+  createProductCollection,
+  updateProductCollection,
+  deleteProductCollection,
+  type ProductCollectionWriteInput,
+} from './services/product-collection-service';
+export {
+  listLanguages,
+  createLanguage,
+  updateLanguage,
+  deleteLanguage,
+  type LanguageWriteInput,
+} from './services/language-service';
+export { getSiteSettings, saveSiteSettings } from './services/site-settings-service';
 export {
   listJournalArticles,
   getJournalArticle,
@@ -307,6 +340,12 @@ export {
   AdminPagesPage,
   AdminFaqsPage,
   AdminShippingPage,
+  AdminPromoCodesPage,
+  AdminSubscribersPage,
+  AdminProductCategoriesPage,
+  AdminProductCollectionsPage,
+  AdminLanguagesPage,
+  AdminSiteSettingsPage,
   DEFAULT_PAGE_KEYS,
   type AdminGuardProps,
   type AdminShellProps,

@@ -1,13 +1,18 @@
 import {
   addDoc,
   collection,
+  deleteDoc,
+  doc,
   getDocs,
   limit,
+  orderBy,
   query,
   Timestamp,
   where,
   type Firestore,
+  type QueryDocumentSnapshot,
 } from 'firebase/firestore';
+import type { Subscriber } from '../types';
 
 export type SubscribeResult = 'subscribed' | 'already-subscribed';
 
@@ -29,4 +34,35 @@ export async function subscribeEmail(db: Firestore, email: string): Promise<Subs
     subscribedAt: Timestamp.now(),
   });
   return 'subscribed';
+}
+
+function docToSubscriber(snap: QueryDocumentSnapshot): Subscriber {
+  const data = snap.data();
+  return {
+    id: snap.id,
+    email: data.email,
+    subscribedAt: data.subscribedAt,
+  };
+}
+
+export async function listSubscribers(db: Firestore): Promise<Subscriber[]> {
+  const q = query(collection(db, 'subscribers'), orderBy('subscribedAt', 'desc'));
+  const snap = await getDocs(q);
+  return snap.docs.map(docToSubscriber);
+}
+
+export async function deleteSubscriber(db: Firestore, id: string): Promise<void> {
+  await deleteDoc(doc(db, 'subscribers', id));
+}
+
+/** Build a CSV string from subscribers. Does not trigger download — consumer does that. */
+export function subscribersToCsv(subscribers: Subscriber[]): string {
+  const rows: string[] = ['email,subscribedAt'];
+  for (const s of subscribers) {
+    const when = s.subscribedAt?.toDate
+      ? s.subscribedAt.toDate().toISOString()
+      : '';
+    rows.push(`${s.email.replace(/"/g, '""')},${when}`);
+  }
+  return rows.join('\n');
 }

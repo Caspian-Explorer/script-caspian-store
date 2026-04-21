@@ -1,5 +1,70 @@
-import { collection, getDocs, limit, query, where, type Firestore } from 'firebase/firestore';
-import type { AppliedPromoCode } from '../types';
+import {
+  addDoc,
+  collection,
+  deleteDoc,
+  doc,
+  getDocs,
+  limit,
+  orderBy,
+  query,
+  setDoc,
+  Timestamp,
+  updateDoc,
+  where,
+  type Firestore,
+  type QueryDocumentSnapshot,
+} from 'firebase/firestore';
+import type { AppliedPromoCode, PromoCode } from '../types';
+
+function docToPromoCode(snap: QueryDocumentSnapshot): PromoCode {
+  const data = snap.data();
+  return {
+    id: snap.id,
+    code: data.code,
+    type: data.type,
+    value: data.value,
+    minOrderAmount: data.minOrderAmount,
+    maxDiscount: data.maxDiscount,
+    isActive: data.isActive ?? true,
+    createdAt: data.createdAt,
+  };
+}
+
+export async function listPromoCodes(db: Firestore): Promise<PromoCode[]> {
+  const q = query(collection(db, 'promoCodes'), orderBy('createdAt', 'desc'));
+  const snap = await getDocs(q);
+  return snap.docs.map(docToPromoCode);
+}
+
+export type PromoCodeWriteInput = Omit<PromoCode, 'id' | 'createdAt'>;
+
+export async function createPromoCode(
+  db: Firestore,
+  input: PromoCodeWriteInput,
+  id?: string,
+): Promise<string> {
+  const payload = { ...input, code: input.code.toUpperCase(), createdAt: Timestamp.now() };
+  if (id) {
+    await setDoc(doc(db, 'promoCodes', id), payload);
+    return id;
+  }
+  const ref = await addDoc(collection(db, 'promoCodes'), payload);
+  return ref.id;
+}
+
+export async function updatePromoCode(
+  db: Firestore,
+  id: string,
+  input: Partial<PromoCodeWriteInput>,
+): Promise<void> {
+  const patch: Partial<PromoCodeWriteInput> = { ...input };
+  if (typeof patch.code === 'string') patch.code = patch.code.toUpperCase();
+  await updateDoc(doc(db, 'promoCodes', id), patch);
+}
+
+export async function deletePromoCode(db: Firestore, id: string): Promise<void> {
+  await deleteDoc(doc(db, 'promoCodes', id));
+}
 
 /**
  * Client-side promo code validator. Mirrors the server-side logic in the

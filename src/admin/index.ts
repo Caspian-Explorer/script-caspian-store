@@ -25,3 +25,9 @@ export {
 } from './admin-pages-page';
 export { AdminFaqsPage, type AdminFaqsPageProps } from './admin-faqs-page';
 export { AdminShippingPage } from './admin-shipping-page';
+export { AdminPromoCodesPage } from './admin-promo-codes-page';
+export { AdminSubscribersPage } from './admin-subscribers-page';
+export { AdminProductCategoriesPage } from './admin-product-categories-page';
+export { AdminProductCollectionsPage } from './admin-product-collections-page';
+export { AdminLanguagesPage } from './admin-languages-page';
+export { AdminSiteSettingsPage } from './admin-site-settings-page';

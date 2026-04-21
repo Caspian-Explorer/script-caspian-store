@@ -2,6 +2,23 @@
 
 All notable changes will be documented in this file.
 
+## v1.5.0 — Remaining admin CRUD (promo codes, subscribers, categories, collections, languages, site settings)
+
+Fifth release in the hadiyyam migration series. Ships the last set of admin pages so consumers can retire every bespoke admin CRUD they still carry. No breaking changes.
+
+### Added
+- **`<AdminPromoCodesPage>`** — CRUD for the `promoCodes` collection: code (auto-uppercased), type (`percentage` | `fixed`), value, optional `minOrderAmount` / `maxDiscount`, active toggle.
+- **`<AdminSubscribersPage>`** — list of `subscribers` docs with email search, delete, and a one-click CSV export (Blob download, `subscribers-YYYY-MM-DD.csv`).
+- **`<AdminProductCategoriesPage>`** — hierarchical CRUD for `productCategories`. Parent-category select is filtered to exclude self when editing. Slug auto-generates from name when left blank. Supports `isActive` + `isFeatured` flags and a display `order` integer.
+- **`<AdminProductCollectionsPage>`** — CRUD for `productCollections`. Includes a searchable product picker with selected-chips view so merchandisers can assemble a curated set of products for a named collection.
+- **`<AdminLanguagesPage>`** — CRUD for the `languages` registry: code (BCP 47), name, native name, flag emoji, direction (`ltr` | `rtl`), default flag, active flag. Blocks deleting the default language.
+- **`<AdminSiteSettingsPage>`** — single-form editor for the `settings/site` doc: brand name, brand description, logo URL, favicon URL, contact email/phone/address, business hours, and a repeatable list of social links.
+- **Services** — `promo-code-service` gains `listPromoCodes` / `createPromoCode` / `updatePromoCode` / `deletePromoCode` / `PromoCodeWriteInput`; `subscriber-service` gains `listSubscribers` / `deleteSubscriber` / `subscribersToCsv`; `category-service` gains `listAllCategories` / `createCategory` / `updateCategory` / `deleteCategory` / `CategoryWriteInput`; **new** `product-collection-service` (`listProductCollections` + CRUD + `ProductCollectionWriteInput`); **new** `language-service` (`listLanguages` + CRUD + `LanguageWriteInput`); **new** `site-settings-service` (`getSiteSettings`, `saveSiteSettings`).
+- **Exports** — all the above pages, services, and write-input types exported from the package root.
+
+### Migration note
+Upgrading from v1.4.x is drop-in. Hadiyyam PR #5 pins this tag, retires `admin/promo-codes/page.tsx`, `admin/subscribers/page.tsx`, `admin/categories/page.tsx`, `admin/collections/page.tsx`, `admin/languages/page.tsx`, and `admin/settings/page.tsx`, and collapses each to a one-line mount of the package component.
+
 ## v1.4.0 — FAQs + shipping/returns + size guide
 
 Fourth release in the hadiyyam migration series. Rounds out the static-content surfaces with FAQs, shipping/returns, and a size guide, plus their admin editors. No breaking changes.
