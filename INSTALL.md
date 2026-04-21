@@ -7,7 +7,7 @@ This document covers installing `@caspian-explorer/script-caspian-store` into a 
 The package ships from the private GitHub repo. Consumers must have read access.
 
 ```bash
-npm install github:Caspian-Explorer/script-caspian-store#v1.2.0 firebase
+npm install github:Caspian-Explorer/script-caspian-store#v1.3.0 firebase
 # or pin to a commit:
 # npm install github:Caspian-Explorer/script-caspian-store#<sha>
 ```
@@ -437,7 +437,7 @@ Set brand info, currency, theme colors, and feature flags. Changes are live — 
 Pin to a tag and bump when ready:
 
 ```bash
-npm install github:Caspian-Explorer/script-caspian-store#v1.2.0
+npm install github:Caspian-Explorer/script-caspian-store#v1.3.0
 ```
 
 See [CHANGELOG.md](./CHANGELOG.md) for release notes.

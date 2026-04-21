@@ -17,3 +17,9 @@ export {
 export { AdminOrdersList, type AdminOrdersListProps } from './admin-orders-list';
 export { AdminOrderDetail, type AdminOrderDetailProps } from './admin-order-detail';
 export { AdminReviewsModeration } from './admin-reviews-moderation';
+export { AdminJournalPage } from './admin-journal-page';
+export {
+  AdminPagesPage,
+  DEFAULT_PAGE_KEYS,
+  type AdminPagesPageProps,
+} from './admin-pages-page';

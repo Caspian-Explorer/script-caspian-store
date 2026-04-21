@@ -2,6 +2,23 @@
 
 All notable changes will be documented in this file.
 
+## v1.3.0 — Journal + generic content pages
+
+Third release in the hadiyyam migration series. Ships the editorial/journal surface plus a generic page-content system so hadiyyam can retire its hardcoded `journal/`, `about/`, `contact/`, `privacy/`, `terms/`, `sustainability/` pages in a follow-up PR. No breaking changes.
+
+### Added
+- **`<JournalListPage>`** — responsive card grid reading from the `journal` Firestore collection (ordered by `createdAt` desc). Configurable `getArticleHref`, `title`, `subtitle`, `emptyMessage`.
+- **`<JournalDetailPage articleId={id}>`** — full-width article view with hero image, category badge, date, paragraph-split content (splits on double newlines), and a back link. `onNotFound` callback.
+- **`<PageContentView pageKey>`** — drop-in long-form page reading from `pageContents/{pageKey}`. Shows an optional `fallback={{ title, subtitle, content }}` when no doc exists yet, and accepts an `afterContent` slot for page-specific extras (e.g. a contact form).
+- **`<AdminJournalPage>`** — create / edit / delete articles. Cover images upload to `journal/{filename}` in Firebase Storage via the new `uploadAdminImage` helper; best-effort Storage cleanup on delete.
+- **`<AdminPagesPage pageKeys={[...]}>`** — table-driven editor for `pageContents/{pageKey}` docs. Ships `DEFAULT_PAGE_KEYS = ['about', 'contact', 'privacy', 'terms', 'sustainability', 'shipping-returns', 'size-guide']`; consumers can override.
+- **Services** — `journal-service.ts` (`listJournalArticles`, `getJournalArticle`, `createJournalArticle`, `updateJournalArticle`, `deleteJournalArticle`), `page-content-service.ts` (`getPageContent`, `listPageContents`, `savePageContent`).
+- **Storage helpers** — `uploadAdminImage({ storage, path, file })` + `deleteStorageObject(storage, path)` exports for admin upload flows.
+- **Storage rules** — `firebase/storage.rules` now gates `/journal/**` and `/pageContents/**` by a Firestore-backed `isAdmin()` helper (no custom claims required). Same pattern as the Firestore rules the package already ships.
+
+### Migration note
+Upgrading from v1.2.x is drop-in. Hadiyyam PR #3 will pin this tag, replace the journal + content pages, and collapse the hadiyyam admin pages for journal and pageContents to one-line renders of the package components.
+
 ## v1.2.0 — Homepage + font management
 
 Second release in the hadiyyam migration series. Ships the homepage surface and a font-management system so hadiyyam can retire its bespoke `[locale]/page.tsx` in a follow-up PR. No breaking changes.

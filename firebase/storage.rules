@@ -5,6 +5,13 @@ rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
 
+    function isAdmin() {
+      return request.auth != null
+          && firestore.get(
+               /databases/(default)/documents/users/$(request.auth.uid)
+             ).data.role == 'admin';
+    }
+
     // Profile avatars live at users/{uid}/avatar.{ext}. Users upload their own;
     // anyone can read (product pages show them in review cards).
     match /users/{uid}/avatar.{ext} {
@@ -14,6 +21,24 @@ service firebase.storage {
                    && request.resource.size < 5 * 1024 * 1024
                    && request.resource.contentType.matches('image/(jpeg|png|webp)');
       allow delete: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // Journal cover images — public read, admin write up to 10 MB.
+    match /journal/{path=**} {
+      allow read: if true;
+      allow write: if isAdmin()
+                   && request.resource.size < 10 * 1024 * 1024
+                   && request.resource.contentType.matches('image/(jpeg|png|webp|gif)');
+      allow delete: if isAdmin();
+    }
+
+    // Page content assets (optional image uploads from <AdminPagesPage>).
+    match /pageContents/{path=**} {
+      allow read: if true;
+      allow write: if isAdmin()
+                   && request.resource.size < 10 * 1024 * 1024
+                   && request.resource.contentType.matches('image/(jpeg|png|webp|gif)');
+      allow delete: if isAdmin();
     }
   }
 }

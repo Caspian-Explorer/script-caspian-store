@@ -67,6 +67,20 @@ export {
   type HomePageProps,
 } from './components/home';
 
+// Journal surface (v1.3)
+export {
+  JournalListPage,
+  JournalDetailPage,
+  type JournalListPageProps,
+  type JournalDetailPageProps,
+} from './components/journal';
+
+// Content-page surface (v1.3)
+export {
+  PageContentView,
+  type PageContentViewProps,
+} from './components/content';
+
 // Reviews & Questions
 export { ProductReviews, type ReviewSummaryData } from './components/reviews/product-reviews';
 export { ReviewSummary } from './components/reviews/review-summary';
@@ -233,6 +247,24 @@ export {
   subscribeEmail,
   type SubscribeResult,
 } from './services/subscriber-service';
+export {
+  listJournalArticles,
+  getJournalArticle,
+  createJournalArticle,
+  updateJournalArticle,
+  deleteJournalArticle,
+  type JournalArticleWriteInput,
+} from './services/journal-service';
+export {
+  getPageContent,
+  listPageContents,
+  savePageContent,
+  type SavePageContentInput,
+} from './services/page-content-service';
+export {
+  uploadAdminImage,
+  deleteStorageObject,
+} from './services/storage-service';
 
 // --- Admin surface ---
 export {
@@ -245,6 +277,9 @@ export {
   AdminOrdersList,
   AdminOrderDetail,
   AdminReviewsModeration,
+  AdminJournalPage,
+  AdminPagesPage,
+  DEFAULT_PAGE_KEYS,
   type AdminGuardProps,
   type AdminShellProps,
   type AdminNavItem,
@@ -253,6 +288,7 @@ export {
   type AdminProductEditorProps,
   type AdminOrdersListProps,
   type AdminOrderDetailProps,
+  type AdminPagesPageProps,
 } from './admin';
 
 // --- Types ---

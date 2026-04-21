@@ -55,6 +55,48 @@ export async function uploadProfilePhoto({
   return url;
 }
 
+/**
+ * Generic image upload helper for admin surfaces (journal cover images,
+ * pageContents assets, etc.). Returns the public download URL.
+ *
+ * `path` is arbitrary but must match your Storage rules — the package ships
+ * rules for `journal/**` and `pageContents/**`.
+ */
+export async function uploadAdminImage({
+  storage,
+  path,
+  file,
+  maxBytes = 10 * 1024 * 1024,
+  allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'],
+}: {
+  storage: FirebaseStorage;
+  path: string;
+  file: File;
+  maxBytes?: number;
+  allowedTypes?: string[];
+}): Promise<string> {
+  if (!allowedTypes.includes(file.type)) {
+    throw new Error(`Unsupported image type: ${file.type}`);
+  }
+  if (file.size > maxBytes) {
+    throw new Error(`Image must be under ${Math.round(maxBytes / 1024 / 1024)} MB.`);
+  }
+  const storageRef = ref(storage, path);
+  await uploadBytes(storageRef, file, { contentType: file.type });
+  return await getDownloadURL(storageRef);
+}
+
+export async function deleteStorageObject(
+  storage: FirebaseStorage,
+  path: string,
+): Promise<void> {
+  try {
+    await deleteObject(ref(storage, path));
+  } catch {
+    /* ignore missing objects */
+  }
+}
+
 export async function removeProfilePhoto({
   storage,
   db,
