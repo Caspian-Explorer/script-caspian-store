@@ -147,8 +147,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <Providers>
           <LayoutShell>{children}</LayoutShell>
+          <DynamicFavicon />
         </Providers>
-        <DynamicFavicon />
       </body>
     </html>
   );

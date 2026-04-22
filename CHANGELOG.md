@@ -2,6 +2,25 @@
 
 All notable changes will be documented in this file.
 
+## v1.14.0 — Fix `<DynamicFavicon>` rendered outside `<CaspianStoreProvider>`
+
+Consumer running a fresh scaffolded install saw `Error: useCaspianStore must be called inside <CaspianStoreProvider>` at runtime. Root cause: the scaffolder and INSTALL.md §3 both emitted a `layout.tsx` with `<DynamicFavicon />` as a **sibling** of `<Providers>` instead of a child. [`<DynamicFavicon>`](src/components/dynamic-favicon.tsx) calls `useCaspianFirebase()` which requires the provider above it in the tree.
+
+### Fixed
+- [scaffold/create.mjs](scaffold/create.mjs) generated `layout.tsx` — moved `<DynamicFavicon />` inside `<Providers>`.
+- [INSTALL.md](INSTALL.md) §3 Next.js example — same correction.
+
+### Notes
+- Existing installs scaffolded from v1.7.0–v1.13.0 need to edit their own `src/app/layout.tsx` manually (bumping the package dep doesn't touch consumer files). One-line move:
+  ```diff
+       <Providers>
+         <LayoutShell>{children}</LayoutShell>
+  +      <DynamicFavicon />
+       </Providers>
+  -    <DynamicFavicon />
+  ```
+- Consider adding a runtime sanity check to `<DynamicFavicon>` that renders a clearer *"must be inside `<CaspianStoreProvider>`"* message instead of bubbling the generic `useCaspianStore` error — deferred to a later release.
+
 ## v1.13.0 — Fix `storage.rules` compile error on fresh installs
 
 A consumer running `firebase deploy --only storage` against a fresh install hit a grammar error. Root cause was a `{wildcard}` inside a path segment — not supported by Firebase Storage rules grammar. Bug dates back to v0.6.0 (profile-photo feature) and was never caught because storage rules only compile at deploy time and CI doesn't run `firebase deploy`.
