@@ -7,3 +7,16 @@ export { Skeleton, Badge, Avatar, Separator } from './misc';
 export { ToastProvider, useToast, type ToastMessage } from './toast';
 export { Table, THead, TBody, TR, TH, TD } from './table';
 export { ImageUploadField, type ImageUploadFieldProps } from './image-upload-field';
+export {
+  DropdownMenu,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  type DropdownMenuProps,
+  type DropdownMenuItemProps,
+} from './dropdown-menu';
+export {
+  MoreHorizontalIcon,
+  EditIcon,
+  TrashIcon,
+  ExternalLinkIcon,
+} from './icons';

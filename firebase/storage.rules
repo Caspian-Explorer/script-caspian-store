@@ -54,5 +54,17 @@ service firebase.storage {
                    && request.resource.contentType.matches('image/(jpeg|png|webp|gif|svg\\+xml)');
       allow delete: if isAdmin();
     }
+
+    // Product catalog images uploaded from <AdminProductEditor>. Public read
+    // (every PLP/PDP card shows these), admin write up to 10 MB. No SVG here
+    // — product photos should be raster, and blocking SVG avoids embedded-
+    // script exploits from less-trusted sources.
+    match /products/{path=**} {
+      allow read: if true;
+      allow write: if isAdmin()
+                   && request.resource.size < 10 * 1024 * 1024
+                   && request.resource.contentType.matches('image/(jpeg|png|webp|gif)');
+      allow delete: if isAdmin();
+    }
   }
 }

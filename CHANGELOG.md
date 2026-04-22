@@ -16,6 +16,68 @@ Do not omit the heading, rename it, or fold it into `### Notes`. This is how
 customers tell at a glance whether an upgrade needs attention.
 -->
 
+## v1.22.0 — Admin products overhaul: category dropdown + color palette + image upload + 3-dot actions
+
+Second slice of the admin-UX overhaul started in v1.21. Products were free-text everywhere — category was a text input (easy to typo, no connection to the categories collection), color was a text input (no swatch guidance), and images were URL-only. The product list had Edit + Delete buttons inline with no `#` column, no filters beyond search, and no way to jump to the storefront PDP. This release closes all of those.
+
+### Added
+- **`<DropdownMenu>` UI primitive** at [src/ui/dropdown-menu.tsx](src/ui/dropdown-menu.tsx). Minimal headless dropdown with click-outside + ESC close, arrow-key focus management, `destructive` item variant, optional icons. Exported from the main entry. Used by the product-row 3-dot menu here, and by the profile menu landing in v1.23.
+- **Inline SVG icon set** at [src/ui/icons.tsx](src/ui/icons.tsx): `MoreHorizontalIcon`, `EditIcon`, `TrashIcon`, `ExternalLinkIcon`. Stroke-based, inherit `currentColor`. No icon library added — sticks to the existing inline-SVG pattern.
+- **Categories entry in `DEFAULT_ADMIN_NAV`** (`/admin/categories`). The `<AdminProductCategoriesPage>` admin page already supported parent/child hierarchy; now it gets a sidebar link so operators can find it.
+- **Hierarchical category `<Select>` in `<AdminProductEditor>`**. Options are indented by depth (e.g. `Shoes`, `— Sneakers`, `—— Low-top`) and sorted by the category `order` field. The select's `value` is the `ProductCategoryDoc.id`, and it's stored directly on `Product.category`.
+- **Fixed-palette color `<Select>`**. 13 named colors: Black, White, Red, Blue, Green, Yellow, Pink, Purple, Orange, Brown, Grey, Beige, Multi. Legacy stored colors that don't match the palette surface a warning hint prompting the admin to normalise by picking + saving.
+- **Multi-image upload in `<AdminProductEditor>`**. Uses `<ImageUploadField>` (introduced in v1.21) with a separate URL-paste row underneath. Files land at `products/{productId}/` in Firebase Storage.
+- **Product-list overhaul** in [src/admin/admin-products-list.tsx](src/admin/admin-products-list.tsx):
+  - Sequential `#` column (1-based over the filtered view).
+  - Filter bar: status (all / active only / hidden only), category (dropdown fed from `productCategories`, including an "Unresolved (legacy names)" option to surface pre-migration docs), brand (substring match), plus the existing search box. Clear-filters button.
+  - Edit / View on storefront / Delete collapsed into a 3-dot `<DropdownMenu>`. "View on storefront" opens the PDP in a new tab.
+  - New optional `getViewHref` prop on `<AdminProductsList>` defaulting to `(id) => /product/${id}`.
+  - Categories resolved `id → name` client-side for display. Products whose `category` doesn't match any known id render an amber warning icon (legacy pre-migration docs).
+- **`products/**` Storage rule block** in [firebase/storage.rules](firebase/storage.rules). Public read, admin write up to 10 MB, raster image content-types only (`jpeg|png|webp|gif`). SVG is intentionally rejected for product photos — product catalogs shouldn't accept embedded-script vectors from less-trusted sources.
+- **Storage-rules test coverage for `products/**`** in [firebase/rules.test.mjs](firebase/rules.test.mjs): unauthenticated write denied, non-admin write denied, SVG upload denied, public read allowed.
+
+### Changed
+- **`Product.category` semantics** — was the display name, now stores the `ProductCategoryDoc.id`. The Firestore filter in `getProducts`/`getRelatedProducts` is opaque to id-vs-name (`where('category', '==', value)`) so it keeps working as long as both halves (product + caller) use the same format. Callers that passed a hard-coded category name to `getProducts({ filters: { category } })` must resolve name → id via `listActiveCategories()` first.
+- **`<AdminProductsList>`** displays the count as `filtered / total` instead of just `total`, since filters can now reduce the shown set below the full catalog.
+
+### Migration
+Run the one-off script once, from your project root:
+
+```bash
+node node_modules/@caspian-explorer/script-caspian-store/firebase/scripts/migrate-product-category-to-id.mjs \
+  --project <your-project-id> \
+  --credentials ./service-account.json \
+  --dry-run    # first, to preview
+```
+
+Re-run without `--dry-run` to apply. The script:
+- Rewrites `products/{id}.category` from name → id using `productCategories` as the lookup table.
+- Skips docs whose `category` already matches a known category id (idempotent).
+- Flags ambiguous matches (two categories with the same name) for manual reassignment.
+- Flags unknown names — create the missing category or reassign the product in `/admin/products` before re-running.
+
+Products flagged "unresolved" after the migration are surfaced with an amber warning icon in the admin list. Opening + saving such a product in the editor lets you pick the correct category from the dropdown.
+
+### Consumer action required on upgrade
+
+```bash
+npm install github:Caspian-Explorer/script-caspian-store#v1.22.0
+
+# Redeploy storage.rules so product-image uploads work:
+cp node_modules/@caspian-explorer/script-caspian-store/firebase/storage.rules .
+firebase deploy --only storage
+
+# Run the category migration (see above).
+node node_modules/@caspian-explorer/script-caspian-store/firebase/scripts/migrate-product-category-to-id.mjs \
+  --project <your-project-id> \
+  --credentials ./service-account.json \
+  --dry-run
+
+# If output looks right, re-run without --dry-run.
+```
+
+If your storefront code calls `getProducts({ filters: { category: 'Sneakers' } })` with a literal name, update it to resolve the category by slug or name → id first (the library's `listActiveCategories` returns the full category list).
+
 ## v1.21.0 — Admin settings overhaul: localization + logo/favicon upload + social links rework
 
 First slice of a larger admin-UX overhaul. The storefront settings page was previously all plain text inputs — logo/favicon URLs had to be copy-pasted in from elsewhere, social-link `platform` was free-text (easy to typo), and there were no currency / timezone / country selectors. This release brings the page in line with what operators expect on day one.

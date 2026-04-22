@@ -15,6 +15,7 @@ export const DEFAULT_ADMIN_NAV: AdminNavItem[] = [
   { href: '/admin', label: 'Dashboard' },
   { href: '/admin/todos', label: 'Todo list' },
   { href: '/admin/products', label: 'Products' },
+  { href: '/admin/categories', label: 'Categories' },
   { href: '/admin/orders', label: 'Orders' },
   { href: '/admin/reviews', label: 'Reviews' },
   { href: '/admin/settings', label: 'Settings' },

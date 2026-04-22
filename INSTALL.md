@@ -587,6 +587,23 @@ firebase deploy --only firestore:rules,firestore:indexes,storage
 
 `firebase:sync` overwrites any hand edits to those root files — if you have custom rules, merge by hand from git history instead.
 
+### One-off migrations
+
+Some upgrades include a data migration. Each is a single Node script under `node_modules/@caspian-explorer/script-caspian-store/firebase/scripts/`, runs once per project, and is idempotent (safe to re-run). All accept `--dry-run` to preview.
+
+**v1.22.0 — product category stored as id instead of name.** Run once after upgrading:
+
+```bash
+node node_modules/@caspian-explorer/script-caspian-store/firebase/scripts/migrate-product-category-to-id.mjs \
+  --project <your-project-id> \
+  --credentials ./service-account.json \
+  --dry-run
+
+# If the output looks right, re-run without --dry-run.
+```
+
+Products with a legacy name that doesn't match any `productCategories` entry stay unchanged; the admin products list flags them with an amber warning icon so you can fix them by hand.
+
 See [CHANGELOG.md](./CHANGELOG.md) for release notes and migration guidance per version.
 
 ---

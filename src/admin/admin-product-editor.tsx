@@ -1,17 +1,20 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import type { ProductImage } from '../types';
+import { useEffect, useMemo, useState } from 'react';
+import type { ProductCategoryDoc, ProductImage } from '../types';
 import {
   createProduct,
   getProductById,
   updateProduct,
   type ProductWriteInput,
 } from '../services/product-service';
+import { listAllCategories } from '../services/category-service';
 import { useCaspianFirebase, useCaspianNavigation } from '../provider/caspian-store-provider';
 import { Button } from '../ui/button';
+import { ImageUploadField } from '../ui/image-upload-field';
 import { Input, Label, Textarea } from '../ui/input';
 import { Skeleton } from '../ui/misc';
+import { Select } from '../ui/select';
 import { useToast } from '../ui/toast';
 
 export interface AdminProductEditorProps {
@@ -27,6 +30,7 @@ interface FormState {
   brand: string;
   description: string;
   price: string;
+  /** Category document id (not the display name). */
   category: string;
   sizes: string; // comma-separated
   color: string;
@@ -50,6 +54,78 @@ const empty: FormState = {
   images: [],
 };
 
+/**
+ * Fixed palette of named product colors. Keep in sync with the storefront
+ * swatch rendering if you add custom renderers. If you need brand-specific
+ * colors later, swap this for a Firestore-backed `productColors` collection.
+ */
+const COLOR_PALETTE = [
+  'Black',
+  'White',
+  'Red',
+  'Blue',
+  'Green',
+  'Yellow',
+  'Pink',
+  'Purple',
+  'Orange',
+  'Brown',
+  'Grey',
+  'Beige',
+  'Multi',
+] as const;
+
+const COLOR_OPTIONS: { value: string; label: string }[] = [
+  { value: '', label: '— No color —' },
+  ...COLOR_PALETTE.map((c) => ({ value: c, label: c })),
+];
+
+/**
+ * Accepts a legacy stored color string (any case) and returns the matching
+ * palette entry, or `''` if it doesn't match. Callers should still render the
+ * legacy value in a small hint if non-empty but unmatched.
+ */
+function normalizeLegacyColor(raw: string): string {
+  if (!raw) return '';
+  const match = COLOR_PALETTE.find(
+    (c) => c.toLowerCase() === raw.toLowerCase(),
+  );
+  return match ?? '';
+}
+
+/**
+ * Builds category Select options indented by depth via an em-dash prefix.
+ * Example: `"Shoes"`, `"— Sneakers"`, `"—— Low-top"`. Inactive categories
+ * are surfaced because admins need to reassign products off of them.
+ */
+function buildCategoryOptions(
+  categories: ProductCategoryDoc[],
+): { value: string; label: string }[] {
+  const byParent = new Map<string, ProductCategoryDoc[]>();
+  for (const cat of categories) {
+    const key = cat.parentId ?? '__root__';
+    const list = byParent.get(key) ?? [];
+    list.push(cat);
+    byParent.set(key, list);
+  }
+  for (const [, list] of byParent) list.sort((a, b) => a.order - b.order);
+
+  const out: { value: string; label: string }[] = [
+    { value: '', label: '— Uncategorised —' },
+  ];
+  const walk = (parentKey: string, depth: number) => {
+    const children = byParent.get(parentKey) ?? [];
+    for (const cat of children) {
+      const prefix = depth === 0 ? '' : '— '.repeat(depth);
+      const inactiveTag = cat.isActive === false ? ' (hidden)' : '';
+      out.push({ value: cat.id, label: `${prefix}${cat.name}${inactiveTag}` });
+      walk(cat.id, depth + 1);
+    }
+  };
+  walk('__root__', 0);
+  return out;
+}
+
 export function AdminProductEditor({
   productId,
   afterSaveHref = '/admin/products',
@@ -61,7 +137,24 @@ export function AdminProductEditor({
   const [form, setForm] = useState<FormState>(empty);
   const [loading, setLoading] = useState(Boolean(productId));
   const [saving, setSaving] = useState(false);
+  const [categories, setCategories] = useState<ProductCategoryDoc[]>([]);
+  const [legacyColor, setLegacyColor] = useState<string>('');
   const [newImageUrl, setNewImageUrl] = useState('');
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const list = await listAllCategories(db);
+        if (alive) setCategories(list);
+      } catch (error) {
+        console.error('[caspian-store] Failed to load categories:', error);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [db]);
 
   useEffect(() => {
     if (!productId) return;
@@ -74,6 +167,8 @@ export function AdminProductEditor({
           toast({ title: 'Product not found', variant: 'destructive' });
           return;
         }
+        const normalizedColor = normalizeLegacyColor(p.color ?? '');
+        if (!normalizedColor && p.color) setLegacyColor(p.color);
         setForm({
           name: p.name,
           brand: p.brand,
@@ -81,7 +176,7 @@ export function AdminProductEditor({
           price: String(p.price),
           category: p.category,
           sizes: (p.sizes ?? []).join(', '),
-          color: p.color ?? '',
+          color: normalizedColor,
           isNew: Boolean(p.isNew),
           limited: Boolean(p.limited),
           isActive: p.isActive !== false,
@@ -96,14 +191,30 @@ export function AdminProductEditor({
     };
   }, [db, productId, toast]);
 
-  const handleAddImage = () => {
-    const url = newImageUrl.trim();
-    if (!url) return;
+  const categoryOptions = useMemo(
+    () => buildCategoryOptions(categories),
+    [categories],
+  );
+
+  const legacyCategoryUnknown =
+    productId &&
+    form.category &&
+    categories.length > 0 &&
+    !categories.some((c) => c.id === form.category);
+
+  const handleAddImageUrl = (url: string) => {
+    const trimmed = url.trim();
+    if (!trimmed) return;
     const id = `img-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
     setForm((s) => ({
       ...s,
-      images: [...s.images, { id, url, alt: s.name, hint: s.name }],
+      images: [...s.images, { id, url: trimmed, alt: s.name, hint: s.name }],
     }));
+  };
+
+  const handleAddUrlClick = () => {
+    if (!newImageUrl.trim()) return;
+    handleAddImageUrl(newImageUrl);
     setNewImageUrl('');
   };
 
@@ -129,12 +240,12 @@ export function AdminProductEditor({
         brand: form.brand.trim(),
         description: form.description.trim(),
         price: priceNum,
-        category: form.category.trim(),
+        category: form.category,
         sizes: form.sizes
           .split(',')
           .map((s) => s.trim())
           .filter(Boolean),
-        color: form.color.trim(),
+        color: form.color,
         isNew: form.isNew,
         limited: form.limited,
         isActive: form.isActive,
@@ -205,10 +316,18 @@ export function AdminProductEditor({
             />
           </Field>
           <Field label="Category">
-            <Input
+            <Select
               value={form.category}
               onChange={(e) => setForm((s) => ({ ...s, category: e.target.value }))}
+              options={categoryOptions}
+              style={{ width: '100%' }}
             />
+            {legacyCategoryUnknown && (
+              <p style={{ fontSize: 12, color: '#b45309', marginTop: 4 }}>
+                Stored category <code>{form.category}</code> doesn&apos;t match any known
+                category. Pick one from the list and save to migrate this product.
+              </p>
+            )}
           </Field>
         </div>
         <div style={gridStyle}>
@@ -220,10 +339,18 @@ export function AdminProductEditor({
             />
           </Field>
           <Field label="Color">
-            <Input
+            <Select
               value={form.color}
               onChange={(e) => setForm((s) => ({ ...s, color: e.target.value }))}
+              options={COLOR_OPTIONS}
+              style={{ width: '100%' }}
             />
+            {legacyColor && (
+              <p style={{ fontSize: 12, color: '#b45309', marginTop: 4 }}>
+                Stored color <code>{legacyColor}</code> isn&apos;t in the palette. Pick
+                the closest match from the list and save to normalise.
+              </p>
+            )}
           </Field>
         </div>
         <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
@@ -235,52 +362,89 @@ export function AdminProductEditor({
 
       <section style={sectionStyle}>
         <h2 style={h2Style}>Images</h2>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: 8, marginBottom: 12 }}>
-          {form.images.map((img) => (
-            <div
-              key={img.id}
-              style={{
-                position: 'relative',
-                aspectRatio: '3 / 4',
-                background: '#f5f5f5',
-                borderRadius: 6,
-                overflow: 'hidden',
-              }}
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={img.url} alt={img.alt} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-              <button
-                type="button"
-                onClick={() => handleRemoveImage(img.id)}
-                aria-label="Remove image"
+        <p style={{ margin: '0 0 12px', color: '#666', fontSize: 13 }}>
+          Upload new images or paste a URL. Files land under <code>products/{productId ?? 'new'}/</code>
+          in Firebase Storage.
+        </p>
+        {form.images.length > 0 && (
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))',
+              gap: 8,
+              marginBottom: 12,
+            }}
+          >
+            {form.images.map((img) => (
+              <div
+                key={img.id}
                 style={{
-                  position: 'absolute',
-                  top: 4,
-                  right: 4,
-                  width: 24,
-                  height: 24,
-                  borderRadius: '50%',
-                  border: 0,
-                  background: 'rgba(0,0,0,0.6)',
-                  color: '#fff',
-                  cursor: 'pointer',
-                  fontSize: 14,
-                  lineHeight: 1,
+                  position: 'relative',
+                  aspectRatio: '3 / 4',
+                  background: '#f5f5f5',
+                  borderRadius: 6,
+                  overflow: 'hidden',
                 }}
               >
-                ×
-              </button>
-            </div>
-          ))}
-        </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <Input
-            placeholder="Image URL…"
-            value={newImageUrl}
-            onChange={(e) => setNewImageUrl(e.target.value)}
-          />
-          <Button variant="outline" onClick={handleAddImage}>
-            Add
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={img.url} alt={img.alt} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                <button
+                  type="button"
+                  onClick={() => handleRemoveImage(img.id)}
+                  aria-label="Remove image"
+                  style={{
+                    position: 'absolute',
+                    top: 4,
+                    right: 4,
+                    width: 24,
+                    height: 24,
+                    borderRadius: '50%',
+                    border: 0,
+                    background: 'rgba(0,0,0,0.6)',
+                    color: '#fff',
+                    cursor: 'pointer',
+                    fontSize: 14,
+                    lineHeight: 1,
+                  }}
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+        <ImageUploadField
+          value=""
+          onChange={handleAddImageUrl}
+          storagePath={`products/${productId ?? 'new'}`}
+          label={form.images.length === 0 ? 'First image' : 'Add another image'}
+          aspectRatio="3 / 4"
+          previewMaxWidth={180}
+        />
+        <div style={{ marginTop: 12, display: 'flex', gap: 8, alignItems: 'flex-end' }}>
+          <div style={{ flex: 1 }}>
+            <Label style={{ fontSize: 12, color: '#666' }}>or paste image URL</Label>
+            <Input
+              type="url"
+              value={newImageUrl}
+              onChange={(e) => setNewImageUrl(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  handleAddUrlClick();
+                }
+              }}
+              placeholder="https://…"
+            />
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleAddUrlClick}
+            disabled={!newImageUrl.trim()}
+          >
+            Add URL
           </Button>
         </div>
       </section>

@@ -368,3 +368,58 @@ test('storage siteSettings/**: public read allowed', async () => {
     getDownloadURL(storageRef(publicStorage, 'siteSettings/logo.png')),
   );
 });
+
+// ---- storage: products/** --------------------------------------------
+// Product catalog uploads from <AdminProductEditor>. Added v1.22. Same
+// cross-service limitation as siteSettings — see comment above that block.
+
+test('storage products/**: unauthenticated write denied', async () => {
+  await env.clearFirestore();
+  await env.clearStorage();
+  const storage = unauthedStorage();
+  await assertFails(
+    uploadBytes(storageRef(storage, 'products/p1/hero.png'), PNG_1x1, {
+      contentType: 'image/png',
+    }),
+  );
+});
+
+test('storage products/**: non-admin write denied', async () => {
+  await env.clearFirestore();
+  await env.clearStorage();
+  const storage = authedStorage('alice');
+  await assertFails(
+    uploadBytes(storageRef(storage, 'products/p1/hero.png'), PNG_1x1, {
+      contentType: 'image/png',
+    }),
+  );
+});
+
+test('storage products/**: SVG upload denied (product photos should be raster)', async () => {
+  await env.clearFirestore();
+  await env.clearStorage();
+  await seedAdmin('admin1');
+  const storage = authedStorage('admin1');
+  const svg = new TextEncoder().encode('<svg xmlns="http://www.w3.org/2000/svg"/>');
+  await assertFails(
+    uploadBytes(storageRef(storage, 'products/p1/hero.svg'), svg, {
+      contentType: 'image/svg+xml',
+    }),
+  );
+});
+
+test('storage products/**: public read allowed', async () => {
+  await env.clearFirestore();
+  await env.clearStorage();
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    await uploadBytes(
+      storageRef(ctx.storage(), 'products/p1/hero.png'),
+      PNG_1x1,
+      { contentType: 'image/png' },
+    );
+  });
+  const publicStorage = unauthedStorage();
+  await assertSucceeds(
+    getDownloadURL(storageRef(publicStorage, 'products/p1/hero.png')),
+  );
+});

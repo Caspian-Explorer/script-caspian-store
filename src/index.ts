@@ -203,6 +203,15 @@ export {
   TD,
   ImageUploadField,
   type ImageUploadFieldProps,
+  DropdownMenu,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  type DropdownMenuProps,
+  type DropdownMenuItemProps,
+  MoreHorizontalIcon,
+  EditIcon,
+  TrashIcon,
+  ExternalLinkIcon,
 } from './ui';
 
 // --- Services ---
