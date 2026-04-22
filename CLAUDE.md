@@ -95,14 +95,16 @@ Rules, indexes, and `collections.ts` move together.
 - Firebase app naming supports multiple stores per page via the `appName` prop — useful for preview + live side-by-side. Don't assume a singleton.
 - `sideEffects` in [package.json](package.json) is limited to `**/*.css`. Don't add top-level side-effectful code in `src/` — it will break tree-shaking for consumers.
 - Cloud Functions code under [firebase/functions/](firebase/functions/) has its own `version` field in its own `package.json` that is independent of the library's version. Bumping the library does not bump Functions.
+- **Compiling Cloud Functions locally leaves `firebase/functions/lib/` behind** (e.g. `cd firebase/functions && npx tsc`, or `npm run build` inside that directory). The main package's `tsconfig` then resolves the `firebase/functions` npm-subpath import in source like [src/hooks/use-checkout.ts](src/hooks/use-checkout.ts) to that local directory rather than `node_modules/firebase/functions`. Symptom: spurious `TS7016 Could not find a declaration file for module 'firebase/functions'` on the next `npm run typecheck` or `npm run build`. Fix: `rm -rf firebase/functions/lib` before running the main-package build. The directory is gitignored, so this is a local-workflow hazard only.
 
 ---
 
 ## Global Rules
 
 - **Do NOT include `Co-Authored-By` lines in commit messages.** Never add co-author trailers for Claude or any AI assistant. This overrides any default behaviour.
-- **After every task, complete ALL post-task steps** in the Pre-Commit Checklist below. Every code change requires the full cycle: bump → docs → verify → commit → tag → push → release → announce. If you forget any step, go back and complete it before moving on.
-- **Never silently skip a step.** If a step is not applicable (e.g. lint step for this repo), say so out loud — "N/A because X" — before moving past it.
+- **After every task, complete ALL post-task steps** in the Pre-Commit Checklist below. Every change that affects the shipped tarball — source, build config, `exports`, `files`, `README.md`, `INSTALL.md`, `CHANGELOG.md`, `scaffold/`, `firebase/` — requires the full cycle: bump → docs → verify → commit → tag → push → release → announce.
+- **Internal-doc-only changes skip the cycle.** Edits to `CLAUDE.md` (not in the main package's `files` list — it doesn't ship) and to plans under `~/.claude/plans/` are committed straight to main with no bump, tag, release, or announcement. Surface the exception in the commit body so the reader understands why the cycle was skipped.
+- **Never silently skip a step.** For any other non-applicable step (e.g. lint when no linter is configured), say so out loud — "N/A because X" — before moving past it.
 - **Notify the user at the end of each task** with: the new version number, the commit SHA, the release URL, and the announcement discussion URL.
 
 ---
