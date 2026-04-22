@@ -2,6 +2,49 @@
 
 All notable changes will be documented in this file.
 
+## v1.19.0 — Per-codebase `.gitignore` + first-deploy retry helper
+
+Closes the "install just works" gap on a clean v1.18.x run. Three field-report items from the latest consumer install:
+
+1. Pre-split `.gitignore` didn't cover the new `functions-admin/lib/` and `functions-stripe/lib/` tsc output — customers were accidentally committing build artifacts on every upgrade.
+2. First-ever 2nd-gen Cloud Functions deploy fails with a red `Permission denied while using the Eventarc Service Agent — Retry the deployment in a few minutes` error. The retry always works within a minute or two, but the raw `Error:` scares customers into thinking their store is broken.
+3. Every functions deploy ends with `Error: Functions successfully deployed but could not set up cleanup policy in location us-central1` in red. The functions deployed fine — this is just Artifact Registry image retention — but the `Error:` prefix reads like a failure.
+
+### Added
+- **Scaffolder now writes per-codebase `.gitignore`** inside each generated `functions-admin/` and `functions-stripe/` dir (2 lines each: `node_modules` + `lib/`). Matches what `firebase init functions` ships and stops `tsc` output from being staged on upgrade. Written inline by the scaffolder because npm strips `.gitignore` entries from tarballs (it uses them as ignore rules rather than shipping them).
+- **[firebase/scripts/deploy-functions.mjs](firebase/scripts/deploy-functions.mjs)** — consumer-side wrapper around `firebase deploy --only functions:<codebase>`. Detects the Eventarc-propagation error class and retries with a 60s visible countdown (max 2 retries). On success, runs `firebase functions:artifacts:setpolicy --force` and reframes the output with a `[cleanup-policy]` prefix so the informational lines aren't mistaken for errors. Zero new deps — pure Node built-ins.
+- **Scaffolder: `deploy:admin` and `deploy:stripe` npm scripts** in the generated `package.json` wired to the helper above. Raw `firebase deploy` still available via the existing `firebase:deploy` script.
+
+### Changed
+- **[scaffold/create.mjs](scaffold/create.mjs) generated `.gitignore`** now also ignores `functions-admin/lib/` and `functions-stripe/lib/` as belt-and-braces in case the per-codebase ignore files are removed or merged away.
+- **Generated README first-run checklist step #4** now recommends `npm run deploy:admin` over raw `firebase deploy`, with a one-paragraph explanation of the two first-deploy papercuts the helper handles.
+- **[INSTALL.md §5 "Deploy Cloud Functions"](INSTALL.md)** updated to recommend `npm run deploy:admin` / `npm run deploy:stripe` and explain the Eventarc + cleanup-policy smoothings.
+
+### Consumer action required on upgrade
+If you've already scaffolded a site on v1.18.x and want the new deploy helper + per-codebase ignores:
+
+```bash
+npm install github:Caspian-Explorer/script-caspian-store#v1.19.0
+
+# Create per-codebase .gitignore files (npm strips .gitignore from tarballs, so
+# these must be written by hand for upgraded sites — fresh scaffolds get them automatically):
+printf 'node_modules\nlib/\n' > functions-admin/.gitignore
+printf 'node_modules\nlib/\n' > functions-stripe/.gitignore   # only if you deployed Stripe
+
+# Add the deploy helper scripts to your package.json:
+#   "deploy:admin":  "node node_modules/@caspian-explorer/script-caspian-store/firebase/scripts/deploy-functions.mjs --codebase caspian-admin",
+#   "deploy:stripe": "node node_modules/@caspian-explorer/script-caspian-store/firebase/scripts/deploy-functions.mjs --codebase caspian-stripe"
+
+# If you accidentally staged functions-admin/lib/ or functions-stripe/lib/ on a prior upgrade, untrack them now:
+git rm -r --cached functions-admin/lib/ functions-stripe/lib/ 2>/dev/null || true
+```
+
+Fresh scaffolds pick up everything automatically.
+
+### Notes
+- The retry regex covers the three phrasings Firebase's CLI currently emits for Eventarc-propagation failures; if Google rewords the error, the helper falls through to exit with the original code and the customer sees the raw message, same as today (no regression).
+- `firebase functions:artifacts:setpolicy` is one-time per project/region — the helper runs it on every deploy, but subsequent runs are no-ops. The `--force` flag suppresses the confirmation prompt.
+
 ## v1.18.2 — Fix scaffolded `next.config.mjs` image-host allowlist
 
 Scaffolded storefronts were crashing with a `next/image` "hostname ... is not configured" runtime error whenever a product image came from a host outside Firebase Storage or Google user content (e.g. Wikimedia, Unsplash, a third-party CDN). The scaffolder's generated `next.config.mjs` shipped a two-host allowlist that was too tight for real catalogs.

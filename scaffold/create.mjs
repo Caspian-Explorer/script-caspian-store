@@ -142,6 +142,8 @@ if (useCreateNextApp) {
 const ourScripts = {
   typecheck: 'tsc --noEmit',
   'firebase:deploy': 'firebase deploy',
+  'deploy:admin': 'node node_modules/@caspian-explorer/script-caspian-store/firebase/scripts/deploy-functions.mjs --codebase caspian-admin',
+  'deploy:stripe': 'node node_modules/@caspian-explorer/script-caspian-store/firebase/scripts/deploy-functions.mjs --codebase caspian-stripe',
   'firebase:seed': 'node node_modules/@caspian-explorer/script-caspian-store/firebase/seed/seed.mjs',
   'grant-admin': 'node node_modules/@caspian-explorer/script-caspian-store/firebase/seed/grant-admin.mjs',
 };
@@ -274,6 +276,8 @@ if (!useCreateNextApp) {
 .env*.local
 *.log
 service-account*.json
+functions-admin/lib/
+functions-stripe/lib/
 `);
   write('next-env.d.ts', `/// <reference types="next" />
 /// <reference types="next/image-types/global" />
@@ -617,9 +621,16 @@ if (includeStripe) {
 write('firebase.json', JSON.stringify(firebaseConfig, null, 2) + '\n');
 
 // Always copy functions-admin; copy functions-stripe only on opt-in.
+// Per-codebase .gitignore is written inline here (not relied on from cpSync):
+// npm silently consumes `.gitignore` files in the tarball as ignore rules and
+// does NOT ship them as regular files, so the ones that live in the package's
+// firebase/functions-*/.gitignore won't survive `npm install`. Writing them
+// from the scaffolder guarantees they land in the consumer's project.
 cpSync(join(sourceFirebaseDir, 'functions-admin'), join(root, 'functions-admin'), { recursive: true });
+write('functions-admin/.gitignore', 'node_modules\nlib/\n');
 if (includeStripe) {
   cpSync(join(sourceFirebaseDir, 'functions-stripe'), join(root, 'functions-stripe'), { recursive: true });
+  write('functions-stripe/.gitignore', 'node_modules\nlib/\n');
 }
 
 // ---- apphosting.yaml ----
@@ -687,16 +698,18 @@ npm run dev                  # http://localhost:3000
 4. **Deploy Cloud Functions.**
    \`\`\`bash
    cd functions-admin && npm install && cd ..
-   firebase deploy --only functions:caspian-admin
+   npm run deploy:admin
    \`\`\`
    This deploys the \`onUserCreate\` auto-promote trigger (no secrets needed). **Do this before anyone registers** or auto-promote can't retroactively fire on an already-created user doc.
+
+   The \`deploy:admin\` script wraps \`firebase deploy\` with two first-deploy smoothings: it auto-retries once if the Eventarc Service Agent hasn't finished propagating (the most common first-deploy failure), and it runs \`firebase functions:artifacts:setpolicy\` afterwards so you don't see \`Error: could not set up cleanup policy\` on your first deploy. That \`Error:\` is about old container-image retention in Artifact Registry, not your Function code — harmless either way.
 
    If you also scaffolded with \`--with-stripe\`, deploy the Stripe codebase separately once you have your keys:
    \`\`\`bash
    cd functions-stripe && npm install && cd ..
    firebase functions:secrets:set STRIPE_SECRET_KEY      # paste sk_test_... or sk_live_...
    firebase functions:secrets:set STRIPE_WEBHOOK_SECRET  # from Stripe dashboard → Webhooks
-   firebase deploy --only functions:caspian-stripe
+   npm run deploy:stripe
    \`\`\`
 5. **Seed Firestore:**
    \`\`\`bash

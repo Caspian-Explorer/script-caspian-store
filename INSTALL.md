@@ -269,8 +269,16 @@ cp node_modules/@caspian-explorer/script-caspian-store/firebase/firebase.json . 
 
 ```bash
 cd functions-admin && npm install && cd ..
-firebase deploy --only functions:caspian-admin
+npm run deploy:admin     # v1.19.0+ helper — wraps `firebase deploy` with Eventarc retry
+                         # If you're on ≤v1.18.x, use `firebase deploy --only functions:caspian-admin`
 ```
+
+The `deploy:admin` helper (shipped with the scaffolded `package.json` in v1.19.0+) wraps `firebase deploy` and handles two first-deploy papercuts automatically:
+
+1. **Eventarc propagation.** First 2nd-gen deploys on a brand-new Firebase project often fail with `Permission denied while using the Eventarc Service Agent`. The helper detects this and retries after a 60s countdown — no more panic at the `Error:` line.
+2. **Artifact Registry cleanup policy.** After a successful deploy, `firebase deploy` often emits `Error: could not set up cleanup policy`. The functions themselves are live — that message is about old container-image retention. The helper runs `firebase functions:artifacts:setpolicy --force` afterwards and reframes the output so you don't see red `Error:` for a non-problem.
+
+Raw `firebase deploy --only functions:caspian-admin` still works if you prefer it (or if you're not using the scaffolded `package.json`).
 
 **Stripe codebase (only when you have Stripe keys):**
 
@@ -278,7 +286,7 @@ firebase deploy --only functions:caspian-admin
 cd functions-stripe && npm install && cd ..
 firebase functions:secrets:set STRIPE_SECRET_KEY       # sk_test_… or sk_live_…
 firebase functions:secrets:set STRIPE_WEBHOOK_SECRET   # whsec_…
-firebase deploy --only functions:caspian-stripe
+npm run deploy:stripe    # v1.19.0+ helper
 ```
 
 In Stripe dashboard → Webhooks → add endpoint:
