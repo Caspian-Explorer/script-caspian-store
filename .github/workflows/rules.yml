@@ -31,7 +31,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm
+          # No cache — this repo doesn't commit package-lock.json by policy.
 
       # Firebase emulators are Java-based; the Firestore / Storage emulators
       # need a JVM on PATH even when invoked via firebase-tools.
