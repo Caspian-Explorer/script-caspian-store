@@ -2,6 +2,21 @@
 
 All notable changes will be documented in this file.
 
+## v1.18.2 — Fix scaffolded `next.config.mjs` image-host allowlist
+
+Scaffolded storefronts were crashing with a `next/image` "hostname ... is not configured" runtime error whenever a product image came from a host outside Firebase Storage or Google user content (e.g. Wikimedia, Unsplash, a third-party CDN). The scaffolder's generated `next.config.mjs` shipped a two-host allowlist that was too tight for real catalogs.
+
+### Fixed
+- **[scaffold/create.mjs](scaffold/create.mjs) — `next.config.mjs` image hosts.** The generated config now allows any `https` host by default (`{ protocol: 'https', hostname: '**' }`), with an inline comment showing how to tighten it to an explicit per-host list for production. Fixes the "Invalid src prop — hostname not configured under images" runtime error for catalogs referencing images from external CDNs.
+- **`--use-create-next-app` delegation path now carries our `images` config.** Previously, the delegated path inherited whatever `create-next-app` wrote (no `images` block at all), so the bug was silent in that branch. The scaffolder now removes any `next.config.{ts,js,mjs}` create-next-app emitted and writes our shared `next.config.mjs` on top.
+- **[examples/nextjs/next.config.js](examples/nextjs/next.config.js)** — mirrored the same permissive images config so the example app renders arbitrary catalogs without surprise errors.
+
+### Added
+- **[INSTALL.md](INSTALL.md) — new "Configure `next/image` hosts" subsection** under manual Next.js setup, showing both the permissive scaffolder default and a tighter per-host recipe for production, with a link to the upstream Next.js docs.
+
+### Notes
+- No source, public API, or ruleset changes. Existing consumer sites can adopt the fix by editing their own `next.config.mjs` — the new subsection in INSTALL.md has the exact snippet.
+
 ## v1.18.1 — Fix scaffolder stripe runtime + regenerate Function lock files
 
 Small follow-up to v1.18.0 catching a scaffolder bug and stale lock files that didn't make the cut.

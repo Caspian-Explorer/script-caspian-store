@@ -41,8 +41,8 @@ node /tmp/scs/scaffold/create.mjs my-store --package-tag v1.11.0
 ## 1. Install the package
 
 ```bash
-npm install github:Caspian-Explorer/script-caspian-store#v1.16.1 firebase
-# Replace v1.16.1 with the latest tag — see:
+npm install github:Caspian-Explorer/script-caspian-store#v1.18.2 firebase
+# Replace v1.18.2 with the latest tag — see:
 #   https://github.com/Caspian-Explorer/script-caspian-store/releases
 # Pinning to a specific sha is also fine:
 # npm install github:Caspian-Explorer/script-caspian-store#<sha>
@@ -156,6 +156,32 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     </html>
   );
 }
+```
+
+#### Configure `next/image` hosts
+
+`next/image` rejects any hostname not listed under `images.remotePatterns` in `next.config.mjs` with a runtime error ([Invalid src prop](https://nextjs.org/docs/messages/next-image-unconfigured-host)). Storefront catalogs routinely contain images from arbitrary hosts (seeded demo data, Unsplash, Wikimedia, third-party CDNs), so the scaffolder ships a permissive default — match it in a manual install:
+
+```js
+// next.config.mjs
+const nextConfig = {
+  images: {
+    remotePatterns: [
+      { protocol: 'https', hostname: '**' },
+    ],
+  },
+};
+export default nextConfig;
+```
+
+To tighten it for production, replace the wildcard with explicit per-host rules:
+
+```js
+remotePatterns: [
+  { protocol: 'https', hostname: 'firebasestorage.googleapis.com' },
+  { protocol: 'https', hostname: 'lh3.googleusercontent.com' },
+  { protocol: 'https', hostname: 'cdn.example.com' },
+],
 ```
 
 ### Vite / React Router

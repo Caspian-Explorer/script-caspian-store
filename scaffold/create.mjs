@@ -27,7 +27,7 @@
  * After scaffolding, `cd <project-dir> && npm install` and follow the README.
  */
 
-import { mkdirSync, writeFileSync, readFileSync, readdirSync, existsSync, cpSync } from 'node:fs';
+import { mkdirSync, writeFileSync, readFileSync, readdirSync, existsSync, cpSync, unlinkSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { fileURLToPath } from 'node:url';
@@ -157,6 +157,26 @@ const ourDevDeps = {
   'firebase-admin': '^13.0.0',
 };
 
+// Storefronts routinely reference product images from arbitrary hosts (seeded
+// demos, Unsplash, Wikimedia, third-party CDNs). `next/image` rejects any host
+// not listed under `images.remotePatterns`, so we ship a permissive default
+// and show consumers how to tighten it. Shared between both generation paths
+// (hand-rolled and create-next-app delegation) so the output stays identical.
+const nextConfigSource = `const nextConfig = {
+  images: {
+    // Permissive default — storefront admins can paste image URLs from any
+    // https host. To restrict, replace this entry with explicit per-host rules:
+    //   { protocol: 'https', hostname: 'firebasestorage.googleapis.com' },
+    //   { protocol: 'https', hostname: 'cdn.example.com' },
+    // See https://nextjs.org/docs/messages/next-image-unconfigured-host
+    remotePatterns: [
+      { protocol: 'https', hostname: '**' },
+    ],
+  },
+};
+export default nextConfig;
+`;
+
 if (useCreateNextApp) {
   const pkgPath = join(root, 'package.json');
   const pkg = JSON.parse(readFileSync(pkgPath, 'utf8'));
@@ -165,6 +185,16 @@ if (useCreateNextApp) {
   if (nextVersion) pkg.dependencies.next = nextVersion;
   pkg.devDependencies = { ...(pkg.devDependencies ?? {}), ...ourDevDeps };
   writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n');
+
+  // create-next-app picks the `next.config` extension based on its own Next
+  // version and the --typescript flag (recent versions emit .ts). Delete any
+  // variant it wrote and replace with our .mjs so the images config is always
+  // applied and the scaffolder's output shape is stable across CNA releases.
+  for (const variant of ['next.config.ts', 'next.config.js', 'next.config.mjs']) {
+    const p = join(root, variant);
+    if (existsSync(p)) unlinkSync(p);
+  }
+  write('next.config.mjs', nextConfigSource);
 } else {
   write('package.json', JSON.stringify({
     name: targetDir.split(/[\\/]/).pop(),
@@ -215,16 +245,7 @@ if (useCreateNextApp) {
   }, null, 2) + '\n');
 
   // ---- next.config.mjs ----
-  write('next.config.mjs', `const nextConfig = {
-  images: {
-    remotePatterns: [
-      { protocol: 'https', hostname: 'firebasestorage.googleapis.com' },
-      { protocol: 'https', hostname: 'lh3.googleusercontent.com' },
-    ],
-  },
-};
-export default nextConfig;
-`);
+  write('next.config.mjs', nextConfigSource);
 }
 
 // ---- .env.example ----
