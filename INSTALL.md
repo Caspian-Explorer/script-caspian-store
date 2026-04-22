@@ -21,7 +21,8 @@ This generates a Next.js 14 App Router project with every storefront / admin / c
 Flags:
 
 - `--package-tag vX.Y.Z` — pin the generated project to a specific release (default: latest)
-- `--with-functions` — also scaffold the Stripe Cloud Functions tree into `functions/` (the generated `firebase.json` gets the matching `functions` block)
+- `--with-stripe` — also scaffold the Stripe Cloud Functions tree into `functions-stripe/` (and add the matching `caspian-stripe` codebase to `firebase.json`). The admin codebase (`functions-admin/`, auto-promote trigger) is always scaffolded — it has no secrets and is deployable immediately.
+- `--with-functions` — deprecated alias for `--with-stripe`, kept for back-compat
 - `--force` — scaffold into a non-empty directory (`.git`, `.gitignore`, `README.md`, `LICENSE` are preserved automatically)
 
 **If you used the scaffolder, stop here and follow the generated `my-store/README.md`** for Firebase + Stripe + seeding. The remainder of this document (§1–§12) is the manual-install path for people embedding the package into an existing React app; you don't need it after scaffolding.
@@ -223,16 +224,35 @@ If you already have a `firestore.rules`, merge the `match /<collection>/{id} { .
 
 ---
 
-## 5. Deploy Stripe Cloud Functions
+## 5. Deploy Cloud Functions
+
+v1.16.0+ ships **two codebases** so you can deploy admin triggers without having Stripe configured:
+
+- `caspian-admin` — just `onUserCreate` (auto-promote first user to admin). No secrets, no Stripe dep. Always deployable.
+- `caspian-stripe` — `createStripeCheckoutSession`, `stripeWebhook`, `getStripeSession`. Requires `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET`.
+
+Copy both codebases from `node_modules` into your project root, merge the `functions` entries into your `firebase.json`, then deploy them separately:
 
 ```bash
-cp -R node_modules/@caspian-explorer/script-caspian-store/firebase/functions ./functions
-cd functions && npm install && cd ..
+cp -R node_modules/@caspian-explorer/script-caspian-store/firebase/functions-admin ./functions-admin
+cp -R node_modules/@caspian-explorer/script-caspian-store/firebase/functions-stripe ./functions-stripe  # skip if no Stripe
+cp node_modules/@caspian-explorer/script-caspian-store/firebase/firebase.json .                          # or merge manually
+```
 
+**Admin codebase (always deploy this, before anyone registers):**
+
+```bash
+cd functions-admin && npm install && cd ..
+firebase deploy --only functions:caspian-admin
+```
+
+**Stripe codebase (only when you have Stripe keys):**
+
+```bash
+cd functions-stripe && npm install && cd ..
 firebase functions:secrets:set STRIPE_SECRET_KEY       # sk_test_… or sk_live_…
 firebase functions:secrets:set STRIPE_WEBHOOK_SECRET   # whsec_…
-
-firebase deploy --only functions:caspian-store
+firebase deploy --only functions:caspian-stripe
 ```
 
 In Stripe dashboard → Webhooks → add endpoint:
@@ -273,7 +293,7 @@ Idempotent — existing docs are skipped unless `--force` is passed. See [`fireb
 
 Pick one of three paths (in order of preference):
 
-**Auto-promote (easiest, requires Cloud Functions).** The package ships an `onUserCreate` Firestore trigger that promotes whoever creates the first `users/{uid}` doc — and permanently stops the moment any admin exists, so it's only ever a first-install helper. Deploy the functions (§5), then sign up at `/auth/register` before anyone else does.
+**Auto-promote (easiest).** The package ships an `onUserCreate` Firestore trigger in the `caspian-admin` codebase that promotes whoever creates the first `users/{uid}` doc — and permanently stops the moment any admin exists, so it's only ever a first-install helper. Deploy the admin codebase (§5 — no Stripe secrets needed), *then* sign up at `/auth/register`. Registering before the trigger is deployed means auto-promote can't fire retroactively — use the CLI path below instead.
 
 **CLI (explicit, works any time).**
 

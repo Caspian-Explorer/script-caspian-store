@@ -9,7 +9,9 @@
  *     [--next-version <spec>]       # pin for next in generated package.json; default ^15.0.0
  *     [--use-create-next-app]       # delegate Next.js boilerplate to `npx create-next-app`
  *                                    # for drift-free tsconfig / next.config / next-env.d.ts
- *     [--with-functions]            # also copy firebase/functions/ (Stripe Cloud Functions)
+ *     [--with-stripe]               # also copy firebase/functions-stripe/ (Stripe checkout
+ *                                    #   + webhook) — admin codebase is always scaffolded
+ *     [--with-functions]            # deprecated alias for --with-stripe (back-compat)
  *     [--force]                     # scaffold into a non-empty dir (.git / .gitignore /
  *                                    #   README.md / LICENSE are preserved without --force)
  *
@@ -42,16 +44,22 @@ const { positionals, values: args } = parseArgs({
     'next-version': { type: 'string', default: '^15.0.0' },
     'use-create-next-app': { type: 'boolean', default: false },
     force: { type: 'boolean', default: false },
+    'with-stripe': { type: 'boolean', default: false },
     'with-functions': { type: 'boolean', default: false },
   },
   allowPositionals: true,
 });
 
+// --with-functions used to mean "copy the Stripe Cloud Functions tree"; it now
+// only affects the Stripe codebase (admin codebase is always scaffolded), so
+// treat it as an alias for --with-stripe to avoid breaking existing callers.
+const includeStripe = args['with-stripe'] || args['with-functions'];
+
 const targetDir = positionals[0];
 if (!targetDir) {
   console.error(
     'Usage: node create.mjs <project-dir> [--package-tag vX.Y.Z] [--next-version <spec>]\n' +
-    '                       [--use-create-next-app] [--with-functions] [--force]',
+    '                       [--use-create-next-app] [--with-stripe] [--force]',
   );
   process.exit(1);
 }
@@ -552,24 +560,45 @@ write('firestore.rules', readFileSync(join(sourceFirebaseDir, 'firestore.rules')
 write('firestore.indexes.json', readFileSync(join(sourceFirebaseDir, 'firestore.indexes.json'), 'utf8'));
 write('storage.rules', readFileSync(join(sourceFirebaseDir, 'storage.rules'), 'utf8'));
 
-// firebase.json omits the `functions` block by default. Generating a
-// functions block without the matching functions/ source tree made
-// `firebase deploy` fail for scaffolded projects. Opt in with --with-functions
-// to also copy the Stripe Cloud Functions source in.
+// Functions codebase split (v1.16.0+): caspian-admin is always scaffolded —
+// it contains only the `onUserCreate` auto-promote trigger, no Stripe deps,
+// no secrets, deployable without a Stripe account. caspian-stripe ships
+// checkout + webhook + session lookup and requires STRIPE_SECRET_KEY /
+// STRIPE_WEBHOOK_SECRET; opt in with --with-stripe.
+//
+// Pre-split behaviour (single `caspian-store` codebase) forced every install
+// to pre-configure Stripe secrets before deploying any function, even the
+// admin trigger. Splitting lets a non-Stripe install deploy onUserCreate
+// immediately, closing the admin-bootstrap chicken-and-egg loop.
 const firebaseConfig = {
   firestore: {
     rules: 'firestore.rules',
     indexes: 'firestore.indexes.json',
   },
   storage: { rules: 'storage.rules' },
+  functions: [
+    {
+      source: 'functions-admin',
+      codebase: 'caspian-admin',
+      runtime: 'nodejs22',
+      predeploy: ['npm --prefix "$RESOURCE_DIR" run build'],
+    },
+  ],
 };
-if (args['with-functions']) {
-  firebaseConfig.functions = [{ source: 'functions', codebase: 'caspian-store' }];
+if (includeStripe) {
+  firebaseConfig.functions.push({
+    source: 'functions-stripe',
+    codebase: 'caspian-stripe',
+    runtime: 'nodejs20',
+    predeploy: ['npm --prefix "$RESOURCE_DIR" run build'],
+  });
 }
 write('firebase.json', JSON.stringify(firebaseConfig, null, 2) + '\n');
 
-if (args['with-functions']) {
-  cpSync(join(sourceFirebaseDir, 'functions'), join(root, 'functions'), { recursive: true });
+// Always copy functions-admin; copy functions-stripe only on opt-in.
+cpSync(join(sourceFirebaseDir, 'functions-admin'), join(root, 'functions-admin'), { recursive: true });
+if (includeStripe) {
+  cpSync(join(sourceFirebaseDir, 'functions-stripe'), join(root, 'functions-stripe'), { recursive: true });
 }
 
 // ---- apphosting.yaml ----
@@ -634,13 +663,26 @@ npm run dev                  # http://localhost:3000
    \`\`\`bash
    firebase deploy --only firestore:rules,firestore:indexes,storage
    \`\`\`
-4. **Deploy Stripe Cloud Functions** (follow [package INSTALL.md §5](https://github.com/Caspian-Explorer/script-caspian-store/blob/main/INSTALL.md)). If you scaffolded with \`--with-functions\` the \`functions/\` tree is already in place; \`cd functions && npm install\` first, then set the secrets and deploy.
+4. **Deploy Cloud Functions.**
+   \`\`\`bash
+   cd functions-admin && npm install && cd ..
+   firebase deploy --only functions:caspian-admin
+   \`\`\`
+   This deploys the \`onUserCreate\` auto-promote trigger (no secrets needed). **Do this before anyone registers** or auto-promote can't retroactively fire on an already-created user doc.
+
+   If you also scaffolded with \`--with-stripe\`, deploy the Stripe codebase separately once you have your keys:
+   \`\`\`bash
+   cd functions-stripe && npm install && cd ..
+   firebase functions:secrets:set STRIPE_SECRET_KEY      # paste sk_test_... or sk_live_...
+   firebase functions:secrets:set STRIPE_WEBHOOK_SECRET  # from Stripe dashboard → Webhooks
+   firebase deploy --only functions:caspian-stripe
+   \`\`\`
 5. **Seed Firestore:**
    \`\`\`bash
    # After downloading a service-account JSON:
    npm run firebase:seed -- --project <projectId> --credentials ./service-account.json
    \`\`\`
-6. **Grant yourself admin.** If you scaffolded with \`--with-functions\` and deployed them in §4, the \`onUserCreate\` trigger auto-promotes the first-ever user to admin — just sign up at \`/auth/register\` before anyone else does. Otherwise use the CLI:
+6. **Grant yourself admin.** If you deployed \`caspian-admin\` in §4 *before* registering, the \`onUserCreate\` trigger auto-promotes the first-ever user — just sign up at \`/auth/register\`. If you registered before the deploy (or the auto-promote window has closed), use the CLI:
    \`\`\`bash
    npm run grant-admin -- --project <projectId> --credentials ./service-account.json --email you@example.com
    \`\`\`

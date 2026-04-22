@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, type ReactNode } from 'react';
+import { httpsCallable } from 'firebase/functions';
 import { useAuth } from '../context/auth-context';
-import { useCaspianLink } from '../provider/caspian-store-provider';
+import { useCaspianFirebase, useCaspianLink } from '../provider/caspian-store-provider';
 import { Skeleton } from '../ui/misc';
 
 export interface AdminGuardProps {
@@ -51,8 +52,16 @@ export function AdminGuard({ children, signInHref = '/login', fallback }: AdminG
   return <>{children}</>;
 }
 
+type ClaimState =
+  | { status: 'idle' }
+  | { status: 'claiming' }
+  | { status: 'error'; message: string };
+
 function AccessDenied({ uid }: { uid: string }) {
+  const { functions } = useCaspianFirebase();
+  const { refreshProfile } = useAuth();
   const [copied, setCopied] = useState(false);
+  const [claim, setClaim] = useState<ClaimState>({ status: 'idle' });
 
   const copy = () => {
     if (typeof navigator === 'undefined' || !navigator.clipboard) return;
@@ -62,17 +71,57 @@ function AccessDenied({ uid }: { uid: string }) {
     });
   };
 
+  const claimAdmin = async () => {
+    setClaim({ status: 'claiming' });
+    try {
+      await httpsCallable(functions, 'claimAdmin')({});
+      await refreshProfile();
+      // AdminGuard will re-render with role=admin and drop AccessDenied.
+    } catch (error) {
+      const message =
+        error && typeof error === 'object' && 'message' in error
+          ? String((error as { message?: unknown }).message)
+          : 'Failed to claim admin role.';
+      setClaim({ status: 'error', message });
+    }
+  };
+
   return (
     <div style={{ padding: 40, textAlign: 'center', maxWidth: 520, margin: '0 auto' }}>
       <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>Access denied</h1>
       <p style={{ color: '#666', marginTop: 8 }}>
-        Your account doesn't have the admin role. To grant yourself admin,
-        either set <code>users/{'{uid}'}.role = 'admin'</code> in Firestore
-        directly, or re-run the seed script with <code>--admin &lt;uid&gt;</code>.
+        Your account doesn't have the admin role. Three paths to fix:
       </p>
+      <ul
+        style={{
+          color: '#666',
+          marginTop: 8,
+          marginBottom: 16,
+          textAlign: 'left',
+          display: 'inline-block',
+          paddingLeft: 20,
+          fontSize: 14,
+          lineHeight: 1.6,
+        }}
+      >
+        <li>
+          <strong>Claim admin</strong> — if no admin exists yet (first-install path), use the
+          button below.
+        </li>
+        <li>
+          <strong>CLI</strong> —{' '}
+          <code>
+            npm run grant-admin -- --uid &lt;uid&gt; --credentials ./service-account.json
+          </code>
+          .
+        </li>
+        <li>
+          <strong>Firestore console</strong> — open <code>users/{'{uid}'}</code>, set{' '}
+          <code>role</code> string field to <code>"admin"</code>.
+        </li>
+      </ul>
       <div
         style={{
-          marginTop: 16,
           display: 'inline-flex',
           alignItems: 'center',
           gap: 8,
@@ -82,6 +131,7 @@ function AccessDenied({ uid }: { uid: string }) {
           background: '#f7f7f7',
           fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
           fontSize: 13,
+          marginBottom: 12,
         }}
       >
         <span>{uid}</span>
@@ -100,6 +150,28 @@ function AccessDenied({ uid }: { uid: string }) {
           {copied ? 'Copied' : 'Copy UID'}
         </button>
       </div>
+      <div>
+        <button
+          type="button"
+          onClick={claimAdmin}
+          disabled={claim.status === 'claiming'}
+          style={{
+            padding: '10px 20px',
+            border: 'none',
+            borderRadius: 6,
+            background: claim.status === 'claiming' ? '#888' : '#111',
+            color: '#fff',
+            cursor: claim.status === 'claiming' ? 'default' : 'pointer',
+            fontSize: 14,
+            fontWeight: 500,
+          }}
+        >
+          {claim.status === 'claiming' ? 'Claiming…' : 'Claim admin role'}
+        </button>
+      </div>
+      {claim.status === 'error' && (
+        <p style={{ color: '#c00', marginTop: 12, fontSize: 13 }}>{claim.message}</p>
+      )}
     </div>
   );
 }

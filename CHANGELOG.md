@@ -2,6 +2,44 @@
 
 All notable changes will be documented in this file.
 
+## v1.18.0 — Split Cloud Functions codebase + retroactive admin-claim callable
+
+Two interlocking fixes for the admin-bootstrap chicken-and-egg reported in the v1.15 field install:
+
+1. **Functions codebase split.** The single `caspian-store` codebase forced `firebase deploy` to pre-flight all functions — including Stripe ones — before deploying *any*, so a consumer without Stripe configured couldn't deploy even `onUserCreate`. Splitting into two codebases lets the admin trigger ship on install day.
+2. **New `claimAdmin` callable.** Closes the retroactive gap that `onUserCreate` can't: if the installer registered *before* deploying the trigger, the trigger never fires on their already-created `users/{uid}` doc. The callable runs on demand (wire it to the AdminGuard "Claim admin role" button), gated by the same "no admin exists yet" invariant the trigger uses.
+
+### Added
+- **[firebase/functions-admin/src/claim-admin.ts](firebase/functions-admin/src/claim-admin.ts)** — `claimAdmin` callable (v2 `onCall`). Throws `failed-precondition` once any admin exists, so the bootstrap window can never be re-opened by a malicious caller. Pair with a button in `<AdminGuard>`'s access-denied screen to make it one-click from the consumer side.
+
+### Changed
+- **[firebase/functions/](firebase/functions/) replaced by [firebase/functions-admin/](firebase/functions-admin/) and [firebase/functions-stripe/](firebase/functions-stripe/).**
+  - `functions-admin` — `onUserCreate` only. Deps: `firebase-admin`, `firebase-functions`. No secrets, no Stripe, deployable immediately on a fresh Firebase project.
+  - `functions-stripe` — `createStripeCheckoutSession`, `stripeWebhook`, `getStripeSession`. Deps: `firebase-admin`, `firebase-functions`, `stripe`. Requires `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` — deploy separately when your Stripe account is ready.
+- **[firebase/firebase.json](firebase/firebase.json)** now declares two codebases (`caspian-admin`, `caspian-stripe`) with matching `predeploy` build steps. Deploy targets become `firebase deploy --only functions:caspian-admin` and `firebase deploy --only functions:caspian-stripe`.
+- **[scaffold/create.mjs](scaffold/create.mjs)** — scaffolder now always copies `functions-admin/` and always includes the `caspian-admin` entry in the generated `firebase.json`. Opt into Stripe with `--with-stripe` (or the back-compat alias `--with-functions`) — that adds `functions-stripe/` and the matching codebase entry.
+- **[INSTALL.md §5](INSTALL.md)** rewritten to describe the two-codebase deploy flow: admin always, Stripe when ready.
+- **Generated README's first-run checklist step #4** now deploys `functions:caspian-admin` as step 1 (before registering!), then `functions:caspian-stripe` as optional step 2 with a clear signal about what secrets are needed.
+
+### Consumer action required on upgrade
+If you were on v1.17.0 or earlier:
+
+```bash
+npm install github:Caspian-Explorer/script-caspian-store#v1.18.0 firebase
+rm -rf functions                                  # delete the old unified codebase
+cp -R node_modules/@caspian-explorer/script-caspian-store/firebase/functions-admin .
+cp -R node_modules/@caspian-explorer/script-caspian-store/firebase/functions-stripe .   # only if you have Stripe
+cp node_modules/@caspian-explorer/script-caspian-store/firebase/firebase.json .         # or merge manually
+cd functions-admin && npm install && cd ..
+firebase deploy --only functions:caspian-admin
+```
+
+The old `functions:caspian-store` deploy target is gone; use `functions:caspian-admin` and `functions:caspian-stripe` instead.
+
+### Notes
+- Previously-deployed `caspian-store` codebase functions on Firebase aren't automatically renamed by this change. After deploying `caspian-admin` and `caspian-stripe`, use `firebase functions:delete <functionName> --codebase caspian-store` to clean up the orphans, or just leave them — they'll be idle.
+- v1.17.0's rules CI doesn't yet cover Cloud Functions compilation. Future release could add a `functions-admin: tsc --noEmit && functions-stripe: tsc --noEmit` step alongside the rules tests — catches type regressions in the triggers at PR time.
+
 ## v1.17.0 — Rules compile + behavior tests in CI
 
 The last two shipped bugs — v1.13.0 (`storage.rules` grammar) and v1.15.0 (`users/{uid}` first-create silently denied) — both escaped because nobody ran `firebase deploy` before release. The rules tree now has two safety nets: the Firebase emulator runs on every PR (compiles the rules files, fails CI on grammar errors), and [@firebase/rules-unit-testing](https://firebase.google.com/docs/rules/unit-tests) executes a small behavior suite against the rules (would have caught v1.15.0 at PR time).

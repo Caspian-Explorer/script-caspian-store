@@ -1,6 +1,7 @@
 node_modules/
 dist/
-firebase/functions/lib/
+firebase/functions-admin/lib/
+firebase/functions-stripe/lib/
 .claude/
 *.tgz
 .DS_Store
