@@ -2,6 +2,26 @@ import { defineConfig, type Options } from 'tsup';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
+// Sync `src/version.ts` with `package.json#version` so the library can export
+// CASPIAN_STORE_VERSION (and the admin About page can compare installed vs
+// latest on GitHub) without drifting. Runs on every tsup invocation — build,
+// dev, and the `prepare` hook that fires on `npm install`.
+const rootPkgVersion = JSON.parse(readFileSync('package.json', 'utf8')).version as string;
+const versionFile = join('src', 'version.ts');
+const versionContents =
+  `// Auto-generated from package.json by tsup.config.ts. Do not edit.\n` +
+  `export const CASPIAN_STORE_VERSION = '${rootPkgVersion}';\n`;
+const existing = (() => {
+  try {
+    return readFileSync(versionFile, 'utf8');
+  } catch {
+    return '';
+  }
+})();
+if (existing !== versionContents) {
+  writeFileSync(versionFile, versionContents);
+}
+
 // Shared settings between the two builds.
 const shared = {
   format: ['esm', 'cjs'],

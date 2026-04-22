@@ -403,6 +403,7 @@ export {
   AdminLanguagesPage,
   AdminSiteSettingsPage,
   AdminTodoPage,
+  AdminAboutPage,
   AdminProfileMenu,
   DEFAULT_PAGE_KEYS,
   type AdminGuardProps,
@@ -415,6 +416,7 @@ export {
   type AdminOrderDetailProps,
   type AdminPagesPageProps,
   type AdminFaqsPageProps,
+  type AdminAboutPageProps,
   type AdminProfileMenuProps,
 } from './admin';
 
@@ -465,3 +467,14 @@ export { DEFAULT_SCRIPT_SETTINGS, SOCIAL_PLATFORMS } from './types';
 
 // --- Utilities ---
 export { cn } from './utils/cn';
+
+// --- Library metadata ---
+export { CASPIAN_STORE_VERSION } from './version';
+export {
+  fetchRecentReleases,
+  compareVersions,
+  isUpdateAvailable,
+  DEFAULT_REPO_OWNER,
+  DEFAULT_REPO_NAME,
+  type GithubRelease,
+} from './services/github-updates-service';

@@ -82,7 +82,7 @@ See [INSTALL.md](./INSTALL.md) for the **one-command scaffolder**, **Vite** / **
 | **Order confirmation:** `<OrderConfirmationPage />` — polls Firestore for the webhook-created order | ✅ |
 | **Order history:** `<OrderHistoryList />` | ✅ |
 | **Wishlist:** `useWishlist()` + `<WishlistButton />` | ✅ |
-| **Admin:** `<AdminGuard />`, `<AdminShell />`, `<AdminDashboard />`, product CRUD, orders + status, reviews moderation | ✅ |
+| **Admin:** `<AdminGuard />`, `<AdminShell />`, `<AdminDashboard />`, product CRUD, orders + status, reviews moderation, `<AdminAboutPage />` (installed version + GitHub release feed) | ✅ |
 | **Auth:** `<LoginPage />`, `<RegisterPage />`, `<ForgotPasswordPage />`, `<AccountPage />` (profile, password, addresses, orders) | ✅ |
 | **i18n:** `<LocaleProvider>` + `useT()` + `DEFAULT_MESSAGES` + `<LocaleSwitcher />` (all surfaces migrated) | ✅ |
 | **Theming:** 6 `THEME_PRESETS` + `<ThemePresetPicker />` | ✅ |
@@ -114,7 +114,11 @@ useCheckout, useWishlist
 AdminGuard, AdminShell, DEFAULT_ADMIN_NAV, AdminDashboard,
 AdminProductsList, AdminProductEditor,
 AdminOrdersList, AdminOrderDetail,
-AdminReviewsModeration
+AdminReviewsModeration, AdminAboutPage
+
+// Library metadata + update checks
+CASPIAN_STORE_VERSION,
+fetchRecentReleases, compareVersions, isUpdateAvailable
 
 // Auth + account
 LoginPage, RegisterPage, ForgotPasswordPage,

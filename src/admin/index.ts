@@ -32,4 +32,5 @@ export { AdminProductCollectionsPage } from './admin-product-collections-page';
 export { AdminLanguagesPage } from './admin-languages-page';
 export { AdminSiteSettingsPage } from './admin-site-settings-page';
 export { AdminTodoPage } from './admin-todo-page';
+export { AdminAboutPage, type AdminAboutPageProps } from './admin-about-page';
 export { AdminProfileMenu, type AdminProfileMenuProps } from './admin-profile-menu';

@@ -568,6 +568,7 @@ const adminRoutes = [
   ['collections', 'AdminProductCollectionsPage'],
   ['languages', 'AdminLanguagesPage'],
   ['settings', 'AdminSiteSettingsPage'],
+  ['about', 'AdminAboutPage'],
 ];
 
 for (const [sub, comp] of adminRoutes) {

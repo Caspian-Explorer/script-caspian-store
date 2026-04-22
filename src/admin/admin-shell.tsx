@@ -1,8 +1,16 @@
 'use client';
 
-import { type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useCaspianLink, useCaspianNavigation } from '../provider/caspian-store-provider';
+import {
+  DEFAULT_REPO_NAME,
+  DEFAULT_REPO_OWNER,
+  fetchRecentReleases,
+  isUpdateAvailable,
+} from '../services/github-updates-service';
+import { Badge } from '../ui/misc';
 import { cn } from '../utils/cn';
+import { CASPIAN_STORE_VERSION } from '../version';
 
 export interface AdminNavItem {
   href: string;
@@ -19,6 +27,7 @@ export const DEFAULT_ADMIN_NAV: AdminNavItem[] = [
   { href: '/admin/orders', label: 'Orders' },
   { href: '/admin/reviews', label: 'Reviews' },
   { href: '/admin/settings', label: 'Settings' },
+  { href: '/admin/about', label: 'About' },
 ];
 
 export interface AdminShellProps {
@@ -26,6 +35,16 @@ export interface AdminShellProps {
   navItems?: AdminNavItem[];
   /** Extra header content (search box, user menu, etc.). */
   headerRight?: ReactNode;
+  /**
+   * Show an "Update available" badge next to the title when the installed
+   * library version is behind the latest public GitHub release. Default true.
+   * Set false to skip the (unauthenticated) GitHub API call.
+   */
+  checkForUpdates?: boolean;
+  /** GitHub owner to check for updates. Default: Caspian-Explorer. */
+  updateCheckOwner?: string;
+  /** GitHub repo to check for updates. Default: script-caspian-store. */
+  updateCheckRepo?: string;
   children: ReactNode;
   className?: string;
 }
@@ -34,6 +53,9 @@ export function AdminShell({
   title = 'Admin',
   navItems = DEFAULT_ADMIN_NAV,
   headerRight,
+  checkForUpdates = true,
+  updateCheckOwner = DEFAULT_REPO_OWNER,
+  updateCheckRepo = DEFAULT_REPO_NAME,
   children,
   className,
 }: AdminShellProps) {
@@ -55,11 +77,16 @@ export function AdminShell({
           background: '#fff',
         }}
       >
-        <Link href="/admin">
-          <span style={{ fontWeight: 700, fontSize: 14, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-            {title}
-          </span>
-        </Link>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <Link href="/admin">
+            <span style={{ fontWeight: 700, fontSize: 14, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+              {title}
+            </span>
+          </Link>
+          {checkForUpdates && (
+            <AdminUpdateBadge owner={updateCheckOwner} repo={updateCheckRepo} />
+          )}
+        </div>
         <div>{headerRight}</div>
       </header>
 
@@ -107,5 +134,36 @@ export function AdminShell({
         <main style={{ flex: 1, minWidth: 0, padding: 24 }}>{children}</main>
       </div>
     </div>
+  );
+}
+
+function AdminUpdateBadge({ owner, repo }: { owner: string; repo: string }) {
+  const Link = useCaspianLink();
+  const [latest, setLatest] = useState<string | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    fetchRecentReleases(owner, repo, 1)
+      .then((releases) => {
+        if (!alive) return;
+        const v = releases[0]?.version;
+        if (v) setLatest(v);
+      })
+      .catch(() => {
+        // Silent — badge is a nicety, not a hard requirement.
+      });
+    return () => {
+      alive = false;
+    };
+  }, [owner, repo]);
+
+  if (!latest || !isUpdateAvailable(CASPIAN_STORE_VERSION, latest)) return null;
+
+  return (
+    <Link href="/admin/about">
+      <span style={{ textDecoration: 'none' }}>
+        <Badge>Update available →</Badge>
+      </span>
+    </Link>
   );
 }

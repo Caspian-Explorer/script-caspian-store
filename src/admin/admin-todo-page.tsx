@@ -10,23 +10,47 @@ import {
   updateAdminTodo,
 } from '../services/admin-todo-service';
 import { verifyAdminTodos } from '../services/admin-todo-detectors';
-import { useCaspianFirebase } from '../provider/caspian-store-provider';
+import {
+  fetchRecentReleases,
+  isUpdateAvailable,
+} from '../services/github-updates-service';
+import { useCaspianFirebase, useCaspianLink } from '../provider/caspian-store-provider';
 import { Button } from '../ui/button';
-import { CheckIcon, RefreshIcon } from '../ui/icons';
+import { CheckIcon, ExternalLinkIcon, RefreshIcon } from '../ui/icons';
 import { Input } from '../ui/input';
 import { Badge, Skeleton } from '../ui/misc';
 import { useToast } from '../ui/toast';
+import { CASPIAN_STORE_VERSION } from '../version';
 
 export function AdminTodoPage({ className }: { className?: string }) {
   const { db } = useCaspianFirebase();
   const { toast } = useToast();
+  const Link = useCaspianLink();
   const [todos, setTodos] = useState<AdminTodo[] | null>(null);
   const [newTitle, setNewTitle] = useState('');
   const [adding, setAdding] = useState(false);
   const [seeding, setSeeding] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [hideDone, setHideDone] = useState(false);
+  const [latestVersion, setLatestVersion] = useState<string | null>(null);
   const autoSeededRef = useRef(false);
+
+  useEffect(() => {
+    let alive = true;
+    fetchRecentReleases(undefined, undefined, 1)
+      .then((releases) => {
+        if (alive && releases[0]?.version) setLatestVersion(releases[0].version);
+      })
+      .catch(() => {
+        // Silent — the upgrade hint is a nicety.
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const updateAvailable =
+    latestVersion !== null && isUpdateAvailable(CASPIAN_STORE_VERSION, latestVersion);
 
   useEffect(() => {
     const unsubscribe = listenAdminTodos(
@@ -224,6 +248,36 @@ export function AdminTodoPage({ className }: { className?: string }) {
           Re-seed defaults
         </Button>
       </section>
+
+      {updateAvailable && latestVersion && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            padding: 14,
+            marginBottom: 8,
+            border: '1px solid var(--caspian-primary, #111)',
+            borderRadius: 8,
+            background: '#fff',
+          }}
+        >
+          <Badge>New</Badge>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 600, fontSize: 15 }}>
+              Upgrade library to v{latestVersion}
+            </div>
+            <p style={{ margin: '4px 0 0', fontSize: 13, color: '#666' }}>
+              You&apos;re on v{CASPIAN_STORE_VERSION}. See what changed in the About page.
+            </p>
+          </div>
+          <Link href="/admin/about">
+            <Button variant="outline" size="sm">
+              View release notes <ExternalLinkIcon size={14} />
+            </Button>
+          </Link>
+        </div>
+      )}
 
       {visibleTodos === null ? (
         <Skeleton style={{ height: 200 }} />
