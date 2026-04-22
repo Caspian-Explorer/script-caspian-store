@@ -1,4 +1,5 @@
 import type { Timestamp } from 'firebase/firestore';
+import type { ShippingPluginId } from './shipping/types';
 
 // --- Core e-commerce types ---
 
@@ -29,6 +30,8 @@ export interface Product {
   colorVariants?: ColorVariant[];
   stock?: Record<string, number>;
   isActive?: boolean;
+  /** Net weight in kilograms. Consumed by the Weight-Based shipping plugin; leave undefined if you don't use weight-based shipping. */
+  weightKg?: number;
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
 }
@@ -251,14 +254,32 @@ export interface AppliedPromoCode {
   discountAmount: number;
 }
 
-export interface ShippingMethod {
+export interface ShippingPluginInstall {
   id: string;
-  slug: string;
+  /** Which built-in plugin handles this install (flat-rate, free-shipping, etc.). */
+  pluginId: ShippingPluginId;
+  /** Merchant-authored display label shown to shoppers (e.g. "Standard", "Weekend Express"). */
   name: string;
-  price: number;
-  estimatedDays: { min: number; max: number };
-  isActive: boolean;
+  /** When false, the install is hidden from checkout and the public shipping page. */
+  enabled: boolean;
   order: number;
+  estimatedDays: { min: number; max: number };
+  /** Plugin-specific configuration. Validated by the plugin's `validateConfig` at runtime. */
+  config: Record<string, unknown>;
+  createdAt: Timestamp;
+}
+
+export interface PaymentPluginInstall {
+  id: string;
+  /** Which built-in plugin handles this install (currently: 'stripe'). */
+  pluginId: string;
+  /** Merchant-authored display label shown in admin (e.g. "Stripe — Production"). */
+  name: string;
+  /** When false, `useCheckout` skips this install. */
+  enabled: boolean;
+  order: number;
+  /** Plugin-specific configuration. Validated by the plugin's `validateConfig` at runtime. */
+  config: Record<string, unknown>;
   createdAt: Timestamp;
 }
 
@@ -400,7 +421,6 @@ export interface ScriptSettings {
   defaultCurrency: string;
   defaultLocale: string;
   supportedLocales: string[];
-  stripePublicKey: string | null;
   theme: ThemeTokens;
   /** Optional — added in v1.1 for later phases. Consumers can ignore. */
   fonts?: FontTokens;
@@ -419,11 +439,10 @@ export const DEFAULT_SCRIPT_SETTINGS: Omit<ScriptSettings, 'updatedAt'> = {
   defaultCurrency: 'USD',
   defaultLocale: 'en',
   supportedLocales: ['en'],
-  stripePublicKey: null,
   theme: {
     primary: '#111111',
     primaryForeground: '#ffffff',
-    accent: '#f5a8b8',
+    accent: '#171717',
     radius: '0.5rem',
   },
   fonts: {

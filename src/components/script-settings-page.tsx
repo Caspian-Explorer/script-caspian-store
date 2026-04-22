@@ -20,8 +20,10 @@ export interface ScriptSettingsPageProps {
  * that lives outside the store-admin panel — theme tokens, feature flags,
  * brand info, Stripe public key, default currency/locale.
  *
- * Stage 0 ships a simple form. Future stages will add pickers, previews,
- * and presets.
+ * @deprecated Prefer the admin-panel pages: `AdminSiteSettingsPage` for
+ * brand/contact/localization and `AdminAppearancePage` for theme. This
+ * omnibus page remains exported for back-compat but will be removed in a
+ * future major.
  */
 export function ScriptSettingsPage({
   className,
@@ -49,7 +51,6 @@ export function ScriptSettingsPage({
     brandDescription: settings.brandDescription,
     defaultCurrency: settings.defaultCurrency,
     defaultLocale: settings.defaultLocale,
-    stripePublicKey: settings.stripePublicKey ?? '',
     theme: { ...settings.theme },
     fonts: { ...defaultFonts, googleFamilies: defaultFonts.googleFamilies ?? [] },
     hero: { ...defaultHero },
@@ -63,7 +64,6 @@ export function ScriptSettingsPage({
       brandDescription: settings.brandDescription,
       defaultCurrency: settings.defaultCurrency,
       defaultLocale: settings.defaultLocale,
-      stripePublicKey: settings.stripePublicKey ?? '',
       theme: { ...settings.theme },
       fonts: {
         body: settings.fonts?.body ?? 'system-ui, sans-serif',
@@ -100,7 +100,6 @@ export function ScriptSettingsPage({
       brandDescription: draft.brandDescription.trim(),
       defaultCurrency: draft.defaultCurrency.trim() || 'USD',
       defaultLocale: draft.defaultLocale.trim() || 'en',
-      stripePublicKey: draft.stripePublicKey.trim() || null,
       theme: draft.theme,
       fonts: {
         body: draft.fonts.body.trim() || 'system-ui, sans-serif',
@@ -174,18 +173,6 @@ export function ScriptSettingsPage({
             style={inputStyle}
             value={draft.defaultLocale}
             onChange={(e) => setDraft((d) => ({ ...d, defaultLocale: e.target.value }))}
-          />
-        </Field>
-      </section>
-
-      <section style={sectionStyle}>
-        <h2 style={h2Style}>{t('settings.sections.payments')}</h2>
-        <Field label={t('settings.stripePublicKey')}>
-          <input
-            style={inputStyle}
-            value={draft.stripePublicKey}
-            onChange={(e) => setDraft((d) => ({ ...d, stripePublicKey: e.target.value }))}
-            placeholder="pk_live_..."
           />
         </Field>
       </section>

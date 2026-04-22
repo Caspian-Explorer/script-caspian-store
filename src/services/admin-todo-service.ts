@@ -160,10 +160,10 @@ export const DEFAULT_ADMIN_TODOS: Array<{ id: string; title: string; description
       'Open /admin/products → New. Upload images, set name / price / description / category / sizes, and publish.',
   },
   {
-    id: 'verify-shipping-methods',
-    title: 'Verify shipping methods',
+    id: 'verify-shipping-plugins',
+    title: 'Verify shipping plugins',
     description:
-      'Open /admin/shipping and confirm the standard + express defaults match your actual pricing. The checkout reads `shippingMethods` live.',
+      'Open /admin/shipping-plugins and confirm the seeded flat-rate + free-over-threshold installs match your pricing. The checkout rate picker reads `shippingPluginInstalls` live.',
   },
   {
     id: 'edit-homepage-hero',

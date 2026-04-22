@@ -6,7 +6,7 @@
  *   - `languages` collection: en, ar, de, es, fr (en = default)
  *   - `settings/site`         brand / contact / social scaffolding
  *   - `scriptSettings/site`   theme + features + hero + fonts
- *   - `shippingMethods` collection: standard + express defaults
+ *   - `shippingPluginInstalls` collection: standard + express flat-rate + free-over-$75 defaults
  *   - Optional: grants `users/{uid}.role = 'admin'` to a uid passed via --admin
  *
  * Idempotent — existing docs are left alone unless --force is passed.
@@ -104,22 +104,33 @@ const SCRIPT_SETTINGS = {
   },
 };
 
-const SHIPPING_METHODS = [
+const SHIPPING_PLUGIN_INSTALLS = [
   {
-    slug: 'standard',
+    id: 'standard',
+    pluginId: 'flat-rate',
     name: 'Standard shipping',
-    price: 5,
-    estimatedDays: { min: 3, max: 7 },
-    isActive: true,
+    enabled: true,
     order: 0,
+    estimatedDays: { min: 3, max: 7 },
+    config: { price: 5 },
   },
   {
-    slug: 'express',
+    id: 'express',
+    pluginId: 'flat-rate',
     name: 'Express shipping',
-    price: 15,
-    estimatedDays: { min: 1, max: 2 },
-    isActive: true,
+    enabled: true,
     order: 1,
+    estimatedDays: { min: 1, max: 2 },
+    config: { price: 15 },
+  },
+  {
+    id: 'free-over-75',
+    pluginId: 'free-over-threshold',
+    name: 'Free on orders over $75',
+    enabled: true,
+    order: 2,
+    estimatedDays: { min: 3, max: 7 },
+    config: { threshold: 75, fallbackPrice: 5 },
   },
 ];
 
@@ -159,17 +170,20 @@ async function seedScriptSettings() {
   console.log('[seed] scriptSettings/site: written');
 }
 
-async function seedShippingMethods() {
-  const existing = await db.collection('shippingMethods').get();
-  const have = new Set(existing.docs.map((d) => d.data().slug));
+async function seedShippingPluginInstalls() {
+  const existing = await db.collection('shippingPluginInstalls').get();
+  const have = new Set(existing.docs.map((d) => d.id));
   let written = 0;
   const now = admin.default.firestore.Timestamp.now();
-  for (const method of SHIPPING_METHODS) {
-    if (have.has(method.slug) && !args.force) continue;
-    await db.collection('shippingMethods').add({ ...method, createdAt: now });
+  for (const install of SHIPPING_PLUGIN_INSTALLS) {
+    if (have.has(install.id) && !args.force) continue;
+    const { id, ...rest } = install;
+    await db.collection('shippingPluginInstalls').doc(id).set({ ...rest, createdAt: now });
     written++;
   }
-  console.log(`[seed] shippingMethods: wrote ${written}, skipped ${SHIPPING_METHODS.length - written}`);
+  console.log(
+    `[seed] shippingPluginInstalls: wrote ${written}, skipped ${SHIPPING_PLUGIN_INSTALLS.length - written}`,
+  );
 }
 
 async function grantAdmin(uid) {
@@ -188,7 +202,7 @@ try {
   await seedLanguages();
   await seedSiteSettings();
   await seedScriptSettings();
-  await seedShippingMethods();
+  await seedShippingPluginInstalls();
   if (args.admin) await grantAdmin(args.admin);
   console.log('[seed] done.');
   process.exit(0);

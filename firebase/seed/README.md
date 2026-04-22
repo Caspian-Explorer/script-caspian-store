@@ -5,7 +5,7 @@ Creates the minimum Firestore documents a fresh Caspian Store needs to render:
 - `languages` collection — 5 locales (en/ar/de/es/fr), English set as default
 - `settings/site` — brand name, contact placeholders, social links array
 - `scriptSettings/site` — theme tokens, feature flags, hero, fonts
-- `shippingMethods` — standard + express defaults
+- `shippingPluginInstalls` — standard + express flat-rate + free-over-$75 defaults
 - Optional: grants admin role to a Firebase Auth uid via `--admin <uid>`
 
 Idempotent by default — existing docs are left alone. Pass `--force` to overwrite.

@@ -16,6 +16,93 @@ Do not omit the heading, rename it, or fold it into `### Notes`. This is how
 customers tell at a glance whether an upgrade needs attention.
 -->
 
+## v2.0.0 — Pluggable payment + shipping providers, admin appearance page
+
+v2.0 makes the storefront's integration points **installable, not hard-coded**. Stripe used to be the only payment option and the Firestore `stripePublicKey` field was the only way to configure it; shipping used to be a flat list of fixed prices with no picker at checkout. Both are now plugin catalogs browsed and configured from the admin panel: the store owner picks a provider, fills in its fields, flips Enable. Alongside those two plugin systems, the admin panel grows a dedicated **Appearance** page for theme tokens (previously buried inside the orphan `<ScriptSettingsPage>`). This is a single major release because the payment migration removes `stripePublicKey` from `ScriptSettings` — a public-type breaking change — and bundling the shipping and appearance work keeps admin-nav churn to one upgrade.
+
+### Added — Payment plugins
+
+- **Plugin catalog** under [src/payments/](src/payments/) — static in-library registry of payment providers. Each plugin exposes `validateConfig`, `startCheckout(ctx, options)`, and a `defaultConfig`. One built-in ships today: `stripe` ([src/payments/plugins/stripe.ts](src/payments/plugins/stripe.ts)) wrapping the existing `createStripeCheckoutSession` Cloud Function callable. Full contract in [src/payments/types.ts](src/payments/types.ts). Future providers land by PR into `PAYMENT_PLUGIN_CATALOG` ([src/payments/catalog.ts](src/payments/catalog.ts)) — there is no runtime registration hook and that is intentional.
+- **`paymentPluginInstalls` Firestore collection** — one document per installed provider. Schema on `PaymentPluginInstall` in [src/types.ts](src/types.ts): `{ pluginId, name, enabled, order, config }`. Rules: public read (so `useCheckout` can enumerate) + admin write ([firebase/firestore.rules](firebase/firestore.rules)). Only publishable (`pk_...`-style) credentials live here; server-side secrets remain Cloud Functions secrets.
+- **CRUD service** at [src/services/payment-plugin-service.ts](src/services/payment-plugin-service.ts).
+- **`<AdminPaymentPluginsPage>`** at [src/admin/admin-payment-plugins-page.tsx](src/admin/admin-payment-plugins-page.tsx) — installed-providers table (enable / configure / remove) + Browse dialog. Mounted at `/admin/payment-plugins`.
+- **`useCheckout` refactor** ([src/hooks/use-checkout.ts](src/hooks/use-checkout.ts)) — reads `paymentPluginInstalls`, picks the first enabled install in `order`, delegates to its plugin's `startCheckout`. New return field `activePlugin: PaymentPlugin | null` so UI can render provider-specific labels. Emits a dev-only `console.info` when more than one plugin is enabled (no picker UI ships in v2.0; future minor).
+- **Checkout empty-state** — when no payment plugin is installed-and-enabled, `<CheckoutPage>` renders a guidance block (and a link to `/admin/payment-plugins` if the viewer is an admin) instead of the shipping form.
+- **i18n** — `admin.paymentPlugins.*`, `checkout.noPaymentConfigured.*`, and parameterized `checkout.paymentHint` / removed `checkout.calculatedAtStripe` ([src/i18n/messages.ts](src/i18n/messages.ts)).
+
+### Added — Shipping plugins
+
+- **Plugin catalog** under [src/shipping/](src/shipping/) — four built-ins: `flat-rate`, `free-shipping`, `free-over-threshold`, `weight-based`.
+- **`shippingPluginInstalls` Firestore collection** — one document per installed + configured plugin instance. Schema on `ShippingPluginInstall` in [src/types.ts](src/types.ts). Rules: public read, admin write.
+- **CRUD service** at [src/services/shipping-plugin-service.ts](src/services/shipping-plugin-service.ts).
+- **Rate calculator** at [src/services/shipping-calculator.ts](src/services/shipping-calculator.ts). Resolves enabled installs through the catalog and returns a `ShippingRate[]` for the checkout picker. Invalid configs are logged and skipped so one bad install doesn't blank the whole picker.
+- **`<AdminShippingPluginsPage>`** at [src/admin/admin-shipping-plugins-page.tsx](src/admin/admin-shipping-plugins-page.tsx). Replaces the old `<AdminShippingPage>`.
+- **`<ShippingRatePicker>`** at [src/components/checkout/shipping-rate-picker.tsx](src/components/checkout/shipping-rate-picker.tsx) — radio-group rendered inside the checkout page.
+- **Checkout integration** — `<CheckoutPage>` computes rates on cart change, renders the picker below the address form, shows a Shipping line + Total in the order summary, and disables the Pay button until a rate is selected.
+- **Public shipping page update** — [src/components/shipping/shipping-returns-page.tsx](src/components/shipping/shipping-returns-page.tsx) reads `shippingPluginInstalls` and renders each install's describe-string.
+- **Product `weightKg?: number` field** — new optional field on `Product` consumed by the Weight-Based plugin; `<AdminProductEditor>` gets a **Weight (kg)** input.
+- **i18n** — `admin.shippingPlugins.*` (40+ keys), `shipping.plugins.{id}.{name,description}`, `checkout.rate.*`.
+
+### Added — Admin Appearance page
+
+- **`<AdminAppearancePage>`** at [src/admin/admin-appearance-page.tsx](src/admin/admin-appearance-page.tsx) mounted at `/admin/appearance`. Houses the `<ThemePresetPicker>` + live color pickers for `primary` / `primaryForeground` / `accent` + radius input. Saves via `useScriptSettings().save({ theme })`.
+
+### Changed
+
+- **`DEFAULT_ADMIN_NAV`** ([src/admin/admin-shell.tsx](src/admin/admin-shell.tsx)) gains `/admin/shipping-plugins`, `/admin/payment-plugins`, and `/admin/appearance` entries. `/admin/shipping` is removed.
+- **`THEME_PRESETS`** narrows from six presets to one opinionated default (`cleanWhite`). Picker UI, types, and public exports are unchanged — just the contents of the record shrink.
+- **`DEFAULT_SCRIPT_SETTINGS.theme.accent`** changes from `#f5a8b8` (pink) to `#171717` (neutral dark) to match the new default. `--caspian-accent` CSS fallback in [src/styles/globals.css](src/styles/globals.css) updated accordingly.
+- **First-run todo detector** — `verify-shipping-methods` → `verify-shipping-plugins`, now reading the new collection.
+- **Seed script** at [firebase/seed/seed.mjs](firebase/seed/seed.mjs) seeds three `shippingPluginInstalls` docs (Standard flat-rate, Express flat-rate, Free-over-$75) in place of the old flat `shippingMethods` seed.
+- **`<ScriptSettingsPage>`** marked `@deprecated` in JSDoc — superseded by `<AdminSiteSettingsPage>` + `<AdminAppearancePage>`. Still functional; removal in a future major.
+
+### Removed
+
+- **`ScriptSettings.stripePublicKey`** — the publishable key now lives in `paymentPluginInstalls[stripe].config.publishableKey`. `DEFAULT_SCRIPT_SETTINGS.stripePublicKey` removed. `settings.stripePublicKey` / `settings.sections.payments` i18n keys dropped. The "Payments" section is gone from `<ScriptSettingsPage>`. Dead `stripePublicKey` fields in Firestore are harmless — nothing reads them post-upgrade.
+- **`<AdminShippingPage>`**, `AdminShippingPage` public export, `src/admin/admin-shipping-page.tsx`.
+- **`shipping-method-service`** — `listShippingMethods`, `createShippingMethod`, `updateShippingMethod`, `deleteShippingMethod`, `ShippingMethodWriteInput`.
+- **`ShippingMethod`** type and its re-export from the main entry. Use `ShippingPluginInstall` (collection doc) or `ShippingRate` (computed) instead.
+- **`shippingMethods` Firestore collection reference** — replaced with `shippingPluginInstalls`.
+- **Preset keys** `minimalLight`, `minimalDark`, `boutique`, `neon`, `pastel`, `monochrome` from `THEME_PRESETS` / `THEME_PRESET_LABELS`.
+- **Dead i18n keys** — `checkout.taxesShipping`, `checkout.calculatedAtStripe`.
+
+### Consumer action required on upgrade
+
+1. **Re-deploy Firestore rules** so the two new plugin-install collections are readable/writable per the public-read + admin-write policy:
+   ```bash
+   firebase deploy --only firestore:rules
+   ```
+2. **Add the three new admin route files** (fresh scaffolds get these automatically; existing installs on v1.25.x should add them by hand):
+   ```tsx
+   // src/app/admin/payment-plugins/page.tsx
+   'use client';
+   import { AdminPaymentPluginsPage } from '@caspian-explorer/script-caspian-store';
+   export default function Page() { return <AdminPaymentPluginsPage />; }
+   ```
+   ```tsx
+   // src/app/admin/shipping-plugins/page.tsx
+   'use client';
+   import { AdminShippingPluginsPage } from '@caspian-explorer/script-caspian-store';
+   export default function Page() { return <AdminShippingPluginsPage />; }
+   ```
+   ```tsx
+   // src/app/admin/appearance/page.tsx
+   'use client';
+   import { AdminAppearancePage } from '@caspian-explorer/script-caspian-store';
+   export default function Page() { return <AdminAppearancePage />; }
+   ```
+   Delete any existing `src/app/admin/shipping/page.tsx` — the old route is gone.
+3. **Re-install Stripe from the admin UI.** The old `stripePublicKey` field is no longer read. Sign in as admin, go to `/admin/payment-plugins`, click **Browse providers** → **Install** on the Stripe card, paste your `pk_...` publishable key, click **Save**, then flip **Enable**. Checkout resumes immediately — no Cloud Functions redeploy needed.
+4. **Re-configure shipping.** Existing `shippingMethods` documents are no longer read. Either re-run the seed script (which now populates three starter `shippingPluginInstalls` docs), or go to `/admin/shipping-plugins` → **Browse providers** → install the strategies you want.
+5. **If you mounted `<AdminShell>` with a custom `navItems` array**, update the entries: swap `/admin/shipping` → `/admin/shipping-plugins`, and add `/admin/payment-plugins` + `/admin/appearance` if you want them in your custom nav.
+6. **Code-level migrations** — if your consumer code imports any of the removed names, map them over:
+   - `listShippingMethods` / `createShippingMethod` / `updateShippingMethod` / `deleteShippingMethod` → equivalents from `shipping-plugin-service`.
+   - `ShippingMethod` → `ShippingPluginInstall` (doc) or `ShippingRate` (computed).
+   - `AdminShippingPage` → `AdminShippingPluginsPage`.
+   - `settings.stripePublicKey` reads → `paymentPluginInstalls[stripe].config.publishableKey` via `listPaymentPluginInstalls(db)`.
+   - `THEME_PRESETS.{minimalLight|minimalDark|boutique|neon|pastel|monochrome}` → `THEME_PRESETS.cleanWhite` or inline the tokens you want.
+7. **To use the Weight-Based shipping plugin**, set `weightKg` on products via the admin product editor. The plugin hides itself at checkout when no cart items have a weight.
+
 ## v1.25.0 — Admin About page + update-availability nudges
 
 The admin panel had no place to surface library metadata — a store operator couldn't tell which version of `@caspian-explorer/script-caspian-store` they were on, whether a newer release was out, or what had shipped lately without leaving the app. v1.25 adds an **About** page under `/admin/about` that pulls the current version from source and recent releases from the public GitHub Releases API. Two lightweight nudges elsewhere in the admin make a behind-version install noticeable without having to visit About: an "Update available" badge in the admin header, and a virtual row at the top of `/admin/todos`.

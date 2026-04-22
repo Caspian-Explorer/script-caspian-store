@@ -1,69 +1,83 @@
 'use client';
 
-import { useCallback, useState } from 'react';
-import { httpsCallable } from 'firebase/functions';
-import { getAuth, getIdToken } from 'firebase/auth';
+import { useCallback, useEffect, useState } from 'react';
 import { useCaspianFirebase } from '../provider/caspian-store-provider';
 import { useCart } from '../context/cart-context';
 import { useAuth } from '../context/auth-context';
+import { listPaymentPluginInstalls } from '../services/payment-plugin-service';
+import { getPaymentPlugin } from '../payments/catalog';
+import type { PaymentPlugin, StartCheckoutOptions } from '../payments/types';
+import type { PaymentPluginInstall } from '../types';
 
-interface CheckoutSessionResponse {
-  sessionId: string;
-  url: string | null;
-}
+// Re-exported for backwards-compatible imports. New code should import from '../payments'.
+export type { StartCheckoutOptions, CheckoutShippingInfoInput } from '../payments/types';
 
-export interface CheckoutShippingInfoInput {
-  name: string;
-  address: string;
-  city: string;
-  zip: string;
-  country: string;
-  shippingMethod: string;
-  orderNotes?: string;
-}
-
-export interface StartCheckoutOptions {
-  /** URL to return to after payment. Stripe's `{CHECKOUT_SESSION_ID}` placeholder is appended automatically unless already present. */
-  successUrl: string;
-  /** URL to return to if the customer cancels at the Stripe page. */
-  cancelUrl: string;
-  /** Optional promo code (server re-validates; client-side value is ignored on the server). */
-  promoCode?: string | null;
-  /** Optional shipping cost — added as a Stripe line item when > 0. */
-  shippingCost?: number;
-  /** Optional shipping details — stored on the order when the webhook fires. */
-  shippingInfo?: CheckoutShippingInfoInput;
-  /** Optional locale pass-through (e.g. for email templating). */
-  locale?: string;
-  /**
-   * Optional override of the server endpoint. When set, `startCheckout` will
-   * POST JSON to this URL instead of invoking the Cloud Function callable.
-   * The endpoint should match the Cloud Function's request/response contract.
-   * Useful for consumers (like Next.js apps) that already have an API route.
-   */
-  endpoint?: string;
-}
-
-function withSessionIdPlaceholder(url: string): string {
-  if (url.includes('{CHECKOUT_SESSION_ID}')) return url;
-  const separator = url.includes('?') ? '&' : '?';
-  return `${url}${separator}session_id={CHECKOUT_SESSION_ID}`;
+interface ActiveCheckout {
+  install: PaymentPluginInstall;
+  plugin: PaymentPlugin;
+  config: Record<string, unknown>;
 }
 
 /**
- * Client hook to start a Stripe Checkout session.
+ * Client hook to start a checkout session via the active payment plugin.
  *
- * By default the hook calls the deployed `createStripeCheckoutSession` Cloud
- * Function via Firebase's callable interface. Consumers who already host
- * their own Stripe backend can pass `endpoint: '/api/checkout/create-session'`
- * in `startCheckout` options and the hook POSTs JSON there instead.
+ * Picks the first enabled install in `paymentPluginInstalls` (by `order`).
+ * If none is installed-and-enabled, `startCheckout` throws and the returned
+ * `activeInstall` / `activePlugin` are null so the UI can render guidance
+ * toward `/admin/payment-plugins`.
  */
 export function useCheckout() {
-  const { functions, auth } = useCaspianFirebase();
+  const { db, functions, auth } = useCaspianFirebase();
   const { items, clearCart } = useCart();
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [active, setActive] = useState<ActiveCheckout | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    listPaymentPluginInstalls(db, { onlyEnabled: true })
+      .then((installs) => {
+        if (!alive) return;
+        if (installs.length === 0) {
+          setActive(null);
+          return;
+        }
+        if (installs.length > 1) {
+          console.info(
+            '[caspian-store] More than one payment plugin is enabled; using the first in order:',
+            installs[0].name,
+          );
+        }
+        const [install] = installs;
+        const plugin = getPaymentPlugin(install.pluginId);
+        if (!plugin) {
+          console.error(
+            '[caspian-store] Enabled payment plugin install refers to unknown pluginId:',
+            install.pluginId,
+          );
+          setActive(null);
+          return;
+        }
+        try {
+          const config = plugin.validateConfig(install.config);
+          setActive({ install, plugin, config: config as Record<string, unknown> });
+        } catch (err) {
+          console.error(
+            `[caspian-store] Payment plugin "${plugin.id}" config is invalid:`,
+            err,
+          );
+          setActive(null);
+        }
+      })
+      .catch((err) => {
+        console.error('[caspian-store] Failed to load payment plugin installs:', err);
+        if (alive) setActive(null);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [db]);
 
   const startCheckout = useCallback(
     async (options: StartCheckoutOptions) => {
@@ -77,63 +91,33 @@ export function useCheckout() {
         setError(msg);
         throw new Error(msg);
       }
+      if (!active) {
+        const msg =
+          'No payment provider is configured. Ask an admin to install a payment plugin.';
+        setError(msg);
+        throw new Error(msg);
+      }
 
       setLoading(true);
       setError(null);
 
-      const payload = {
-        items: items.map((i) => ({
-          productId: i.product.id,
-          quantity: i.quantity,
-          selectedSize: i.selectedSize ?? null,
-          selectedColor: i.selectedColor ?? null,
-        })),
-        successUrl: withSessionIdPlaceholder(options.successUrl),
-        cancelUrl: options.cancelUrl,
-        promoCode: options.promoCode ?? null,
-        shippingCost: options.shippingCost ?? 0,
-        shippingInfo: options.shippingInfo ?? null,
-        locale: options.locale ?? null,
-      };
-
       try {
-        let data: CheckoutSessionResponse;
-
-        if (options.endpoint) {
-          // Consumer-hosted endpoint — attach bearer token so the consumer's
-          // server can verify the caller with Firebase Admin SDK.
-          const currentUser = auth.currentUser ?? getAuth().currentUser;
-          const token = currentUser ? await getIdToken(currentUser) : '';
-          const response = await fetch(options.endpoint, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              ...(token ? { Authorization: `Bearer ${token}` } : {}),
-            },
-            body: JSON.stringify(payload),
-          });
-          if (!response.ok) {
-            const body = await response.json().catch(() => ({}));
-            throw new Error(body.error || `Checkout failed (${response.status})`);
-          }
-          data = (await response.json()) as CheckoutSessionResponse;
-        } else {
-          // Firebase Callable — default path.
-          const callable = httpsCallable<unknown, CheckoutSessionResponse>(
+        const result = await active.plugin.startCheckout(
+          {
             functions,
-            'createStripeCheckoutSession',
-          );
-          const result = await callable(payload);
-          data = result.data;
-        }
-
-        if (!data.url) throw new Error('Stripe did not return a checkout URL.');
+            auth,
+            user,
+            items,
+            config: active.config,
+          },
+          options,
+        );
 
         clearCart();
-        if (typeof window !== 'undefined') {
-          window.location.href = data.url;
+        if (result.redirectUrl && typeof window !== 'undefined') {
+          window.location.href = result.redirectUrl;
         }
-        return data;
+        return result;
       } catch (e) {
         const msg = e instanceof Error ? e.message : 'Checkout failed.';
         setError(msg);
@@ -141,8 +125,14 @@ export function useCheckout() {
         throw e;
       }
     },
-    [auth, functions, items, user, clearCart],
+    [active, auth, functions, items, user, clearCart],
   );
 
-  return { startCheckout, loading, error };
+  return {
+    startCheckout,
+    loading,
+    error,
+    activePlugin: active?.plugin ?? null,
+    activeInstall: active?.install ?? null,
+  };
 }

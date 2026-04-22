@@ -34,6 +34,8 @@ interface FormState {
   category: string;
   sizes: string; // comma-separated
   color: string;
+  /** Weight in kg as a string so the input can render an empty field; coerced on save. */
+  weightKg: string;
   isNew: boolean;
   limited: boolean;
   isActive: boolean;
@@ -48,6 +50,7 @@ const empty: FormState = {
   category: '',
   sizes: '',
   color: '',
+  weightKg: '',
   isNew: false,
   limited: false,
   isActive: true,
@@ -177,6 +180,7 @@ export function AdminProductEditor({
           category: p.category,
           sizes: (p.sizes ?? []).join(', '),
           color: normalizedColor,
+          weightKg: p.weightKg !== undefined ? String(p.weightKg) : '',
           isNew: Boolean(p.isNew),
           limited: Boolean(p.limited),
           isActive: p.isActive !== false,
@@ -235,6 +239,17 @@ export function AdminProductEditor({
 
     setSaving(true);
     try {
+      const weightTrimmed = form.weightKg.trim();
+      let weightKg: number | undefined;
+      if (weightTrimmed !== '') {
+        const parsed = Number(weightTrimmed);
+        if (!Number.isFinite(parsed) || parsed < 0) {
+          toast({ title: 'Enter a valid weight (kg)', variant: 'destructive' });
+          setSaving(false);
+          return;
+        }
+        weightKg = parsed;
+      }
       const payload: ProductWriteInput = {
         name: form.name.trim(),
         brand: form.brand.trim(),
@@ -246,6 +261,7 @@ export function AdminProductEditor({
           .map((s) => s.trim())
           .filter(Boolean),
         color: form.color,
+        weightKg,
         isNew: form.isNew,
         limited: form.limited,
         isActive: form.isActive,
@@ -315,6 +331,18 @@ export function AdminProductEditor({
               onChange={(e) => setForm((s) => ({ ...s, price: e.target.value }))}
             />
           </Field>
+          <Field label="Weight (kg)">
+            <Input
+              type="number"
+              step="0.01"
+              min="0"
+              value={form.weightKg}
+              onChange={(e) => setForm((s) => ({ ...s, weightKg: e.target.value }))}
+              placeholder="Leave blank unless using weight-based shipping"
+            />
+          </Field>
+        </div>
+        <div style={gridStyle}>
           <Field label="Category">
             <Select
               value={form.category}

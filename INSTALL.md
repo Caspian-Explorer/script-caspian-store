@@ -298,6 +298,8 @@ https://<region>-<project-id>.cloudfunctions.net/stripeWebhook
 
 Subscribe to `checkout.session.completed`. Paste the resulting `whsec_…` into the `STRIPE_WEBHOOK_SECRET` secret and redeploy.
 
+**Install Stripe in the admin UI.** Once the Cloud Functions are deployed, sign in as admin and go to `/admin/payment-plugins`. Click **Browse providers** → **Install** on the Stripe card, paste your publishable key (`pk_live_…` or `pk_test_…`), save, then click **Enable**. The publishable key is stored in Firestore under `paymentPluginInstalls`; only the secret/webhook keys live in Cloud Functions secrets. `useCheckout` picks up enabled plugin installs automatically — no redeploy needed after flipping a provider on or off.
+
 ---
 
 ## 6. Seed Firestore
@@ -515,13 +517,11 @@ RTL locales (ar, he, fa, ur) automatically set `--caspian-direction: rtl` on the
 
 ## 10. Theming + fonts + hero
 
-Visit `/admin/settings` (site settings) and `/` → "Script settings" (or mount `<ScriptSettingsPage>`) to edit:
+Visit `/admin/settings` for site-level fields and `/admin/appearance` for theming:
 
-- **Brand name / currency** → flows into header / footer / cart totals.
-- **Theme tokens** (`primaryColor`, `accentColor`, `radius`) → pushed to `:root` CSS custom properties.
-- **Hero** (title, subtitle, CTA label, CTA href, image) → rendered on the homepage.
-- **Fonts** (body, headline) → auto-loaded via Google Fonts `<link>` tags.
-- **Feature flags** (reviews, questions, wishlist, newsletter, promo codes) → toggle surfaces on/off.
+- **`/admin/settings`** — brand name, logo, favicon, contact info, currency, timezone, country, social links.
+- **`/admin/appearance`** — pick the `cleanWhite` preset or tune `primary` / `primaryForeground` / `accent` / `radius` directly. Tokens are pushed to `:root` CSS custom properties live.
+- **Hero / fonts / feature flags** — still editable via the `/setup` wizard or by mounting `<ScriptSettingsPage>` at a custom route. Feature flags: reviews, questions, wishlist, newsletter, promo codes.
 
 ---
 
@@ -561,7 +561,7 @@ env:
   - variable: NEXT_PUBLIC_FIREBASE_API_KEY
     value: ""
     availability: [BUILD, RUNTIME]
-  # … repeat for the other NEXT_PUBLIC_FIREBASE_* vars + NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
+  # … repeat for the other NEXT_PUBLIC_FIREBASE_* vars
 ```
 
 Fill the values in **Firebase console → App Hosting → your backend → Environment variables**, or commit them to `apphosting.yaml` (they're already public — bundled into the client). For anything sensitive, use `firebase apphosting:secrets:set <NAME>` and switch the entry from `value:` to `secret: <NAME>`.

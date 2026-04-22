@@ -66,7 +66,7 @@ const DETECTORS: Record<string, (db: Firestore) => Promise<boolean>> = {
   'activate-languages': hasMultipleActiveLanguages,
   'seed-categories': (db) => hasAnyDoc(db, 'productCategories'),
   'seed-products': (db) => hasAnyDoc(db, 'products'),
-  'verify-shipping-methods': (db) => hasAnyDoc(db, 'shippingMethods'),
+  'verify-shipping-plugins': (db) => hasAnyDoc(db, 'shippingPluginInstalls'),
   'edit-homepage-hero': hasEditedHero,
   'pin-featured-categories': hasFeaturedCategory,
 };

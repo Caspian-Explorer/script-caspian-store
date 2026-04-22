@@ -8,7 +8,10 @@ export interface SiteInfoDraft {
 }
 
 export interface BrandingDraft {
-  /** Name of the selected preset in `THEME_PRESETS`, or empty string for custom. */
+  /**
+   * Name of the selected preset in `THEME_PRESETS` (currently `'cleanWhite'`),
+   * or empty string for custom/unset.
+   */
   themePreset: string;
   theme: ThemeTokens;
   heroTitle: string;

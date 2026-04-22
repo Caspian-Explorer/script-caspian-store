@@ -80,7 +80,12 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    match /shippingMethods/{id} {
+    match /shippingPluginInstalls/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /paymentPluginInstalls/{id} {
       allow read: if true;
       allow write: if isAdmin();
     }

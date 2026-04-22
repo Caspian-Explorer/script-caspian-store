@@ -1,8 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import type { PageContent, ShippingMethod } from '../../types';
-import { listShippingMethods } from '../../services/shipping-method-service';
+import type { PageContent, ShippingPluginInstall } from '../../types';
+import { listShippingPluginInstalls } from '../../services/shipping-plugin-service';
+import { getShippingPlugin } from '../../shipping/catalog';
 import { getPageContent } from '../../services/page-content-service';
 import { useCaspianFirebase } from '../../provider/caspian-store-provider';
 import { useFormatCurrency, useT } from '../../i18n/locale-context';
@@ -29,19 +30,19 @@ export function ShippingReturnsPage({
   const { db } = useCaspianFirebase();
   const t = useT();
   const priceFmt = useFormatCurrency(currency);
-  const [methods, setMethods] = useState<ShippingMethod[] | null>(null);
+  const [installs, setInstalls] = useState<ShippingPluginInstall[] | null>(null);
   const [returnsContent, setReturnsContent] = useState<PageContent | null>(null);
   const [loadingReturns, setLoadingReturns] = useState(true);
 
   useEffect(() => {
     let alive = true;
-    listShippingMethods(db, { onlyActive: true })
+    listShippingPluginInstalls(db, { onlyEnabled: true })
       .then((list) => {
-        if (alive) setMethods(list);
+        if (alive) setInstalls(list);
       })
       .catch((error) => {
-        console.error('[caspian-store] Failed to load shipping methods:', error);
-        if (alive) setMethods([]);
+        console.error('[caspian-store] Failed to load shipping plugin installs:', error);
+        if (alive) setInstalls([]);
       });
     getPageContent(db, returnsPageKey)
       .then((c) => {
@@ -57,6 +58,11 @@ export function ShippingReturnsPage({
       alive = false;
     };
   }, [db, returnsPageKey]);
+
+  const describeContext = {
+    currency,
+    formatPrice: (n: number) => priceFmt.format(n),
+  };
 
   return (
     <main className={cn('caspian-shipping-returns', className)} style={{ padding: '48px 24px' }}>
@@ -90,33 +96,43 @@ export function ShippingReturnsPage({
             {t('shipping.methods.title')}
           </h2>
 
-          {methods === null ? (
+          {installs === null ? (
             <Skeleton style={{ height: 160 }} />
-          ) : methods.length === 0 ? (
-            <p style={{ color: '#888', fontSize: 14 }}>No shipping methods configured yet.</p>
+          ) : installs.length === 0 ? (
+            <p style={{ color: '#888', fontSize: 14 }}>{t('shipping.methods.empty')}</p>
           ) : (
             <Table>
               <THead>
                 <TR>
-                  <TH>Method</TH>
-                  <TH>Estimated delivery</TH>
-                  <TH style={{ textAlign: 'right' }}>Cost</TH>
+                  <TH>{t('shipping.methods.col.method')}</TH>
+                  <TH>{t('shipping.methods.col.delivery')}</TH>
+                  <TH style={{ textAlign: 'right' }}>{t('shipping.methods.col.cost')}</TH>
                 </TR>
               </THead>
               <TBody>
-                {methods.map((m) => (
-                  <TR key={m.id}>
-                    <TD style={{ fontWeight: 500 }}>{m.name}</TD>
-                    <TD style={{ color: '#666' }}>
-                      {m.estimatedDays?.min === m.estimatedDays?.max
-                        ? `${m.estimatedDays?.min} business days`
-                        : `${m.estimatedDays?.min}–${m.estimatedDays?.max} business days`}
-                    </TD>
-                    <TD style={{ textAlign: 'right', fontWeight: 600 }}>
-                      {m.price > 0 ? priceFmt.format(m.price) : 'Free'}
-                    </TD>
-                  </TR>
-                ))}
+                {installs.map((install) => {
+                  const plugin = getShippingPlugin(install.pluginId);
+                  let costLabel = '—';
+                  if (plugin) {
+                    try {
+                      const validated = plugin.validateConfig(install.config);
+                      costLabel = plugin.describe(validated, describeContext);
+                    } catch {
+                      costLabel = '—';
+                    }
+                  }
+                  return (
+                    <TR key={install.id}>
+                      <TD style={{ fontWeight: 500 }}>{install.name}</TD>
+                      <TD style={{ color: '#666' }}>
+                        {install.estimatedDays?.min === install.estimatedDays?.max
+                          ? `${install.estimatedDays?.min} ${t('shipping.methods.daysSuffix')}`
+                          : `${install.estimatedDays?.min}–${install.estimatedDays?.max} ${t('shipping.methods.daysSuffix')}`}
+                      </TD>
+                      <TD style={{ textAlign: 'right', fontWeight: 600 }}>{costLabel}</TD>
+                    </TR>
+                  );
+                })}
               </TBody>
             </Table>
           )}

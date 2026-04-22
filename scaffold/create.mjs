@@ -285,11 +285,9 @@ NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=
 NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=
 NEXT_PUBLIC_FIREBASE_APP_ID=
 
-# Stripe publishable key (Stripe dashboard → Developers → API keys)
-NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=
-
-# Note: STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET are *Cloud Functions secrets*,
-# not env vars. Set them with:
+# Payment providers are installed + configured at runtime via Admin → Payments.
+# Publishable keys (e.g. pk_live_...) live in Firestore, not env vars. Server-side
+# secrets are *Cloud Functions secrets*:
 #   firebase functions:secrets:set STRIPE_SECRET_KEY
 #   firebase functions:secrets:set STRIPE_WEBHOOK_SECRET
 `);
@@ -561,13 +559,15 @@ const adminRoutes = [
   ['journal', 'AdminJournalPage'],
   ['pages', 'AdminPagesPage'],
   ['faqs', 'AdminFaqsPage'],
-  ['shipping', 'AdminShippingPage'],
+  ['shipping-plugins', 'AdminShippingPluginsPage'],
+  ['payment-plugins', 'AdminPaymentPluginsPage'],
   ['promo-codes', 'AdminPromoCodesPage'],
   ['subscribers', 'AdminSubscribersPage'],
   ['categories', 'AdminProductCategoriesPage'],
   ['collections', 'AdminProductCollectionsPage'],
   ['languages', 'AdminLanguagesPage'],
   ['settings', 'AdminSiteSettingsPage'],
+  ['appearance', 'AdminAppearancePage'],
   ['about', 'AdminAboutPage'],
 ];
 
@@ -791,9 +791,6 @@ env:
   - variable: NEXT_PUBLIC_FIREBASE_APP_ID
     value: ""
     availability: [BUILD, RUNTIME]
-  - variable: NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
-    value: ""
-    availability: [BUILD, RUNTIME]
 `);
 }
 
@@ -838,6 +835,8 @@ npm run dev                  # http://localhost:3000
    firebase functions:secrets:set STRIPE_WEBHOOK_SECRET  # from Stripe dashboard → Webhooks
    npm run deploy:stripe
    \`\`\`
+
+   Then go to \`/admin/payment-plugins\`, click **Browse providers → Install** on the Stripe card, paste your publishable (\`pk_...\`) key, save, and click **Enable**. The publishable key lives in Firestore under \`paymentPluginInstalls\`; only server-side secrets live in Cloud Functions secrets.
 5. **Seed Firestore:**
    \`\`\`bash
    # After downloading a service-account JSON:
@@ -887,10 +886,13 @@ npm run dev                  # http://localhost:3000
 - \`/admin\` — dashboard
 - \`/admin/todos\` — setup + operational checklist (seed defaults on first visit)
 - \`/admin/products\`, \`/admin/orders\`, \`/admin/reviews\`
-- \`/admin/journal\`, \`/admin/pages\`, \`/admin/faqs\`, \`/admin/shipping\`
+- \`/admin/journal\`, \`/admin/pages\`, \`/admin/faqs\`
+- \`/admin/shipping-plugins\` — install / configure shipping providers
+- \`/admin/payment-plugins\` — install / configure payment providers (Stripe, …)
 - \`/admin/promo-codes\`, \`/admin/subscribers\`
 - \`/admin/categories\`, \`/admin/collections\`, \`/admin/languages\`
 - \`/admin/settings\` — brand / logo / favicon / social
+- \`/admin/appearance\` — theme preset + color/radius tokens
 
 ## Customizing
 

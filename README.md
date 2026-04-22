@@ -72,20 +72,21 @@ See [INSTALL.md](./INSTALL.md) for the **one-command scaffolder**, **Vite** / **
 | Firebase init (BYOF), auth context, user profile bootstrap | ✅ |
 | **Script Settings** — `<ScriptSettingsPage />`, theme tokens via CSS vars | ✅ |
 | `firebase/firestore.rules` + `firebase/firestore.indexes.json` | ✅ |
+| **Payment plugins** — pluggable providers (Stripe included); install/configure at `/admin/payment-plugins` | ✅ |
 | Cloud Functions — Stripe callable + webhook | ✅ (deployed as scaffold) |
 | **Storefront — PLP:** `<ProductListPage />`, `<ProductGrid />`, `<ProductCard />` | ✅ |
 | **Storefront — PDP:** `<ProductDetailPage />`, `<ProductGallery />`, size/qty pickers, Add to cart | ✅ |
 | **Reviews & Q&A:** `<ProductReviews />` with summary, list, sort, write/ask dialogs, Verified Purchase badge | ✅ |
 | **Cart:** `<CartProvider />`, `useCart()`, `<CartSheet />` drawer — Firestore-persisted for signed-in users, localStorage otherwise | ✅ |
 | UI primitives: Button, Dialog, Input, Textarea, Label, Tabs, Select, Skeleton, Badge, Avatar, Separator, Toast | ✅ |
-| **Checkout:** `useCheckout()` + `<CheckoutPage />` — Stripe redirect via Cloud Function | ✅ |
+| **Checkout:** `useCheckout()` + `<CheckoutPage />` — delegates to the active payment plugin (Stripe ships today) | ✅ |
 | **Order confirmation:** `<OrderConfirmationPage />` — polls Firestore for the webhook-created order | ✅ |
 | **Order history:** `<OrderHistoryList />` | ✅ |
 | **Wishlist:** `useWishlist()` + `<WishlistButton />` | ✅ |
 | **Admin:** `<AdminGuard />`, `<AdminShell />`, `<AdminDashboard />`, product CRUD, orders + status, reviews moderation, `<AdminAboutPage />` (installed version + GitHub release feed) | ✅ |
 | **Auth:** `<LoginPage />`, `<RegisterPage />`, `<ForgotPasswordPage />`, `<AccountPage />` (profile, password, addresses, orders) | ✅ |
 | **i18n:** `<LocaleProvider>` + `useT()` + `DEFAULT_MESSAGES` + `<LocaleSwitcher />` (all surfaces migrated) | ✅ |
-| **Theming:** 6 `THEME_PRESETS` + `<ThemePresetPicker />` | ✅ |
+| **Theming:** `cleanWhite` `THEME_PRESETS` + `<ThemePresetPicker />` + `<AdminAppearancePage>` | ✅ |
 | **Profile photo:** `<ProfilePhotoCard />` (Firebase Storage, JPEG/PNG/WebP ≤5 MB) | ✅ |
 | **Delete account:** `<DeleteAccountCard />` with reauth + typed confirmation | ✅ |
 
@@ -114,7 +115,8 @@ useCheckout, useWishlist
 AdminGuard, AdminShell, DEFAULT_ADMIN_NAV, AdminDashboard,
 AdminProductsList, AdminProductEditor,
 AdminOrdersList, AdminOrderDetail,
-AdminReviewsModeration, AdminAboutPage
+AdminReviewsModeration, AdminSiteSettingsPage, AdminAppearancePage,
+AdminAboutPage
 
 // Library metadata + update checks
 CASPIAN_STORE_VERSION,

@@ -289,11 +289,29 @@ export {
 } from './services/storage-service';
 
 // --- Client hooks ---
+export { useCheckout } from './hooks/use-checkout';
+
+// --- Payment plugins ---
 export {
-  useCheckout,
+  PAYMENT_PLUGIN_IDS,
+  PAYMENT_PLUGIN_CATALOG,
+  getPaymentPlugin,
+  STRIPE_PLUGIN,
+  type PaymentPluginId,
+  type PaymentPlugin,
+  type PaymentPluginCheckoutCtx,
+  type PaymentPluginStartResult,
   type StartCheckoutOptions,
   type CheckoutShippingInfoInput,
-} from './hooks/use-checkout';
+  type StripeConfig,
+} from './payments';
+export {
+  listPaymentPluginInstalls,
+  createPaymentPluginInstall,
+  updatePaymentPluginInstall,
+  deletePaymentPluginInstall,
+  type PaymentPluginInstallWriteInput,
+} from './services/payment-plugin-service';
 export { useWishlist } from './hooks/use-wishlist';
 export {
   validatePromoCode,
@@ -370,12 +388,35 @@ export {
   type FaqWriteInput,
 } from './services/faq-service';
 export {
-  listShippingMethods,
-  createShippingMethod,
-  updateShippingMethod,
-  deleteShippingMethod,
-  type ShippingMethodWriteInput,
-} from './services/shipping-method-service';
+  listShippingPluginInstalls,
+  createShippingPluginInstall,
+  updateShippingPluginInstall,
+  deleteShippingPluginInstall,
+  type ShippingPluginInstallWriteInput,
+} from './services/shipping-plugin-service';
+export {
+  calculateShippingRates,
+  type CalculateShippingRatesInput,
+} from './services/shipping-calculator';
+export {
+  SHIPPING_PLUGIN_CATALOG,
+  SHIPPING_PLUGIN_IDS,
+  getShippingPlugin,
+  FLAT_RATE_PLUGIN,
+  FREE_SHIPPING_PLUGIN,
+  FREE_OVER_THRESHOLD_PLUGIN,
+  WEIGHT_BASED_PLUGIN,
+  type ShippingPlugin,
+  type ShippingPluginId,
+  type ShippingRate,
+  type CalculationContext,
+  type PluginDescribeContext,
+  type FlatRateConfig,
+  type FreeShippingConfig,
+  type FreeOverThresholdConfig,
+  type WeightBasedConfig,
+} from './shipping';
+export { ShippingRatePicker, type ShippingRatePickerProps } from './components/checkout';
 export {
   uploadAdminImage,
   deleteStorageObject,
@@ -395,13 +436,15 @@ export {
   AdminJournalPage,
   AdminPagesPage,
   AdminFaqsPage,
-  AdminShippingPage,
+  AdminShippingPluginsPage,
+  AdminPaymentPluginsPage,
   AdminPromoCodesPage,
   AdminSubscribersPage,
   AdminProductCategoriesPage,
   AdminProductCollectionsPage,
   AdminLanguagesPage,
   AdminSiteSettingsPage,
+  AdminAppearancePage,
   AdminTodoPage,
   AdminAboutPage,
   AdminProfileMenu,
@@ -417,6 +460,7 @@ export {
   type AdminPagesPageProps,
   type AdminFaqsPageProps,
   type AdminAboutPageProps,
+  type AdminAppearancePageProps,
   type AdminProfileMenuProps,
 } from './admin';
 
@@ -455,13 +499,14 @@ export type {
   SiteSettings,
   PromoCode,
   AppliedPromoCode,
-  ShippingMethod,
+  ShippingPluginInstall,
   ProductCategoryDoc,
   ProductBrandDoc,
   ProductCollectionDoc,
   PageContent,
   LanguageDoc,
   AdminTodo,
+  PaymentPluginInstall,
 } from './types';
 export { DEFAULT_SCRIPT_SETTINGS, SOCIAL_PLATFORMS } from './types';
 

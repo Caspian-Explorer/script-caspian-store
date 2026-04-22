@@ -43,6 +43,8 @@ Plus exports: `./styles.css` (side-effect CSS, imported once at app root), `./fi
 - [src/services/](src/services/) — Firestore/service-layer functions
 - [src/i18n/](src/i18n/) — LocaleProvider, message tables, formatters, switcher
 - [src/theme/](src/theme/) — theme presets + picker
+- [src/shipping/](src/shipping/) — shipping plugin catalog + per-plugin implementations
+- [src/payments/](src/payments/) — payment plugin catalog + per-plugin implementations (v2.0+)
 - [src/firebase/](src/firebase/) — Firebase init, collection refs, rules/indexes exports
 - [src/utils/](src/utils/) — pure helpers (e.g. [cn.ts](src/utils/cn.ts))
 - [src/styles/](src/styles/) — globals.css
@@ -66,6 +68,8 @@ CaspianStoreProvider
 `ThemeInjector` is a null-render component that writes live `--caspian-*` CSS custom properties to `:root` on settings change. `FontLoader` injects the configured font stylesheet at runtime.
 
 **Framework-adapter contract** at [src/primitives/types.ts](src/primitives/types.ts): `{ Link, Image?, useNavigation }`. Consumers pass adapters to the provider; defaults in [src/primitives/](src/primitives/) use `<a>`, `<img>`, `window.location`. **No `next/*`, `react-router`, `react-router-dom`, or `@remix-run/*` imports may leak into `src/`.** If you need framework behaviour, extend the adapter contract — don't import directly.
+
+**Plugin catalogs — shipping and payments.** Both follow the same shape: a static `CATALOG` record in [src/shipping/catalog.ts](src/shipping/catalog.ts) / [src/payments/catalog.ts](src/payments/catalog.ts) keyed by plugin id, each entry implementing a `{ id, name, description, defaultConfig, validateConfig, … }` contract defined in the sibling `types.ts`. Per-plugin implementations live in `plugins/` subdirectories. The admin page (`AdminShippingPluginsPage` / `AdminPaymentPluginsPage`) browses the catalog and persists per-store **installs** (`shippingPluginInstalls` / `paymentPluginInstalls` Firestore collections) with merchant display name + config + `enabled` flag. The runtime (`calculateShippingRates`, `useCheckout`) reads enabled installs, resolves each to a catalog entry, validates config, and delegates to the plugin's methods. New providers land by PR into the catalog — there is no runtime registration hook and that is intentional.
 
 **Firestore collection refs** are centralized in [src/firebase/collections.ts](src/firebase/collections.ts). Services in [src/services/](src/services/) consume those refs — **do not call `collection(db, "foo")` ad-hoc** in services or components. When adding a collection:
 

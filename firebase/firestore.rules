@@ -83,7 +83,19 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    match /shippingMethods/{id} {
+    // Shipping plugin installs — public read so the checkout calculator and
+    // the public /shipping page can enumerate offered methods. Admin-only
+    // write prevents shoppers from tampering with pricing.
+    match /shippingPluginInstalls/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Payment plugin installs — public read so `useCheckout` on the storefront
+    // can discover which provider to invoke. Only publishable (`pk_`-style)
+    // credentials live here; server-side secrets are Cloud Functions secrets.
+    // Admin-only write prevents shoppers from tampering with enabled providers.
+    match /paymentPluginInstalls/{id} {
       allow read: if true;
       allow write: if isAdmin();
     }

@@ -9,9 +9,9 @@ import { Skeleton, Separator, Badge } from '../ui/misc';
 
 export interface OrderConfirmationPageProps {
   /**
-   * The order ID to look up. In our Cloud Function the order ID equals the
-   * Stripe checkout session id, so you can pass `session_id` from the
-   * success URL query string directly.
+   * The order ID to look up. The checkout webhook writes the order document
+   * under the provider's session/reference id, so pass the success URL's
+   * session id query parameter directly (e.g. `session_id` for Stripe).
    */
   orderId: string;
   continueHref?: string;
@@ -33,7 +33,7 @@ export function OrderConfirmationPage({
   const [attempts, setAttempts] = useState(0);
 
   // The webhook creates the order document asynchronously — we may need to
-  // poll briefly after returning from Stripe.
+  // poll briefly after returning from the payment provider.
   useEffect(() => {
     let alive = true;
     let timer: ReturnType<typeof setTimeout> | null = null;
