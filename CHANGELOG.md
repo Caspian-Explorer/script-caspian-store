@@ -2,6 +2,19 @@
 
 All notable changes will be documented in this file.
 
+## v1.18.1 — Fix scaffolder stripe runtime + regenerate Function lock files
+
+Small follow-up to v1.18.0 catching a scaffolder bug and stale lock files that didn't make the cut.
+
+### Fixed
+- **[scaffold/create.mjs](scaffold/create.mjs) — generated `firebase.json` stripe codebase runtime.** v1.18.0 bumped the admin codebase from `nodejs20` to `nodejs22` in the scaffolder's output but missed the `--with-stripe` branch; scaffolded projects with `--with-stripe` got a mixed `nodejs22`/`nodejs20` config. Both now emit `nodejs22`.
+
+### Changed
+- **[firebase/functions-admin/package-lock.json](firebase/functions-admin/package-lock.json) and [firebase/functions-stripe/package-lock.json](firebase/functions-stripe/package-lock.json) regenerated** to reflect the `firebase-functions@^7` and `firebase-admin@^13` deps that shipped in v1.18.0. The v1.18.0 commit carried the `package.json` bumps but left the lock files pinned to the old v6/v12 resolution tree.
+
+### Notes
+- No source, public API, or ruleset changes. Consumer upgrade from v1.18.0 → v1.18.1 needs no action beyond `npm install` — and only if you were scaffolding with `--with-stripe` (otherwise the stripe runtime fix doesn't affect you).
+
 ## v1.18.0 — Split Cloud Functions codebase + retroactive admin-claim callable
 
 Two interlocking fixes for the admin-bootstrap chicken-and-egg reported in the v1.15 field install:
@@ -10,7 +23,16 @@ Two interlocking fixes for the admin-bootstrap chicken-and-egg reported in the v
 2. **New `claimAdmin` callable.** Closes the retroactive gap that `onUserCreate` can't: if the installer registered *before* deploying the trigger, the trigger never fires on their already-created `users/{uid}` doc. The callable runs on demand (wire it to the AdminGuard "Claim admin role" button), gated by the same "no admin exists yet" invariant the trigger uses.
 
 ### Added
-- **[firebase/functions-admin/src/claim-admin.ts](firebase/functions-admin/src/claim-admin.ts)** — `claimAdmin` callable (v2 `onCall`). Throws `failed-precondition` once any admin exists, so the bootstrap window can never be re-opened by a malicious caller. Pair with a button in `<AdminGuard>`'s access-denied screen to make it one-click from the consumer side.
+- **[firebase/functions-admin/src/claim-admin.ts](firebase/functions-admin/src/claim-admin.ts)** — `claimAdmin` callable (v2 `onCall`). Throws `failed-precondition` once any admin exists, so the bootstrap window can never be re-opened by a malicious caller.
+- **"Claim admin role" button in [src/admin/admin-guard.tsx](src/admin/admin-guard.tsx)** — wired to the new callable via `httpsCallable`. On success, calls `refreshProfile()` and the guard re-renders with the admin surface. On the `failed-precondition` error (admin already exists) the button shows the message but keeps the CLI / console / UID-copy paths visible as fallbacks.
+
+### Fixed
+- **[src/admin/admin-guard.tsx](src/admin/admin-guard.tsx) access-denied message** — removed the stale "re-run the seed script with --admin" language (the standalone `grant-admin.mjs` CLI has shipped since v1.11.0). Replaced with a three-path list: Claim admin button (if no admin yet), `grant-admin` CLI, Firestore console. The UID copy block from v1.10.0 stays.
+
+### Changed (runtime bumps — time-sensitive)
+- **Firebase Functions Node runtime `20 → 22`** in both [firebase/firebase.json](firebase/firebase.json) codebase entries and the scaffolder's generated `firebase.json`. **Firebase deprecates Node 20 on 2026-04-30 and decommissions it 2026-10-30.** Consumers still on Node 20 will lose redeploy capability this October. Package.json `engines.node` bumped to `"22"` in both `functions-admin/` and `functions-stripe/`.
+- **`firebase-functions@^6.1.0 → ^7.0.0`** in both Function codebases. Our handlers use `firebase-functions/v2/*` APIs only, which are source-compatible across the bump — verified by recompiling both codebases locally (`tsc` clean, all exports land in `lib/`).
+- **`firebase-admin@^12.6.0 → ^13.0.0`** in both Function codebases, matching the scaffolder bump in v1.16.1.
 
 ### Changed
 - **[firebase/functions/](firebase/functions/) replaced by [firebase/functions-admin/](firebase/functions-admin/) and [firebase/functions-stripe/](firebase/functions-stripe/).**

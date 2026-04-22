@@ -589,7 +589,7 @@ if (includeStripe) {
   firebaseConfig.functions.push({
     source: 'functions-stripe',
     codebase: 'caspian-stripe',
-    runtime: 'nodejs20',
+    runtime: 'nodejs22',
     predeploy: ['npm --prefix "$RESOURCE_DIR" run build'],
   });
 }
