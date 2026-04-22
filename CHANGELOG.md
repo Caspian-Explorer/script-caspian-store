@@ -16,6 +16,18 @@ Do not omit the heading, rename it, or fold it into `### Notes`. This is how
 customers tell at a glance whether an upgrade needs attention.
 -->
 
+## v2.2.2 — Admin nav exposes Pages, FAQs, Journal, Promo codes, Subscribers, Collections, Languages
+
+`DEFAULT_ADMIN_NAV` was missing sidebar entries for seven admin pages that the scaffolder already generates routes for. The most visible symptom: the storefront's `<PageContentView>` fallback ("This page has no content yet. Edit it in /admin/pages.") pointed admins at a route with no nav link — the Admin → Pages editor existed and was exported, but there was no way to get to it from the sidebar without typing the URL by hand. Five other admin pages had the same gap.
+
+### Fixed
+
+- [src/admin/admin-shell.tsx](src/admin/admin-shell.tsx) — `DEFAULT_ADMIN_NAV` gains seven entries: **Collections** (`/admin/collections`), **Pages** (`/admin/pages`), **FAQs** (`/admin/faqs`), **Journal** (`/admin/journal`), **Promo codes** (`/admin/promo-codes`), **Subscribers** (`/admin/subscribers`), **Languages** (`/admin/languages`). Order groups content next to products/reviews and marketing before shipping/payments.
+
+### No consumer action required
+
+Existing consumers using the default `<AdminShell>` nav pick up the new links automatically. Fresh scaffolds already ship page.tsx files for all seven routes via `scaffold/create.mjs`. Consumers who pass a custom `navItems` prop are unaffected. If an existing install was scaffolded on an old library version that predates one of the listed routes, clicking the new link will 404 until the corresponding `src/app/admin/*/page.tsx` is added (two lines each — copy the pattern from any existing admin route file).
+
 ## v2.2.1 — DropdownMenu escapes overflow ancestors
 
 The admin Products page wraps its table in a scrollable box (`overflow-x: auto`, which per CSS also implies `overflow-y: auto`). `<DropdownMenu>` rendered its panel inline with `position: absolute`, so the 3-dot action menu on each product row was clipped by the table's scroll box — only the first item peeked through with a stray scrollbar. The component now portals the panel to `document.body` and positions it with `position: fixed` + coords computed from the trigger's `getBoundingClientRect()` (re-measured on `scroll` in capture phase + `resize`). Escapes every `overflow` ancestor — the same fix benefits `<AdminProfileMenu>` defensively.
