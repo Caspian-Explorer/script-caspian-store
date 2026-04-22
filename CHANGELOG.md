@@ -2,6 +2,20 @@
 
 All notable changes will be documented in this file.
 
+## v1.12.0 — Configurable Next version + optional `create-next-app` delegation
+
+Picks up the two 🔵 nits the install reviewer explicitly deferred — closing out the punch list.
+
+### Added
+- **`--next-version <spec>`** on [scaffold/create.mjs](scaffold/create.mjs). Overrides the pin for `next` in the generated `package.json`. Default bumped from the old hard-coded `^14.2.0` to `^15.0.0`. Users who want Next 14 can still scaffold with `--next-version '^14.2.0'`.
+- **`--use-create-next-app`** on [scaffold/create.mjs](scaffold/create.mjs) (opt-in). When passed, the scaffolder delegates the Next.js boilerplate to `npx create-next-app@latest` (flags: `--typescript --app --src-dir --no-tailwind --no-eslint --import-alias "@/*" --use-npm --yes --skip-install --disable-git`) and overlays our package dependencies, scripts, pages, adapters, providers, and Firebase config on top. This insulates the generated `tsconfig.json`, `next.config.*`, `next-env.d.ts`, and `.gitignore` from drifting out of step with Next upstream. Windows uses `shell: true` with a single command string so `cmd.exe` resolves the `npx.cmd` wrapper via `PATHEXT`; Linux/macOS spawn `npx` directly.
+
+### Changed
+- **Default Next pin** in the scaffolder is now `^15.0.0` (was `^14.2.0`). Next 15 supports React 19 — when using `--use-create-next-app`, the merged `package.json` inherits Next 15's `react`/`react-dom` `19.x` pins and `@types/react` `^19`. Hand-written path keeps the existing React 18 pins for backward compat; pass `--use-create-next-app` to get the React 19 stack.
+
+### Notes
+- Both paths are verified end-to-end: hand-written with default `^15.0.0`, hand-written with `--next-version '^14.2.0'`, and `--use-create-next-app` (network-dependent, ~30s). `--use-create-next-app` currently opts in; may flip to default after it's battle-tested.
+
 ## v1.11.1 — `npm create caspian-store@latest` (thin sibling package)
 
 Main-package bump covers the doc updates; the actual new capability ships as a separate npm package.

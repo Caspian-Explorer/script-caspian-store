@@ -5,18 +5,22 @@
  *
  * Usage:
  *   node <path-to-package>/scaffold/create.mjs <project-dir>
- *     [--package-tag vX.Y.Z]   # defaults to the package's own version
- *     [--with-functions]       # also copy firebase/functions/ (Stripe Cloud Functions)
- *     [--force]                # scaffold into a non-empty dir (.git/.gitignore/README.md/LICENSE are preserved without --force)
+ *     [--package-tag vX.Y.Z]        # defaults to the package's own version
+ *     [--next-version <spec>]       # pin for next in generated package.json; default ^15.0.0
+ *     [--use-create-next-app]       # delegate Next.js boilerplate to `npx create-next-app`
+ *                                    # for drift-free tsconfig / next.config / next-env.d.ts
+ *     [--with-functions]            # also copy firebase/functions/ (Stripe Cloud Functions)
+ *     [--force]                     # scaffold into a non-empty dir (.git / .gitignore /
+ *                                    #   README.md / LICENSE are preserved without --force)
  *
  * What you get:
- *   - Next.js 14 App Router project in <project-dir>/
+ *   - Next.js App Router project in <project-dir>/ (default Next pin: ^15.0.0)
  *   - All storefront + admin + content routes pre-mounted as one-liners
  *   - Next.js adapter code (Link/Image/useNavigation) for the package
  *   - Real firestore.rules / firestore.indexes.json / storage.rules copied
  *     from the package (deployable immediately)
  *   - .env.example with Firebase + Stripe placeholders
- *   - Scripts in package.json for dev / typecheck / seed
+ *   - Scripts in package.json for dev / typecheck / seed / grant-admin
  *
  * After scaffolding, `cd <project-dir> && npm install` and follow the README.
  */
@@ -25,6 +29,7 @@ import { mkdirSync, writeFileSync, readFileSync, readdirSync, existsSync, cpSync
 import { dirname, join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { fileURLToPath } from 'node:url';
+import { spawnSync } from 'node:child_process';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -34,6 +39,8 @@ const ownVersion = JSON.parse(readFileSync(join(packageRoot, 'package.json'), 'u
 const { positionals, values: args } = parseArgs({
   options: {
     'package-tag': { type: 'string', default: `v${ownVersion}` },
+    'next-version': { type: 'string', default: '^15.0.0' },
+    'use-create-next-app': { type: 'boolean', default: false },
     force: { type: 'boolean', default: false },
     'with-functions': { type: 'boolean', default: false },
   },
@@ -42,7 +49,10 @@ const { positionals, values: args } = parseArgs({
 
 const targetDir = positionals[0];
 if (!targetDir) {
-  console.error('Usage: node create.mjs <project-dir> [--package-tag vX.Y.Z] [--with-functions] [--force]');
+  console.error(
+    'Usage: node create.mjs <project-dir> [--package-tag vX.Y.Z] [--next-version <spec>]\n' +
+    '                       [--use-create-next-app] [--with-functions] [--force]',
+  );
   process.exit(1);
 }
 
@@ -65,6 +75,8 @@ mkdirSync(root, { recursive: true });
 
 const packageTag = args['package-tag'];
 const packageSpec = `github:Caspian-Explorer/script-caspian-store#${packageTag}`;
+const nextVersion = args['next-version'];
+const useCreateNextApp = args['use-create-next-app'];
 const sourceFirebaseDir = join(packageRoot, 'firebase');
 
 function write(relPath, content) {
@@ -73,61 +85,125 @@ function write(relPath, content) {
   writeFileSync(abs, content);
 }
 
+// ---- optional: delegate Next.js boilerplate to create-next-app ----
+// When enabled, `npx create-next-app@latest` writes tsconfig.json, next.config.*,
+// next-env.d.ts, .gitignore, a starter src/app/ tree, public/ assets, and a
+// package.json. We then overlay our pages, adapters, providers, firebase config,
+// and merge our deps + scripts into the package.json it wrote. This insulates
+// the tsconfig / next.config shape from drifting out of step with Next upstream
+// without us having to chase every Next release.
+if (useCreateNextApp) {
+  // On Windows the npx wrapper is npx.cmd; spawning it directly bypasses
+  // PATHEXT resolution and exits null. Using shell: true routes through
+  // cmd.exe which handles the .cmd suffix. Elsewhere we spawn directly —
+  // faster and avoids the "args + shell:true" deprecation.
+  const isWindows = process.platform === 'win32';
+  const cnaArgs = [
+    '--yes',
+    'create-next-app@latest',
+    root,
+    '--typescript',
+    '--app',
+    '--src-dir',
+    '--no-tailwind',
+    '--no-eslint',
+    '--import-alias',
+    '@/*',
+    '--use-npm',
+    '--yes',
+    '--skip-install',
+    '--disable-git',
+  ];
+  const result = isWindows
+    ? spawnSync(
+        `npx ${cnaArgs.map((a) => (/[\s*]/.test(a) ? `"${a}"` : a)).join(' ')}`,
+        { stdio: 'inherit', shell: true },
+      )
+    : spawnSync('npx', cnaArgs, { stdio: 'inherit' });
+  if (result.status !== 0) {
+    console.error(
+      '[create-caspian-store] create-next-app exited with status ' + result.status,
+    );
+    process.exit(result.status ?? 1);
+  }
+}
+
 // ---- package.json ----
-write('package.json', JSON.stringify({
-  name: targetDir.split(/[\\/]/).pop(),
-  version: '0.1.0',
-  private: true,
-  scripts: {
-    dev: 'next dev',
-    build: 'next build',
-    start: 'next start',
-    typecheck: 'tsc --noEmit',
-    'firebase:deploy': 'firebase deploy',
-    'firebase:seed': 'node node_modules/@caspian-explorer/script-caspian-store/firebase/seed/seed.mjs',
-    'grant-admin': 'node node_modules/@caspian-explorer/script-caspian-store/firebase/seed/grant-admin.mjs',
-  },
-  dependencies: {
-    '@caspian-explorer/script-caspian-store': packageSpec,
-    firebase: '^11.0.0',
-    next: '^14.2.0',
-    react: '^18.3.0',
-    'react-dom': '^18.3.0',
-  },
-  devDependencies: {
-    '@types/node': '^20.0.0',
-    '@types/react': '^18.3.0',
-    '@types/react-dom': '^18.3.0',
-    typescript: '^5.6.0',
-    'firebase-admin': '^12.0.0',
-  },
-}, null, 2) + '\n');
+// When delegating to create-next-app, merge into what it wrote so we keep
+// Next's current dep pins and scripts. Otherwise write a hand-rolled version.
+const ourScripts = {
+  typecheck: 'tsc --noEmit',
+  'firebase:deploy': 'firebase deploy',
+  'firebase:seed': 'node node_modules/@caspian-explorer/script-caspian-store/firebase/seed/seed.mjs',
+  'grant-admin': 'node node_modules/@caspian-explorer/script-caspian-store/firebase/seed/grant-admin.mjs',
+};
+const ourDeps = {
+  '@caspian-explorer/script-caspian-store': packageSpec,
+  firebase: '^11.0.0',
+};
+const ourDevDeps = {
+  'firebase-admin': '^12.0.0',
+};
 
-// ---- tsconfig.json ----
-write('tsconfig.json', JSON.stringify({
-  compilerOptions: {
-    target: 'ES2022',
-    lib: ['dom', 'dom.iterable', 'esnext'],
-    allowJs: true,
-    skipLibCheck: true,
-    strict: true,
-    noEmit: true,
-    esModuleInterop: true,
-    module: 'esnext',
-    moduleResolution: 'bundler',
-    resolveJsonModule: true,
-    isolatedModules: true,
-    jsx: 'preserve',
-    incremental: true,
-    plugins: [{ name: 'next' }],
-    paths: { '@/*': ['./src/*'] },
-  },
-  include: ['next-env.d.ts', 'src/**/*.ts', 'src/**/*.tsx', '.next/types/**/*.ts'],
-  exclude: ['node_modules'],
-}, null, 2) + '\n');
+if (useCreateNextApp) {
+  const pkgPath = join(root, 'package.json');
+  const pkg = JSON.parse(readFileSync(pkgPath, 'utf8'));
+  pkg.scripts = { ...(pkg.scripts ?? {}), ...ourScripts };
+  pkg.dependencies = { ...(pkg.dependencies ?? {}), ...ourDeps };
+  if (nextVersion) pkg.dependencies.next = nextVersion;
+  pkg.devDependencies = { ...(pkg.devDependencies ?? {}), ...ourDevDeps };
+  writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n');
+} else {
+  write('package.json', JSON.stringify({
+    name: targetDir.split(/[\\/]/).pop(),
+    version: '0.1.0',
+    private: true,
+    scripts: {
+      dev: 'next dev',
+      build: 'next build',
+      start: 'next start',
+      ...ourScripts,
+    },
+    dependencies: {
+      ...ourDeps,
+      next: nextVersion,
+      react: '^18.3.0',
+      'react-dom': '^18.3.0',
+    },
+    devDependencies: {
+      '@types/node': '^20.0.0',
+      '@types/react': '^18.3.0',
+      '@types/react-dom': '^18.3.0',
+      typescript: '^5.6.0',
+      ...ourDevDeps,
+    },
+  }, null, 2) + '\n');
 
-// ---- next.config.mjs ----
-write('next.config.mjs', `const nextConfig = {
+  // ---- tsconfig.json ----
+  write('tsconfig.json', JSON.stringify({
+    compilerOptions: {
+      target: 'ES2022',
+      lib: ['dom', 'dom.iterable', 'esnext'],
+      allowJs: true,
+      skipLibCheck: true,
+      strict: true,
+      noEmit: true,
+      esModuleInterop: true,
+      module: 'esnext',
+      moduleResolution: 'bundler',
+      resolveJsonModule: true,
+      isolatedModules: true,
+      jsx: 'preserve',
+      incremental: true,
+      plugins: [{ name: 'next' }],
+      paths: { '@/*': ['./src/*'] },
+    },
+    include: ['next-env.d.ts', 'src/**/*.ts', 'src/**/*.tsx', '.next/types/**/*.ts'],
+    exclude: ['node_modules'],
+  }, null, 2) + '\n');
+
+  // ---- next.config.mjs ----
+  write('next.config.mjs', `const nextConfig = {
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: 'firebasestorage.googleapis.com' },
@@ -137,6 +213,7 @@ write('next.config.mjs', `const nextConfig = {
 };
 export default nextConfig;
 `);
+}
 
 // ---- .env.example ----
 write('.env.example', `# Firebase web config (from Firebase console → Project settings → Your apps)
@@ -156,18 +233,19 @@ NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=
 #   firebase functions:secrets:set STRIPE_WEBHOOK_SECRET
 `);
 
-// ---- .gitignore ----
-write('.gitignore', `node_modules
+// ---- .gitignore + next-env.d.ts ----
+// create-next-app writes both; skip when delegating. Otherwise emit our own.
+if (!useCreateNextApp) {
+  write('.gitignore', `node_modules
 .next
 .env*.local
 *.log
 service-account*.json
 `);
-
-// ---- next-env.d.ts ----
-write('next-env.d.ts', `/// <reference types="next" />
+  write('next-env.d.ts', `/// <reference types="next" />
 /// <reference types="next/image-types/global" />
 `);
+}
 
 // ---- src/lib/caspian-adapters.tsx ----
 write('src/lib/caspian-adapters.tsx', `'use client';
