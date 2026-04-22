@@ -2,6 +2,18 @@
 
 All notable changes will be documented in this file.
 
+## v1.16.1 — Scaffolder firebase-admin bump + upgrade-path docs
+
+Three small-but-real items from a post-v1.15 field review that didn't make it into v1.16.0: an `npm audit` footgun in the scaffolder's `firebase-admin` pin, a stale version pin in the manual-install copy-paste, and a missing upgrade-procedure note that causes "every route 500s" on in-place upgrades.
+
+### Changed
+- **[scaffold/create.mjs](scaffold/create.mjs) `firebase-admin` pin bumped `^12.0.0` → `^13.0.0`** in the generated project's devDependencies. Closes a long-standing `npm audit` noise footgun (transitive `@tootallnate/once` / older `@google-cloud/*` chain in 12.x) that made `npm audit fix --force` *downgrade* `firebase-admin` to 10.x and introduce 5 critical vulnerabilities. `seed.mjs` and `grant-admin.mjs` use stable SDK APIs (`admin.initializeApp` / `firestore()` / `auth()`); 12 → 13 is transparent.
+- **Scaffolder-generated README Upgrade section** now documents the dev-server stale-cache footgun: stop `next dev`, bump the dep, redeploy rules if changed, clear `.next`, restart. Avoids the "every route 500s after upgrade" trap.
+- **[INSTALL.md §1](INSTALL.md) manual-install copy-paste** no longer pins stale `#v1.9.0`; now points at `#v1.16.1` with a link to the releases page so readers can pick the latest.
+
+### Notes
+- Pure scaffolder + docs; no source or build changes. Consumers don't need to upgrade their code. For existing scaffolded projects: running `npm install firebase-admin@^13 --save-dev` in the consumer project brings the `firebase-admin` dep in line with what new scaffolds get.
+
 ## v1.16.0 — Frontend deployment path: Vercel + Firebase App Hosting
 
 Consumers who followed `INSTALL.md` end-to-end ended up with deployed Firestore rules, Storage rules, Cloud Functions, and seed data — but **no documented path for deploying the Next.js site itself**. The generated `npm run firebase:deploy` script ran `firebase deploy`, but the scaffolder's `firebase.json` has no `hosting` block, so only the backend rules/functions deployed. Closing that gap with first-class docs + a scaffolded `apphosting.yaml`.

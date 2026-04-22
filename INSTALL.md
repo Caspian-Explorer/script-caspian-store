@@ -40,8 +40,10 @@ node /tmp/scs/scaffold/create.mjs my-store --package-tag v1.11.0
 ## 1. Install the package
 
 ```bash
-npm install github:Caspian-Explorer/script-caspian-store#v1.9.0 firebase
-# or pin to a commit:
+npm install github:Caspian-Explorer/script-caspian-store#v1.16.1 firebase
+# Replace v1.16.1 with the latest tag — see:
+#   https://github.com/Caspian-Explorer/script-caspian-store/releases
+# Pinning to a specific sha is also fine:
 # npm install github:Caspian-Explorer/script-caspian-store#<sha>
 ```
 

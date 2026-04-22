@@ -142,7 +142,11 @@ const ourDeps = {
   firebase: '^11.0.0',
 };
 const ourDevDeps = {
-  'firebase-admin': '^12.0.0',
+  // v13 drops the transitive @tootallnate/once / older @google-cloud/* chain
+  // that triggers `npm audit` noise on fresh scaffolds. APIs used by seed.mjs
+  // and grant-admin.mjs (admin.initializeApp / firestore / auth) are stable
+  // from 12 → 13.
+  'firebase-admin': '^13.0.0',
 };
 
 if (useCreateNextApp) {
@@ -693,11 +697,22 @@ npm run dev                  # http://localhost:3000
 
 ## Upgrade
 
+Stop any running \`next dev\` first — swapping the package under a live dev server corrupts \`.next\` state and every route starts 500'ing with no obvious clue.
+
 \`\`\`bash
+# 1. Stop next dev (Ctrl+C).
+# 2. Bump the dep:
 npm install github:Caspian-Explorer/script-caspian-store#vX.Y.Z
+# 3. If the CHANGELOG for the target release mentions rule changes,
+#    copy the updated rules and redeploy:
+npm run firebase:sync 2>/dev/null || true  # (available in v1.18+; otherwise copy by hand)
+firebase deploy --only firestore:rules,firestore:indexes,storage
+# 4. Clear the stale Next cache and restart:
+rm -rf .next
+npm run dev
 \`\`\`
 
-See [CHANGELOG](https://github.com/Caspian-Explorer/script-caspian-store/blob/main/CHANGELOG.md).
+See [CHANGELOG](https://github.com/Caspian-Explorer/script-caspian-store/blob/main/CHANGELOG.md) for release-specific notes.
 `);
 
 console.log(`[create-caspian-store] scaffolded ${targetDir}/ pinned to ${packageTag}`);
