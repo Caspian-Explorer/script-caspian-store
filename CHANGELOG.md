@@ -16,6 +16,18 @@ Do not omit the heading, rename it, or fold it into `### Notes`. This is how
 customers tell at a glance whether an upgrade needs attention.
 -->
 
+## v2.0.1 — Polish admin About error messages
+
+Small UX fix for the admin About page. When the GitHub releases API returns a non-2xx response, the page used to render `Couldn't reach GitHub: GitHub API 404:` — the `res.statusText` portion is blank on modern browsers (notably HTTP/2), so the message trailed off at a dangling colon. The service now drops the colon when there's nothing to follow, and adds hint text for the two status codes that actually show up in practice: `404 → Not found or private`, `403 → Rate-limited or forbidden`. Network failures (offline, DNS, CORS) now surface as `Network error` instead of the browser-specific `Failed to fetch` / `NetworkError when attempting to fetch resource`.
+
+### Fixed
+
+- [src/services/github-updates-service.ts](src/services/github-updates-service.ts) — `fetchRecentReleases` no longer produces trailing-colon error strings, gives hint text for 404/403, and maps fetch `TypeError` to `Network error`. `AbortError` still propagates unchanged so unmounts don't look like failures.
+
+### No consumer action required
+
+Internal-only bug fix; existing installs continue to work.
+
 ## v2.0.0 — Pluggable payment + shipping providers, admin appearance page
 
 v2.0 makes the storefront's integration points **installable, not hard-coded**. Stripe used to be the only payment option and the Firestore `stripePublicKey` field was the only way to configure it; shipping used to be a flat list of fixed prices with no picker at checkout. Both are now plugin catalogs browsed and configured from the admin panel: the store owner picks a provider, fills in its fields, flips Enable. Alongside those two plugin systems, the admin panel grows a dedicated **Appearance** page for theme tokens (previously buried inside the orphan `<ScriptSettingsPage>`). This is a single major release because the payment migration removes `stripePublicKey` from `ScriptSettings` — a public-type breaking change — and bundling the shipping and appearance work keeps admin-nav churn to one upgrade.

@@ -35,6 +35,15 @@ function toRelease(raw: RawRelease): GithubRelease {
   };
 }
 
+function describeHttpError(status: number, statusText: string): string {
+  if (statusText) return `GitHub API ${status}: ${statusText}`;
+  const hint =
+    status === 404 ? 'Not found or private' :
+    status === 403 ? 'Rate-limited or forbidden' :
+    '';
+  return hint ? `GitHub API ${status}: ${hint}` : `GitHub API ${status}`;
+}
+
 export async function fetchRecentReleases(
   owner: string = DEFAULT_REPO_OWNER,
   repo: string = DEFAULT_REPO_NAME,
@@ -46,15 +55,22 @@ export async function fetchRecentReleases(
   if (!options.force && hit && Date.now() - hit.at < CACHE_TTL_MS) {
     return hit.data;
   }
-  const res = await fetch(
-    `https://api.github.com/repos/${owner}/${repo}/releases?per_page=${limit}`,
-    {
-      headers: { Accept: 'application/vnd.github+json' },
-      signal: options.signal,
-    },
-  );
+  let res: Response;
+  try {
+    res = await fetch(
+      `https://api.github.com/repos/${owner}/${repo}/releases?per_page=${limit}`,
+      {
+        headers: { Accept: 'application/vnd.github+json' },
+        signal: options.signal,
+      },
+    );
+  } catch (err) {
+    if (err instanceof Error && err.name === 'AbortError') throw err;
+    if (err instanceof TypeError) throw new Error('Network error');
+    throw err;
+  }
   if (!res.ok) {
-    throw new Error(`GitHub API ${res.status}: ${res.statusText}`);
+    throw new Error(describeHttpError(res.status, res.statusText));
   }
   const json = (await res.json()) as RawRelease[];
   const data = json
