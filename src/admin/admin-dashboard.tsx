@@ -129,9 +129,9 @@ function Card({
         <p style={{ margin: 0, fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#888' }}>
           {label}
         </p>
-        <p style={{ margin: '6px 0 0', fontSize: 24, fontWeight: 700 }}>
+        <div style={{ margin: '6px 0 0', fontSize: 24, fontWeight: 700 }}>
           {loading ? <Skeleton style={{ height: 24, width: 80 }} /> : value}
-        </p>
+        </div>
       </div>
     </Link>
   );

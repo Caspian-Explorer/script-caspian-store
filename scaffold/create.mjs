@@ -12,6 +12,9 @@
  *     [--with-stripe]               # also copy firebase/functions-stripe/ (Stripe checkout
  *                                    #   + webhook) — admin codebase is always scaffolded
  *     [--with-functions]            # deprecated alias for --with-stripe (back-compat)
+ *     [--no-apphosting]             # suppress apphosting.yaml in the output (default: emit).
+ *                                    #   Useful for Vercel deployments where the file would
+ *                                    #   just sit unused.
  *     [--force]                     # scaffold into a non-empty dir (.git / .gitignore /
  *                                    #   README.md / LICENSE are preserved without --force)
  *
@@ -46,6 +49,7 @@ const { positionals, values: args } = parseArgs({
     force: { type: 'boolean', default: false },
     'with-stripe': { type: 'boolean', default: false },
     'with-functions': { type: 'boolean', default: false },
+    'no-apphosting': { type: 'boolean', default: false },
   },
   allowPositionals: true,
 });
@@ -54,12 +58,13 @@ const { positionals, values: args } = parseArgs({
 // only affects the Stripe codebase (admin codebase is always scaffolded), so
 // treat it as an alias for --with-stripe to avoid breaking existing callers.
 const includeStripe = args['with-stripe'] || args['with-functions'];
+const suppressApphosting = args['no-apphosting'];
 
 const targetDir = positionals[0];
 if (!targetDir) {
   console.error(
     'Usage: node create.mjs <project-dir> [--package-tag vX.Y.Z] [--next-version <spec>]\n' +
-    '                       [--use-create-next-app] [--with-stripe] [--force]',
+    '                       [--use-create-next-app] [--with-stripe] [--no-apphosting] [--force]',
   );
   process.exit(1);
 }
@@ -639,9 +644,11 @@ if (includeStripe) {
 // at BUILD time for Next.js to inline them into the client bundle; hence
 // availability: [BUILD, RUNTIME]. Values left blank by design — consumers fill
 // them via the Firebase console or `firebase apphosting:secrets:set` (for the
-// sensitive ones). Always emitted: harmless if the consumer deploys to Vercel
-// instead, and keeps the "just deploy" path single-command for App Hosting users.
-write('apphosting.yaml', `# Firebase App Hosting config. Only read when deploying via Firebase App Hosting.
+// sensitive ones). Emitted by default: harmless if the consumer deploys to
+// Vercel instead, and keeps the "just deploy" path single-command for App
+// Hosting users. Vercel-only consumers can suppress it with --no-apphosting.
+if (!suppressApphosting) {
+  write('apphosting.yaml', `# Firebase App Hosting config. Only read when deploying via Firebase App Hosting.
 # Safe to delete if you deploy to Vercel or elsewhere.
 #
 # NEXT_PUBLIC_* vars must be inlined at build time, so availability must include BUILD.
@@ -673,6 +680,7 @@ env:
     value: ""
     availability: [BUILD, RUNTIME]
 `);
+}
 
 // ---- README ----
 write('README.md', `# ${targetDir.split(/[\\/]/).pop()}

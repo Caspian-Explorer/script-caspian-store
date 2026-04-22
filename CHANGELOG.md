@@ -2,6 +2,46 @@
 
 All notable changes will be documented in this file.
 
+<!--
+Every entry MUST include exactly one of these two headings:
+
+  ### Consumer action required on upgrade
+  (followed by a fenced bash block of exact commands, or a numbered list)
+
+  ### No consumer action required
+  (followed by a one-line explanation, e.g. "internal build config only; existing
+  installs unaffected" or "scaffolder-only change; does not touch consumer sites")
+
+Do not omit the heading, rename it, or fold it into `### Notes`. This is how
+customers tell at a glance whether an upgrade needs attention.
+-->
+
+## v1.20.0 — Upgrade-notes template, `--no-apphosting` flag, hydration fix
+
+Polish pass following v1.19.0. Three independent items:
+
+1. CHANGELOG upgrade-notes had drifted across releases (`### Not affected`, `### Notes`, `### Consumer action required on upgrade`, or nothing at all). Customers couldn't tell at a glance whether a given release needed action. Formalized as a hard-required heading with only two allowed variants.
+2. Scaffolder unconditionally wrote `apphosting.yaml` since v1.16.0. For Vercel-only consumers the file just sits unused. Now gated behind a new `--no-apphosting` flag (default stays "emit" — non-breaking).
+3. `AdminDashboard` tile rendered `<Skeleton>` (a `<div>`) inside a `<p>`, tripping React's "`<p>` cannot contain a nested `<div>`" dev warning. Silent in production but noisy in dev. Fixed by swapping the outer `<p>` for a `<div>` with identical inline styles.
+
+### Added
+- **Scaffolder `--no-apphosting` flag** in [scaffold/create.mjs](scaffold/create.mjs). Suppresses the generated `apphosting.yaml`. Default remains "emit" — Firebase App Hosting consumers are unaffected. Documented in [INSTALL.md §Scaffold flags](INSTALL.md).
+- **CHANGELOG upgrade-notes template** documented as a comment block at the top of [CHANGELOG.md](CHANGELOG.md). Every release entry must include exactly one of `### Consumer action required on upgrade` or `### No consumer action required`.
+
+### Changed
+- **[CLAUDE.md Pre-Commit Checklist §5](CLAUDE.md)** now documents the upgrade-notes heading requirement as part of the bump-version step.
+
+### Fixed
+- **[src/admin/admin-dashboard.tsx:132](src/admin/admin-dashboard.tsx)** — tile value was wrapped in `<p>` which React disallows containing `<Skeleton>` (a `<div>`). Changed to `<div>` with identical inline styles; visual output unchanged.
+- **[CHANGELOG.md](CHANGELOG.md) v1.17.0 back-fill** — added the previously-missing `### No consumer action required` heading so the entry conforms to the new template.
+
+### No consumer action required
+- `--no-apphosting` is an additive flag with backwards-compatible default (emit). Existing scaffold invocations produce identical output.
+- CHANGELOG template formalization is docs-only.
+- The hydration fix is a silent-in-production source correction with no visual or API change.
+
+Existing installs upgrade transparently via `npm install github:Caspian-Explorer/script-caspian-store#v1.20.0`.
+
 ## v1.19.0 — Per-codebase `.gitignore` + first-deploy retry helper
 
 Closes the "install just works" gap on a clean v1.18.x run. Three field-report items from the latest consumer install:
@@ -138,6 +178,9 @@ The last two shipped bugs — v1.13.0 (`storage.rules` grammar) and v1.15.0 (`us
 
 ### Changed
 - **[CLAUDE.md](CLAUDE.md) Pre-Commit Checklist step 2** flipped from "N/A — no test runner is configured" to the `npm test` instructions above, with a Java-not-installed fallback pointing at CI. The "don't add Jest/Vitest/Playwright" rule still applies for component/unit tests; the rules tests are a narrow exception.
+
+### No consumer action required
+CI infrastructure only — no source, public API, or ruleset change. Existing installs are unaffected; the upgrade is transparent.
 
 ### Notes
 - Regression-verified locally: reverting the v1.15.0 `users/{uid}` rule fix makes three of the suite's assertions fail; re-applying the fix turns them green again. Proves the tests actually gate the bug they were written for, not just pass-through noise.

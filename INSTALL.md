@@ -23,6 +23,7 @@ Flags:
 - `--package-tag vX.Y.Z` — pin the generated project to a specific release (default: latest)
 - `--with-stripe` — also scaffold the Stripe Cloud Functions tree into `functions-stripe/` (and add the matching `caspian-stripe` codebase to `firebase.json`). The admin codebase (`functions-admin/`, auto-promote trigger) is always scaffolded — it has no secrets and is deployable immediately.
 - `--with-functions` — deprecated alias for `--with-stripe`, kept for back-compat
+- `--no-apphosting` — suppress `apphosting.yaml` in the output. Useful for Vercel-only deployments where the file would otherwise sit unused. (v1.20.0+)
 - `--force` — scaffold into a non-empty directory (`.git`, `.gitignore`, `README.md`, `LICENSE` are preserved automatically)
 
 **If you used the scaffolder, stop here and follow the generated `my-store/README.md`** for Firebase + Stripe + seeding. The remainder of this document (§1–§12) is the manual-install path for people embedding the package into an existing React app; you don't need it after scaffolding.

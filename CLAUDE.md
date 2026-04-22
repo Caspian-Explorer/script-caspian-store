@@ -158,7 +158,14 @@ Increment the version in [package.json](package.json) for every release, followi
 - **minor** (`1.8.x` → `1.9.0`) — new features, non-breaking additions to the public export surface
 - **major** (`1.x.x` → `2.0.0`) — breaking changes: renaming/removing public exports, changing provider props, requiring consumer code changes
 
-Then update [CHANGELOG.md](CHANGELOG.md): add a new `## [X.Y.Z] - YYYY-MM-DD` heading above the previous version, following [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) sections (`### Added`, `### Changed`, `### Fixed`, `### Removed`).
+Then update [CHANGELOG.md](CHANGELOG.md): add a new `## vX.Y.Z — <short summary>` heading above the previous version, following [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) sections (`### Added`, `### Changed`, `### Fixed`, `### Removed`).
+
+**Upgrade-notes heading is required.** Every entry must include *exactly one* of these two headings so customers can tell at a glance whether the release needs action:
+
+- `### Consumer action required on upgrade` — followed by a fenced bash block of exact commands, or a numbered list of the steps.
+- `### No consumer action required` — followed by a one-line explanation (e.g. "internal build config only; existing installs unaffected" or "scaffolder-only change; does not touch consumer sites").
+
+Never omit the heading, rename it, or fold it into `### Notes`. The comment block at the top of [CHANGELOG.md](CHANGELOG.md) documents this rule in-tree.
 
 **No lock file to sync** — this repo does not commit `package-lock.json`. (If that changes, run `npm install --package-lock-only`.)
 
