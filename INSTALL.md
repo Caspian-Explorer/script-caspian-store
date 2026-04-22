@@ -578,6 +578,15 @@ Pin to a tag; bump when ready:
 npm install github:Caspian-Explorer/script-caspian-store#vX.Y.Z
 ```
 
+If the release CHANGELOG mentions rule or index changes, sync them into your project root afterwards (v1.20.1+):
+
+```bash
+npm run firebase:sync    # copies firestore.rules, firestore.indexes.json, storage.rules from the library
+firebase deploy --only firestore:rules,firestore:indexes,storage
+```
+
+`firebase:sync` overwrites any hand edits to those root files — if you have custom rules, merge by hand from git history instead.
+
 See [CHANGELOG.md](./CHANGELOG.md) for release notes and migration guidance per version.
 
 ---

@@ -16,6 +16,41 @@ Do not omit the heading, rename it, or fold it into `### Notes`. This is how
 customers tell at a glance whether an upgrade needs attention.
 -->
 
+## v1.20.1 — `firebase:sync` helper + `turbopack.root` in scaffolded `next.config.mjs`
+
+Carryover items from earlier install reports. Two independent scaffolder additions and one audit-only item.
+
+### Added
+- **[firebase/scripts/sync-rules.mjs](firebase/scripts/sync-rules.mjs)** — new Node helper that copies `firestore.rules`, `firestore.indexes.json`, and `storage.rules` from the installed package into the consumer's project root. Scaffolded sites get a `firebase:sync` npm script wired to it. Run after any upgrade that touches rules/indexes (the release CHANGELOG will call it out).
+- **[scaffold/create.mjs](scaffold/create.mjs): `turbopack: { root: __dirname }` in generated `next.config.mjs`.** Pins Turbopack's workspace root so Next stops logging "Warning: Next.js inferred your workspace root" for any consumer whose home dir has a stray `package-lock.json`. Derived via `fileURLToPath` + `dirname` because `__dirname` isn't a global in ESM `next.config.mjs`.
+- **[INSTALL.md §12 Upgrade](INSTALL.md)** now recommends `npm run firebase:sync` as the rules-resync step after bumping the package.
+- **Scaffolder-generated README Upgrade section** uses `npm run firebase:sync` instead of the previous "available in v1.18+; otherwise copy by hand" caveat — it's now unconditional.
+
+### Changed
+- **Scaffolded `package.json` scripts** gain a `firebase:sync` entry between `firebase:deploy` and `deploy:admin`.
+
+### Verified (no code change)
+- **[src/admin/admin-guard.tsx](src/admin/admin-guard.tsx) access-denied text** audited end-to-end. The three-path list (Claim admin button / `grant-admin` CLI / Firestore console) from v1.18.0 is intact; no stale "re-run the seed script" language. Closing the follow-up from report #2.
+
+### Consumer action required on upgrade
+Upgraded consumer sites need two small edits to pick up the new helper:
+
+```bash
+npm install github:Caspian-Explorer/script-caspian-store#v1.20.1
+
+# Add firebase:sync to your package.json scripts:
+#   "firebase:sync": "node node_modules/@caspian-explorer/script-caspian-store/firebase/scripts/sync-rules.mjs"
+
+# Then sync the rules from the library into your project root:
+npm run firebase:sync
+firebase deploy --only firestore:rules,firestore:indexes,storage   # if rules changed in this release (they didn't)
+
+# Optional: add the turbopack.root pin to your next.config.mjs.
+# See scaffold/create.mjs for the current generated config — three new lines at the top and a two-line turbopack block.
+```
+
+Fresh scaffolds pick up everything automatically.
+
 ## v1.20.0 — Upgrade-notes template, `--no-apphosting` flag, hydration fix
 
 Polish pass following v1.19.0. Three independent items:

@@ -147,6 +147,7 @@ if (useCreateNextApp) {
 const ourScripts = {
   typecheck: 'tsc --noEmit',
   'firebase:deploy': 'firebase deploy',
+  'firebase:sync': 'node node_modules/@caspian-explorer/script-caspian-store/firebase/scripts/sync-rules.mjs',
   'deploy:admin': 'node node_modules/@caspian-explorer/script-caspian-store/firebase/scripts/deploy-functions.mjs --codebase caspian-admin',
   'deploy:stripe': 'node node_modules/@caspian-explorer/script-caspian-store/firebase/scripts/deploy-functions.mjs --codebase caspian-stripe',
   'firebase:seed': 'node node_modules/@caspian-explorer/script-caspian-store/firebase/seed/seed.mjs',
@@ -169,7 +170,20 @@ const ourDevDeps = {
 // not listed under `images.remotePatterns`, so we ship a permissive default
 // and show consumers how to tighten it. Shared between both generation paths
 // (hand-rolled and create-next-app delegation) so the output stays identical.
-const nextConfigSource = `const nextConfig = {
+//
+// `turbopack.root` pins the workspace root to this file's dir so Next doesn't
+// surface "Warning: Next.js inferred your workspace root" for any consumer
+// whose home dir happens to contain a stray package-lock.json. Derived via
+// fileURLToPath + dirname because __dirname is not a global in ESM.
+const nextConfigSource = `import { fileURLToPath } from 'node:url';
+import { dirname } from 'node:path';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
+const nextConfig = {
+  turbopack: {
+    root: __dirname,
+  },
   images: {
     // Permissive default — storefront admins can paste image URLs from any
     // https host. To restrict, replace this entry with explicit per-host rules:
@@ -789,7 +803,7 @@ Stop any running \`next dev\` first — swapping the package under a live dev se
 npm install github:Caspian-Explorer/script-caspian-store#vX.Y.Z
 # 3. If the CHANGELOG for the target release mentions rule changes,
 #    copy the updated rules and redeploy:
-npm run firebase:sync 2>/dev/null || true  # (available in v1.18+; otherwise copy by hand)
+npm run firebase:sync              # copies updated rules/indexes from the library (v1.20.1+)
 firebase deploy --only firestore:rules,firestore:indexes,storage
 # 4. Clear the stale Next cache and restart:
 rm -rf .next
