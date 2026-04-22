@@ -23,6 +23,7 @@ export function caspianCollections(db: Firestore) {
     productCollections: collection(db, 'productCollections'),
     pageContents: collection(db, 'pageContents'),
     languages: collection(db, 'languages'),
+    searchTerms: collection(db, 'searchTerms'),
     scriptSettingsDoc: doc(db, 'scriptSettings', 'site'),
     siteSettingsDoc: doc(db, 'settings', 'site'),
   };

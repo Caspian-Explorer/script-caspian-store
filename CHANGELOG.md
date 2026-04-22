@@ -16,6 +16,43 @@ Do not omit the heading, rename it, or fold it into `### Notes`. This is how
 customers tell at a glance whether an upgrade needs attention.
 -->
 
+## v2.3.0 — Storefront search + admin search-terms analytics
+
+The header search box was a dead input — no submit handler, no results page, no analytics. v2.3 wires it up end-to-end: submitting the header search logs the normalized term to a new `searchTerms` Firestore collection (atomic count-increment + timestamps) and navigates to a new `/search` results page that filters the active-product catalog client-side. Admins get a **Search terms** page showing the list of everything shoppers have searched, sorted by frequency or recency, with per-row delete + clear-all actions. Useful for spotting demand gaps, naming mismatches, and recurring typos.
+
+### Added
+
+- **`searchTerms` Firestore collection** ([src/firebase/collections.ts](src/firebase/collections.ts)) — one doc per normalized term, schema on `SearchTerm` in [src/types.ts](src/types.ts): `{ id, term, count, firstSearchedAt, lastSearchedAt }`. Doc id is the normalized term (lowercased, whitespace-collapsed, `/` stripped, capped at 120 chars) so `"Shoes "` and `"shoes"` and `"Shoes/Boots"` all merge into one counter.
+- **Search-term service** at [src/services/search-term-service.ts](src/services/search-term-service.ts) — `logSearchTerm(db, term)` (upsert + `increment(1)` via Firestore's atomic counter), `listSearchTerms(db, { sortBy })`, `deleteSearchTerm(db, id)`, `clearAllSearchTerms(db)`, `normalizeSearchTerm(raw)` for consumers who want to log from their own code.
+- **`<SearchResultsPage>`** at [src/components/search-results-page.tsx](src/components/search-results-page.tsx) — reads `?q=` from the URL (or a `query` prop for consumer-controlled wiring), loads `getProducts(db)`, filters client-side by `name`/`brand`/`category` includes. Fine for small-to-medium catalogs; swap for a consumer-authored page wired to Algolia / Typesense at scale.
+- **`<AdminSearchTermsPage>`** at [src/admin/admin-search-terms-page.tsx](src/admin/admin-search-terms-page.tsx) — table of terms with count + first/last searched timestamps, filter box, sort toggle (most searched vs most recent), per-row delete, clear-all. Total-searches counter in the header for quick scanning.
+- **Header search now actually submits.** [src/components/site-header.tsx](src/components/site-header.tsx) hooks the form `onSubmit`: fire-and-forget `logSearchTerm` (any rules denial logs to console, never blocks navigation), then `nav.push('/search?q=...')`.
+- **`DEFAULT_ADMIN_NAV`** gains a **Search terms** entry (`/admin/search-terms`), slotted between Subscribers and Shipping.
+- **Firestore rules** ([firebase/firestore.rules](firebase/firestore.rules)) — admin-only read/delete; create requires `count == 1` and a non-empty `term ≤ 200 chars`; update requires monotonic count (count > resource.data.count) and immutable term. Writes stay public so anonymous shoppers are counted; admin auth guards readouts.
+- **Scaffolder + example wiring** — `search-terms` appended to `adminRoutes` in [scaffold/create.mjs](scaffold/create.mjs); new `src/app/search/page.tsx` generated for fresh scaffolds. Example-app routes at [examples/nextjs/app/search/page.tsx](examples/nextjs/app/search/page.tsx) and [examples/nextjs/app/admin/search-terms/page.tsx](examples/nextjs/app/admin/search-terms/page.tsx).
+- **i18n** — `search.{title, resultsFor, resultCount, noResults, emptyQuery}` (with an ICU-style plural on `resultCount` so "1 match" and "37 matches" both render correctly).
+
+### Consumer action required on upgrade
+
+1. **Re-deploy Firestore rules** so the new collection is writable by shoppers and readable by admins:
+   ```bash
+   firebase deploy --only firestore:rules
+   ```
+2. **Add a `/search` route to your Next.js app** — fresh scaffolds get this automatically; existing installs should add it by hand:
+   ```tsx
+   // src/app/search/page.tsx
+   'use client';
+   import { SearchResultsPage } from '@caspian-explorer/script-caspian-store';
+   export default function Page() { return <SearchResultsPage />; }
+   ```
+3. **Add the admin route file** so the new **Search terms** sidebar link doesn't 404:
+   ```tsx
+   // src/app/admin/search-terms/page.tsx
+   'use client';
+   import { AdminSearchTermsPage } from '@caspian-explorer/script-caspian-store';
+   export default function Page() { return <AdminSearchTermsPage />; }
+   ```
+
 ## v2.2.2 — Admin nav exposes Pages, FAQs, Journal, Promo codes, Subscribers, Collections, Languages
 
 `DEFAULT_ADMIN_NAV` was missing sidebar entries for seven admin pages that the scaffolder already generates routes for. The most visible symptom: the storefront's `<PageContentView>` fallback ("This page has no content yet. Edit it in /admin/pages.") pointed admins at a route with no nav link — the Admin → Pages editor existed and was exported, but there was no way to get to it from the sidebar without typing the URL by hand. Five other admin pages had the same gap.

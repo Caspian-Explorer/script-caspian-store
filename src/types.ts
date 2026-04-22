@@ -235,6 +235,14 @@ export interface SiteSettings {
   socialLinks: SocialLink[];
 }
 
+export interface SearchTerm {
+  id: string;
+  term: string;
+  count: number;
+  firstSearchedAt?: Timestamp;
+  lastSearchedAt?: Timestamp;
+}
+
 export interface PromoCode {
   id: string;
   code: string;

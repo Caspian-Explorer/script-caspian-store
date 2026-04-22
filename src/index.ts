@@ -38,6 +38,7 @@ export { StarRatingInput, type StarRatingInputProps } from './components/star-ra
 export { ProductCard, type ProductCardProps } from './components/product-card';
 export { ProductGrid, type ProductGridProps } from './components/product-grid';
 export { ProductListPage, type ProductListPageProps } from './components/product-list-page';
+export { SearchResultsPage, type SearchResultsPageProps } from './components/search-results-page';
 export { ProductGallery } from './components/product-gallery';
 export { SizeSelector, QuantitySelector } from './components/product-selectors';
 export { ProductDetailPage, type ProductDetailPageProps } from './components/product-detail-page';
@@ -352,6 +353,14 @@ export {
   type SubscribeResult,
 } from './services/subscriber-service';
 export {
+  logSearchTerm,
+  listSearchTerms,
+  deleteSearchTerm,
+  clearAllSearchTerms,
+  normalizeSearchTerm,
+  type SearchTermSortBy,
+} from './services/search-term-service';
+export {
   listProductCollections,
   createProductCollection,
   updateProductCollection,
@@ -515,6 +524,7 @@ export type {
   SiteSettings,
   PromoCode,
   AppliedPromoCode,
+  SearchTerm,
   ShippingPluginInstall,
   ProductCategoryDoc,
   ProductBrandDoc,

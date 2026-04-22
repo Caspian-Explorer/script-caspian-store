@@ -490,6 +490,14 @@ export const DEFAULT_MESSAGES: MessageDict = {
   'navigation.collections': 'Collections',
   'navigation.pages': 'Pages',
   'navigation.searchPlaceholder': 'Search…',
+
+  // Search results page
+  'search.title': 'Search',
+  'search.resultsFor': 'Results for "{query}"',
+  'search.resultCount': '{count, plural, one {# match} other {# matches}}',
+  'search.noResults': 'No products matched your search.',
+  'search.emptyQuery': 'Type a query in the header search to see results.',
+
   'navigation.signIn': 'Sign in',
   'navigation.openCart': 'Open cart',
   'navigation.wishlist': 'Wishlist',

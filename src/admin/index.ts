@@ -28,6 +28,10 @@ export { AdminShippingPluginsPage } from './admin-shipping-plugins-page';
 export { AdminPaymentPluginsPage } from './admin-payment-plugins-page';
 export { AdminPromoCodesPage } from './admin-promo-codes-page';
 export { AdminSubscribersPage } from './admin-subscribers-page';
+export {
+  AdminSearchTermsPage,
+  type AdminSearchTermsPageProps,
+} from './admin-search-terms-page';
 export { AdminProductCategoriesPage } from './admin-product-categories-page';
 export { AdminProductCollectionsPage } from './admin-product-collections-page';
 export { AdminLanguagesPage } from './admin-languages-page';

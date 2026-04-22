@@ -125,6 +125,22 @@ service cloud.firestore {
       allow read, delete: if isAdmin();
     }
 
+    // Search-term analytics — storefront visitors upsert a doc per
+    // normalized query (count + timestamps). Admin-only read/delete.
+    // Shape is validated but writes are public: the data is analytics,
+    // not security-sensitive, and forcing auth would drop anonymous
+    // shoppers out of the funnel.
+    match /searchTerms/{id} {
+      allow read, delete: if isAdmin();
+      allow create: if request.resource.data.term is string
+                    && request.resource.data.term.size() > 0
+                    && request.resource.data.term.size() <= 200
+                    && request.resource.data.count == 1;
+      allow update: if request.resource.data.term == resource.data.term
+                    && request.resource.data.count is number
+                    && request.resource.data.count > resource.data.count;
+    }
+
     match /settings/{id} {
       allow read: if true;
       allow write: if isAdmin();

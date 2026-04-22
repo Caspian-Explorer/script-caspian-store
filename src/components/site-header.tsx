@@ -1,11 +1,16 @@
 'use client';
 
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { useAuth } from '../context/auth-context';
 import { useCart } from '../context/cart-context';
 import { useWishlist } from '../hooks/use-wishlist';
 import { useT } from '../i18n/locale-context';
-import { useCaspianFirebase, useCaspianLink } from '../provider/caspian-store-provider';
+import {
+  useCaspianFirebase,
+  useCaspianLink,
+  useCaspianNavigation,
+} from '../provider/caspian-store-provider';
+import { logSearchTerm } from '../services/search-term-service';
 import { getSiteSettings } from '../services/site-settings-service';
 import type { SiteSettings } from '../types';
 import { Button } from '../ui/button';
@@ -65,6 +70,7 @@ export function SiteHeader({
 }: SiteHeaderProps) {
   const t = useT();
   const Link = useCaspianLink();
+  const navigation = useCaspianNavigation();
   const { db } = useCaspianFirebase();
   const { user, userProfile, loading } = useAuth();
   const { count: cartCount } = useCart();
@@ -74,6 +80,17 @@ export function SiteHeader({
   const [settings, setSettings] = useState<SiteSettings | null>(null);
   const [moreOpen, setMoreOpen] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const handleSearchSubmit = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const q = searchQuery.trim();
+    if (!q) return;
+    void logSearchTerm(db, q).catch((error) => {
+      console.warn('[caspian-store] logSearchTerm failed:', error);
+    });
+    navigation.push(`/search?q=${encodeURIComponent(q)}`);
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -208,10 +225,18 @@ export function SiteHeader({
 
           <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 8 }}>
             {showSearch && (
-              <form style={{ flex: 1, maxWidth: 320, marginLeft: 'auto' }}>
+              <form
+                onSubmit={handleSearchSubmit}
+                role="search"
+                style={{ flex: 1, maxWidth: 320, marginLeft: 'auto' }}
+              >
                 <input
                   type="search"
+                  name="q"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder={t('navigation.searchPlaceholder')}
+                  aria-label={t('navigation.searchPlaceholder')}
                   style={{
                     width: '100%',
                     height: 40,

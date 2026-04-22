@@ -475,6 +475,11 @@ export default function Page() {
 }
 `);
 
+write('src/app/search/page.tsx', `'use client';
+import { SearchResultsPage } from '@caspian-explorer/script-caspian-store';
+export default function Page() { return <SearchResultsPage />; }
+`);
+
 // ---- Auth pages ----
 for (const [route, comp] of [
   ['auth/login', 'LoginPage'],
@@ -563,6 +568,7 @@ const adminRoutes = [
   ['payment-plugins', 'AdminPaymentPluginsPage'],
   ['promo-codes', 'AdminPromoCodesPage'],
   ['subscribers', 'AdminSubscribersPage'],
+  ['search-terms', 'AdminSearchTermsPage'],
   ['categories', 'AdminProductCategoriesPage'],
   ['collections', 'AdminProductCollectionsPage'],
   ['languages', 'AdminLanguagesPage'],
