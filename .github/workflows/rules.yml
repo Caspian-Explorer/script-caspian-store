@@ -33,12 +33,12 @@ jobs:
           node-version: 20
           # No cache — this repo doesn't commit package-lock.json by policy.
 
-      # Firebase emulators are Java-based; the Firestore / Storage emulators
-      # need a JVM on PATH even when invoked via firebase-tools.
+      # Firebase emulators are Java-based. firebase-tools@15+ requires
+      # Java 21+; bump when upstream does.
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: 17
+          java-version: 21
 
       # --legacy-peer-deps: @firebase/rules-unit-testing @5 peers firebase@10
       # but the repo pins firebase@^11 as a devDep for type parity with
