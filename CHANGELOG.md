@@ -2,6 +2,17 @@
 
 All notable changes will be documented in this file.
 
+## v1.13.0 — Fix `storage.rules` compile error on fresh installs
+
+A consumer running `firebase deploy --only storage` against a fresh install hit a grammar error. Root cause was a `{wildcard}` inside a path segment — not supported by Firebase Storage rules grammar. Bug dates back to v0.6.0 (profile-photo feature) and was never caught because storage rules only compile at deploy time and CI doesn't run `firebase deploy`.
+
+### Fixed
+- [firebase/storage.rules](firebase/storage.rules) — replaced `match /users/{uid}/avatar.{ext} { … }` with `match /users/{uid}/{filename} { … }`. Security is unchanged: the existing `write` guard already enforces `contentType.matches('image/(jpeg|png|webp)')` + `size < 5 MB`, so relaxing the path pattern doesn't broaden what can be uploaded.
+
+### Notes
+- No `{path=**}` recursive wildcard was used — avatars are a single flat file, not a subtree. Single-segment `{filename}` is the minimal fix.
+- Consider adding `firebase emulators:start --only storage` (which compiles the rules on boot) to CI so future rules regressions fail at PR time, not at consumer-deploy time.
+
 ## v1.12.0 — Configurable Next version + optional `create-next-app` delegation
 
 Picks up the two 🔵 nits the install reviewer explicitly deferred — closing out the punch list.
