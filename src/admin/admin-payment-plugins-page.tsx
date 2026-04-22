@@ -16,6 +16,7 @@ import { useT } from '../i18n/locale-context';
 import { Button } from '../ui/button';
 import { Dialog } from '../ui/dialog';
 import { Input, Label } from '../ui/input';
+import { Select } from '../ui/select';
 import { Badge, Skeleton } from '../ui/misc';
 import { Table, TBody, TD, TH, THead, TR } from '../ui/table';
 import { useToast } from '../ui/toast';
@@ -48,11 +49,23 @@ function draftFromPlugin(pluginId: PaymentPluginId, name: string, order: number)
 }
 
 function draftFromInstall(install: PaymentPluginInstall): DraftState {
+  const config = stringifyDefaults(install.config);
+  // Legacy (v2.0 / v2.1) stripe installs stored a single `publishableKey`.
+  // Seed the new test/live slots so the admin doesn't have to re-paste after upgrade.
+  if (install.pluginId === 'stripe' && config.publishableKey && !config.publishableKeyLive && !config.publishableKeyTest) {
+    if (config.publishableKey.startsWith('pk_live_')) {
+      config.publishableKeyLive = config.publishableKey;
+      if (!config.mode) config.mode = 'live';
+    } else if (config.publishableKey.startsWith('pk_test_')) {
+      config.publishableKeyTest = config.publishableKey;
+      if (!config.mode) config.mode = 'test';
+    }
+  }
   return {
     pluginId: install.pluginId as PaymentPluginId,
     name: install.name,
     order: install.order,
-    config: stringifyDefaults(install.config),
+    config,
   };
 }
 
@@ -397,20 +410,60 @@ function ConfigFields({
     setDraft((d) => (d ? { ...d, config: { ...d.config, [key]: value } } : d));
 
   switch (draft.pluginId) {
-    case 'stripe':
+    case 'stripe': {
+      const mode = draft.config.mode === 'live' ? 'live' : 'test';
       return (
-        <div>
-          <Label>{t('admin.paymentPlugins.field.stripe.publishableKey')}</Label>
-          <Input
-            value={draft.config.publishableKey ?? ''}
-            onChange={(e) => setConfigValue('publishableKey', e.target.value)}
-            placeholder="pk_live_... or pk_test_..."
-          />
-          <p style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
-            {t('admin.paymentPlugins.field.stripe.publishableKeyHint')}
-          </p>
-        </div>
+        <>
+          <div>
+            <Label>{t('admin.paymentPlugins.field.stripe.mode')}</Label>
+            <Select
+              value={mode}
+              onChange={(e) => setConfigValue('mode', e.target.value)}
+              options={[
+                { value: 'test', label: t('admin.paymentPlugins.field.stripe.modeTest') },
+                { value: 'live', label: t('admin.paymentPlugins.field.stripe.modeLive') },
+              ]}
+            />
+            <p style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
+              {t('admin.paymentPlugins.field.stripe.modeHint')}
+            </p>
+          </div>
+          <div>
+            <Label>
+              {t('admin.paymentPlugins.field.stripe.publishableKeyTest')}
+              {mode === 'test' && (
+                <span style={{ color: '#b91c1c', marginLeft: 4 }} aria-hidden>
+                  *
+                </span>
+              )}
+            </Label>
+            <Input
+              value={draft.config.publishableKeyTest ?? ''}
+              onChange={(e) => setConfigValue('publishableKeyTest', e.target.value)}
+              placeholder="pk_test_..."
+            />
+          </div>
+          <div>
+            <Label>
+              {t('admin.paymentPlugins.field.stripe.publishableKeyLive')}
+              {mode === 'live' && (
+                <span style={{ color: '#b91c1c', marginLeft: 4 }} aria-hidden>
+                  *
+                </span>
+              )}
+            </Label>
+            <Input
+              value={draft.config.publishableKeyLive ?? ''}
+              onChange={(e) => setConfigValue('publishableKeyLive', e.target.value)}
+              placeholder="pk_live_..."
+            />
+            <p style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
+              {t('admin.paymentPlugins.field.stripe.publishableKeyHint')}
+            </p>
+          </div>
+        </>
       );
+    }
     default:
       return null;
   }

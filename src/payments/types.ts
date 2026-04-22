@@ -72,6 +72,19 @@ export interface PaymentPlugin<C = Record<string, unknown>> {
   ) => Promise<PaymentPluginStartResult>;
 }
 
+export type StripeMode = 'live' | 'test';
+
 export interface StripeConfig {
+  /** Which key pair is active. Server-side secrets (Cloud Functions) must be kept in sync. */
+  mode: StripeMode;
+  /** `pk_live_...` key. Required when `mode === 'live'`, optional otherwise. */
+  publishableKeyLive: string;
+  /** `pk_test_...` key. Required when `mode === 'test'`, optional otherwise. */
+  publishableKeyTest: string;
+  /**
+   * Derived from `mode` at validate time — the active publishable key for
+   * client-side Stripe.js. Not persisted; callers can read it from the
+   * validated config.
+   */
   publishableKey: string;
 }

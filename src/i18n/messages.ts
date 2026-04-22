@@ -317,9 +317,16 @@ export const DEFAULT_MESSAGES: MessageDict = {
   'admin.paymentPlugins.field.nameHint':
     'Label shown in admin — e.g. "Stripe — Production" or "Stripe — Test".',
   'admin.paymentPlugins.field.order': 'Order',
+  'admin.paymentPlugins.field.stripe.mode': 'Mode',
+  'admin.paymentPlugins.field.stripe.modeTest': 'Test',
+  'admin.paymentPlugins.field.stripe.modeLive': 'Live',
+  'admin.paymentPlugins.field.stripe.modeHint':
+    'Which key pair is active. Keep the Cloud Functions `STRIPE_SECRET_KEY` in sync with this mode.',
   'admin.paymentPlugins.field.stripe.publishableKey': 'Publishable key',
+  'admin.paymentPlugins.field.stripe.publishableKeyTest': 'Test publishable key',
+  'admin.paymentPlugins.field.stripe.publishableKeyLive': 'Live publishable key',
   'admin.paymentPlugins.field.stripe.publishableKeyHint':
-    'The `pk_live_...` or `pk_test_...` key from your Stripe dashboard. Secret keys live in Cloud Functions secrets, not here.',
+    'The `pk_test_...` / `pk_live_...` keys from your Stripe dashboard. Secret keys live in Cloud Functions secrets, not here.',
   'admin.paymentPlugins.toasts.installed': 'Provider installed',
   'admin.paymentPlugins.toasts.updated': 'Provider updated',
   'admin.paymentPlugins.toasts.removed': 'Provider removed',

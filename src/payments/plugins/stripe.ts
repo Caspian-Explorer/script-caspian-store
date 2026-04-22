@@ -95,18 +95,49 @@ export const STRIPE_PLUGIN: PaymentPlugin<StripeConfig> = {
   id: 'stripe',
   name: 'Stripe',
   description:
-    'Accept card payments via Stripe Checkout. Requires the `functions-stripe` Cloud Functions codebase to be deployed.',
-  defaultConfig: { publishableKey: '' },
+    'Accept card payments via Stripe Checkout. Requires the `functions-stripe` Cloud Functions codebase to be deployed. Keep test and live keys on one install and flip the mode — keep the Cloud Functions `STRIPE_SECRET_KEY` in sync.',
+  defaultConfig: {
+    mode: 'test',
+    publishableKeyLive: '',
+    publishableKeyTest: '',
+    publishableKey: '',
+  },
   validateConfig: (config) => {
-    const c = (config ?? {}) as Partial<StripeConfig>;
-    const publishableKey = typeof c.publishableKey === 'string' ? c.publishableKey.trim() : '';
-    if (!publishableKey) {
-      throw new Error('Stripe publishable key is required.');
+    const c = (config ?? {}) as Partial<StripeConfig> & { publishableKey?: string };
+    const mode: 'live' | 'test' = c.mode === 'live' ? 'live' : 'test';
+    const live = typeof c.publishableKeyLive === 'string' ? c.publishableKeyLive.trim() : '';
+    const test = typeof c.publishableKeyTest === 'string' ? c.publishableKeyTest.trim() : '';
+    // v2.1-era installs stored a single `publishableKey` field. Map it onto the
+    // matching mode-specific slot so upgraders don't have to re-enter.
+    const legacy = typeof c.publishableKey === 'string' ? c.publishableKey.trim() : '';
+    const resolvedLive = live || (legacy.startsWith('pk_live_') ? legacy : '');
+    const resolvedTest = test || (legacy.startsWith('pk_test_') ? legacy : '');
+
+    const active = mode === 'live' ? resolvedLive : resolvedTest;
+    if (!active) {
+      throw new Error(
+        mode === 'live'
+          ? 'Stripe live publishable key is required when mode is "live".'
+          : 'Stripe test publishable key is required when mode is "test".',
+      );
     }
-    if (!publishableKey.startsWith('pk_')) {
-      throw new Error('Stripe publishable key must start with `pk_live_` or `pk_test_`.');
+    const expectedPrefix = mode === 'live' ? 'pk_live_' : 'pk_test_';
+    if (!active.startsWith(expectedPrefix)) {
+      throw new Error(`The ${mode} publishable key must start with \`${expectedPrefix}\`.`);
     }
-    return { publishableKey };
+    if (resolvedLive && !resolvedLive.startsWith('pk_live_')) {
+      throw new Error('The live publishable key must start with `pk_live_`.');
+    }
+    if (resolvedTest && !resolvedTest.startsWith('pk_test_')) {
+      throw new Error('The test publishable key must start with `pk_test_`.');
+    }
+
+    return {
+      mode,
+      publishableKeyLive: resolvedLive,
+      publishableKeyTest: resolvedTest,
+      publishableKey: active,
+    };
   },
   startCheckout,
 };

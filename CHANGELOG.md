@@ -16,6 +16,30 @@ Do not omit the heading, rename it, or fold it into `### Notes`. This is how
 customers tell at a glance whether an upgrade needs attention.
 -->
 
+## v2.2.0 — Stripe: separate test + live publishable key fields, mode toggle
+
+The Stripe plugin had a single `publishableKey` field; going from test to live meant erasing one key and pasting the other (and re-configuring the Cloud Functions secret at the same time, which was easy to forget). v2.2 replaces that with **two dedicated fields** (`publishableKeyTest` / `publishableKeyLive`) and a **Mode dropdown** on the Stripe install — admins paste both keys once and flip a single dropdown to switch which pair the storefront uses. The server-side `STRIPE_SECRET_KEY` still has to be kept in sync manually; the dropdown's hint text reminds admins.
+
+### Added
+- **`StripeMode` type** (`'live' | 'test'`) and `StripeConfig` fields `mode`, `publishableKeyLive`, `publishableKeyTest` in [src/payments/types.ts](src/payments/types.ts). The `publishableKey` field is retained as a derived read-only field — `validateConfig` picks the active key based on `mode` and writes it there so callers needing the active key don't have to dispatch on mode themselves.
+- **Mode dropdown + two key inputs** in the Stripe ConfigFields of [src/admin/admin-payment-plugins-page.tsx](src/admin/admin-payment-plugins-page.tsx). Required asterisk follows the currently-selected mode.
+- **Legacy-config migration on dialog open** — a v2.0/v2.1 install that stored a single `publishableKey` gets it auto-moved into the matching `pk_test_` or `pk_live_` slot when the admin clicks **Configure**, so no re-pasting is required.
+- **i18n** — `admin.paymentPlugins.field.stripe.{mode, modeTest, modeLive, modeHint, publishableKeyTest, publishableKeyLive}` in [src/i18n/messages.ts](src/i18n/messages.ts).
+
+### Changed
+- **`STRIPE_PLUGIN.defaultConfig`** now `{ mode: 'test', publishableKeyLive: '', publishableKeyTest: '', publishableKey: '' }` — a fresh install starts in test mode.
+- **`STRIPE_PLUGIN.validateConfig`** validates the key matching the active `mode` (with `pk_live_` / `pk_test_` prefix check) and rejects mismatched keys with a clear error. Also accepts the legacy `publishableKey` field as a fallback so existing installs keep working until an admin opens and re-saves them.
+
+### No consumer action required
+
+Existing v2.1 installs keep working without changes — `validateConfig`'s legacy migration maps the old `publishableKey` field into the new shape on read. The first time an admin opens **Configure** on an existing Stripe install, the legacy key auto-migrates into the matching test/live slot and is written back on Save.
+
+Admins graduating from test to live on an existing install can now:
+1. Open `/admin/payment-plugins`, click **Configure** on Stripe.
+2. Paste both the `pk_test_...` and `pk_live_...` keys.
+3. Pick the active **Mode** (Test or Live).
+4. Run `firebase functions:secrets:set STRIPE_SECRET_KEY` with the matching secret and re-deploy `functions-stripe`.
+
 ## v2.1.0 — Theme catalog: Avada-style grid with previewable themes
 
 The v2.0 Appearance page exposed raw `primary / foreground / accent / radius` color pickers — accurate, but nothing an admin who isn't a designer would enjoy. v2.1 rebuilds it as a **catalog grid of pre-designed themes**, each a complete out-of-the-box visual identity (colors + radius + optional serif-font override) shown as a card with thumbnail, name, category tags, and Preview / Activate buttons. A sidebar filters by category (Corporate, Shop, Creative, Portfolio, Education, Health & Beauty, Events, Food, Marketing, Minimal) with live counts, plus a search box.

@@ -213,7 +213,15 @@ interface ThemeCardProps {
   t: (key: string, params?: Record<string, string | number>) => string;
 }
 
-function ThemeCard({ theme, active, activating, disabled, onPreview, onActivate, t }: ThemeCardProps) {
+function ThemeCard({
+  theme,
+  active,
+  activating,
+  disabled,
+  onPreview,
+  onActivate,
+  t,
+}: ThemeCardProps) {
   return (
     <article
       style={{
