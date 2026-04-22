@@ -36,6 +36,10 @@ export {
   AdminAppearancePage,
   type AdminAppearancePageProps,
 } from './admin-appearance-page';
+export {
+  AdminAppearancePreviewPage,
+  type AdminAppearancePreviewPageProps,
+} from './admin-appearance-preview-page';
 export { AdminTodoPage } from './admin-todo-page';
 export { AdminAboutPage, type AdminAboutPageProps } from './admin-about-page';
 export { AdminProfileMenu, type AdminProfileMenuProps } from './admin-profile-menu';

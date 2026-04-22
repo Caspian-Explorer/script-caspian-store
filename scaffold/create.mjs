@@ -568,6 +568,7 @@ const adminRoutes = [
   ['languages', 'AdminLanguagesPage'],
   ['settings', 'AdminSiteSettingsPage'],
   ['appearance', 'AdminAppearancePage'],
+  ['appearance/preview', 'AdminAppearancePreviewPage'],
   ['about', 'AdminAboutPage'],
 ];
 
@@ -892,7 +893,8 @@ npm run dev                  # http://localhost:3000
 - \`/admin/promo-codes\`, \`/admin/subscribers\`
 - \`/admin/categories\`, \`/admin/collections\`, \`/admin/languages\`
 - \`/admin/settings\` — brand / logo / favicon / social
-- \`/admin/appearance\` — theme preset + color/radius tokens
+- \`/admin/appearance\` — theme catalog grid (preview + activate)
+- \`/admin/appearance/preview\` — dummy-data preview window
 
 ## Customizing
 

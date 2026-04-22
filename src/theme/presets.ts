@@ -1,21 +1,17 @@
 import type { ThemeTokens } from '../types';
+import { THEME_CATALOG } from './catalog';
 
 /**
- * Opinionated starting points for shop theming. Consumers apply via script
- * settings: `save({ theme: THEME_PRESETS.cleanWhite })` — or by clicking a
- * preset in `<ThemePresetPicker />`.
+ * Map of theme tokens keyed by catalog id — derived from `THEME_CATALOG`.
+ * Back-compat shim for code that references preset tokens directly, e.g.
+ * `save({ theme: THEME_PRESETS.cleanWhite })`.
  */
-export const THEME_PRESETS = {
-  cleanWhite: {
-    primary: '#111111',
-    primaryForeground: '#ffffff',
-    accent: '#171717',
-    radius: '0.5rem',
-  },
-} as const satisfies Record<string, ThemeTokens>;
+export const THEME_PRESETS: Record<string, ThemeTokens> = Object.fromEntries(
+  THEME_CATALOG.map((t) => [t.id, t.tokens]),
+);
 
-export type ThemePresetName = keyof typeof THEME_PRESETS;
+export type ThemePresetName = string;
 
-export const THEME_PRESET_LABELS: Record<ThemePresetName, string> = {
-  cleanWhite: 'Clean white',
-};
+export const THEME_PRESET_LABELS: Record<string, string> = Object.fromEntries(
+  THEME_CATALOG.map((t) => [t.id, t.name]),
+);

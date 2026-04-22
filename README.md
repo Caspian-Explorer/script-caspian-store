@@ -86,7 +86,7 @@ See [INSTALL.md](./INSTALL.md) for the **one-command scaffolder**, **Vite** / **
 | **Admin:** `<AdminGuard />`, `<AdminShell />`, `<AdminDashboard />`, product CRUD, orders + status, reviews moderation, `<AdminAboutPage />` (installed version + GitHub release feed) | ✅ |
 | **Auth:** `<LoginPage />`, `<RegisterPage />`, `<ForgotPasswordPage />`, `<AccountPage />` (profile, password, addresses, orders) | ✅ |
 | **i18n:** `<LocaleProvider>` + `useT()` + `DEFAULT_MESSAGES` + `<LocaleSwitcher />` (all surfaces migrated) | ✅ |
-| **Theming:** `cleanWhite` `THEME_PRESETS` + `<ThemePresetPicker />` + `<AdminAppearancePage>` | ✅ |
+| **Theming:** 10-theme `THEME_CATALOG` + Avada-style `<AdminAppearancePage>` grid + popup `<AdminAppearancePreviewPage>` with dummy-data storefront | ✅ |
 | **Profile photo:** `<ProfilePhotoCard />` (Firebase Storage, JPEG/PNG/WebP ≤5 MB) | ✅ |
 | **Delete account:** `<DeleteAccountCard />` with reauth + typed confirmation | ✅ |
 
@@ -115,7 +115,8 @@ useCheckout, useWishlist
 AdminGuard, AdminShell, DEFAULT_ADMIN_NAV, AdminDashboard,
 AdminProductsList, AdminProductEditor,
 AdminOrdersList, AdminOrderDetail,
-AdminReviewsModeration, AdminSiteSettingsPage, AdminAppearancePage,
+AdminReviewsModeration, AdminSiteSettingsPage,
+AdminAppearancePage, AdminAppearancePreviewPage,
 AdminAboutPage
 
 // Library metadata + update checks
@@ -132,7 +133,10 @@ LocaleProvider, LocaleSwitcher, useT, useLocale,
 DEFAULT_MESSAGES, interpolate
 
 // Theming
-THEME_PRESETS, THEME_PRESET_LABELS, ThemePresetPicker
+THEME_PRESETS, THEME_PRESET_LABELS, ThemePresetPicker,
+THEME_CATALOG, THEME_CATEGORY_LABELS, findCatalogTheme,
+countThemesByCategory, ThemeThumbnailSvg,
+DEMO_BRAND, DEMO_HERO, DEMO_NAV, DEMO_PRODUCTS
 
 // UI primitives (also consumable)
 Button, Input, Textarea, Label, Dialog,

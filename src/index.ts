@@ -177,13 +177,27 @@ export {
   type LocaleOption,
 } from './i18n';
 
-// Theming presets
+// Theming presets + rich catalog
 export {
   THEME_PRESETS,
   THEME_PRESET_LABELS,
   ThemePresetPicker,
+  THEME_CATALOG,
+  THEME_CATEGORY_LABELS,
+  findCatalogTheme,
+  countThemesByCategory,
+  ThemeThumbnailSvg,
+  DEMO_BRAND,
+  DEMO_HERO,
+  DEMO_NAV,
+  DEMO_PRODUCTS,
   type ThemePresetName,
   type ThemePresetPickerProps,
+  type CatalogTheme,
+  type ThemeCategory,
+  type ThemeThumbnail,
+  type ThemeThumbnailProps,
+  type DemoProduct,
 } from './theme';
 
 // --- UI primitives (consumable) ---
@@ -445,6 +459,7 @@ export {
   AdminLanguagesPage,
   AdminSiteSettingsPage,
   AdminAppearancePage,
+  AdminAppearancePreviewPage,
   AdminTodoPage,
   AdminAboutPage,
   AdminProfileMenu,
@@ -461,6 +476,7 @@ export {
   type AdminFaqsPageProps,
   type AdminAboutPageProps,
   type AdminAppearancePageProps,
+  type AdminAppearancePreviewPageProps,
   type AdminProfileMenuProps,
 } from './admin';
 

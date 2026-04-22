@@ -1,147 +1,327 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useScriptSettings } from '../context/script-settings-context';
 import { useT } from '../i18n/locale-context';
-import { ThemePresetPicker } from '../theme/theme-preset-picker';
+import {
+  THEME_CATALOG,
+  THEME_CATEGORY_LABELS,
+  countThemesByCategory,
+  type CatalogTheme,
+  type ThemeCategory,
+} from '../theme/catalog';
+import { ThemeThumbnail } from '../theme/theme-thumbnail';
 import type { ThemeTokens } from '../types';
 import { Button } from '../ui/button';
-import { Input, Label } from '../ui/input';
 import { useToast } from '../ui/toast';
 
 export interface AdminAppearancePageProps {
   className?: string;
+  /** Route the Preview button opens in a popup window. Default: `/admin/appearance/preview`. */
+  previewPath?: string;
 }
 
-/**
- * Admin appearance page — lets an admin pick a theme preset and fine-tune
- * the live theme tokens (primary, accent, radius). Writes to
- * `scriptSettings/site.theme` via `useScriptSettings().save()`.
- */
-export function AdminAppearancePage({ className }: AdminAppearancePageProps) {
-  const { settings, loading, saving, save } = useScriptSettings();
+const CATEGORY_ORDER: readonly ThemeCategory[] = [
+  'all',
+  'corporate',
+  'shop',
+  'creative',
+  'portfolio',
+  'education',
+  'health-beauty',
+  'events',
+  'food',
+  'marketing',
+  'minimal',
+];
+
+export function AdminAppearancePage({
+  className,
+  previewPath = '/admin/appearance/preview',
+}: AdminAppearancePageProps) {
+  const { settings, saving, save } = useScriptSettings();
   const { toast } = useToast();
   const t = useT();
 
-  const [draft, setDraft] = useState<ThemeTokens>({ ...settings.theme });
+  const [category, setCategory] = useState<ThemeCategory>('all');
+  const [query, setQuery] = useState('');
+  const [activatingId, setActivatingId] = useState<string | null>(null);
 
-  useEffect(() => {
-    setDraft({ ...settings.theme });
+  const counts = useMemo(countThemesByCategory, []);
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return THEME_CATALOG.filter((theme) => {
+      if (category !== 'all' && !theme.categories.includes(category)) return false;
+      if (!q) return true;
+      return (
+        theme.name.toLowerCase().includes(q) ||
+        theme.description.toLowerCase().includes(q) ||
+        theme.categories.some((c) => THEME_CATEGORY_LABELS[c].toLowerCase().includes(q))
+      );
+    });
+  }, [category, query]);
+
+  const activeThemeId = useMemo(() => {
+    const active = THEME_CATALOG.find((theme) => tokensEqual(theme.tokens, settings.theme));
+    return active?.id ?? null;
   }, [settings.theme]);
 
-  const update = <K extends keyof ThemeTokens>(key: K, value: ThemeTokens[K]) => {
-    setDraft((d) => ({ ...d, [key]: value }));
-  };
-
-  const handleSave = async () => {
+  const handleActivate = async (theme: CatalogTheme) => {
+    setActivatingId(theme.id);
     try {
-      await save({ theme: draft });
-      toast({ title: t('admin.appearance.saved') });
+      await save({ theme: theme.tokens });
+      toast({ title: t('admin.appearance.activated', { name: theme.name }) });
     } catch (error) {
-      console.error('[caspian-store] Failed to save theme:', error);
+      console.error('[caspian-store] Failed to activate theme:', error);
       toast({ title: t('admin.appearance.saveFailed'), variant: 'destructive' });
+    } finally {
+      setActivatingId(null);
     }
   };
 
-  if (loading) {
-    return (
-      <div className={className}>
-        <p>{t('common.loading')}</p>
-      </div>
+  const handlePreview = (theme: CatalogTheme) => {
+    if (typeof window === 'undefined') return;
+    const url = `${previewPath}?theme=${encodeURIComponent(theme.id)}`;
+    window.open(
+      url,
+      `caspian-theme-preview-${theme.id}`,
+      'width=1280,height=860,resizable=yes,scrollbars=yes',
     );
-  }
+  };
 
   return (
     <div className={className}>
-      <header style={{ marginBottom: 16 }}>
+      <header style={{ marginBottom: 24 }}>
         <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0 }}>
           {t('admin.appearance.title')}
         </h1>
-        <p style={{ color: '#666', marginTop: 4 }}>{t('admin.appearance.subtitle')}</p>
+        <p style={{ color: '#666', marginTop: 4 }}>{t('admin.appearance.gridSubtitle')}</p>
       </header>
 
-      <section style={{ display: 'flex', flexDirection: 'column', gap: 24, maxWidth: 720 }}>
-        <div>
-          <h2 style={h2Style}>{t('settings.theme.presets')}</h2>
-          <ThemePresetPicker />
-        </div>
-
-        <div>
-          <h2 style={h2Style}>{t('admin.appearance.customize')}</h2>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-            <ColorField
-              label={t('settings.theme.primary')}
-              value={draft.primary}
-              onChange={(v) => update('primary', v)}
-            />
-            <ColorField
-              label={t('settings.theme.primaryForeground')}
-              value={draft.primaryForeground}
-              onChange={(v) => update('primaryForeground', v)}
-            />
-            <ColorField
-              label={t('settings.theme.accent')}
-              value={draft.accent}
-              onChange={(v) => update('accent', v)}
-            />
-            <div>
-              <Label>{t('settings.theme.radius')}</Label>
-              <Input
-                value={draft.radius}
-                onChange={(e) => update('radius', e.target.value)}
-                placeholder="0.5rem"
-              />
-            </div>
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: '240px minmax(0, 1fr)',
+          gap: 24,
+          alignItems: 'start',
+        }}
+      >
+        <aside style={{ position: 'sticky', top: 16 }}>
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder={t('admin.appearance.searchPlaceholder')}
+            style={{
+              width: '100%',
+              padding: '10px 12px',
+              fontSize: 14,
+              border: '1px solid rgba(0,0,0,0.15)',
+              borderRadius: 'var(--caspian-radius, 8px)',
+              boxSizing: 'border-box',
+              outline: 'none',
+              marginBottom: 16,
+            }}
+          />
+          <div
+            style={{
+              fontSize: 11,
+              fontWeight: 600,
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+              color: '#999',
+              padding: '0 12px 8px',
+            }}
+          >
+            {t('admin.appearance.categories')}
           </div>
-        </div>
+          <nav style={{ display: 'flex', flexDirection: 'column' }}>
+            {CATEGORY_ORDER.map((cat) => {
+              const active = cat === category;
+              const count = counts[cat];
+              if (count === 0 && cat !== 'all') return null;
+              return (
+                <button
+                  key={cat}
+                  type="button"
+                  onClick={() => setCategory(cat)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '10px 12px',
+                    background: active ? 'rgba(0,0,0,0.06)' : 'transparent',
+                    border: 0,
+                    borderRadius: 8,
+                    color: active ? '#111' : '#444',
+                    fontSize: 14,
+                    fontWeight: active ? 600 : 400,
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    width: '100%',
+                  }}
+                >
+                  <span>{THEME_CATEGORY_LABELS[cat]}</span>
+                  <span style={{ color: active ? '#666' : '#999', fontSize: 12 }}>{count}</span>
+                </button>
+              );
+            })}
+          </nav>
+        </aside>
 
         <div>
-          <Button onClick={handleSave} disabled={saving}>
-            {saving ? t('settings.saving') : t('settings.saveButton')}
-          </Button>
+          {filtered.length === 0 ? (
+            <p style={{ color: '#666', padding: '48px 0', textAlign: 'center' }}>
+              {t('admin.appearance.noResults')}
+            </p>
+          ) : (
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
+                gap: 20,
+              }}
+            >
+              {filtered.map((theme) => (
+                <ThemeCard
+                  key={theme.id}
+                  theme={theme}
+                  active={activeThemeId === theme.id}
+                  activating={activatingId === theme.id}
+                  onPreview={() => handlePreview(theme)}
+                  onActivate={() => handleActivate(theme)}
+                  disabled={saving}
+                  t={t}
+                />
+              ))}
+            </div>
+          )}
         </div>
-      </section>
+      </div>
     </div>
   );
 }
 
-const h2Style: React.CSSProperties = {
-  fontSize: 16,
-  fontWeight: 600,
-  marginTop: 0,
-  marginBottom: 12,
-};
+interface ThemeCardProps {
+  theme: CatalogTheme;
+  active: boolean;
+  activating: boolean;
+  disabled: boolean;
+  onPreview: () => void;
+  onActivate: () => void;
+  t: (key: string, params?: Record<string, string | number>) => string;
+}
 
-function ColorField({
+function ThemeCard({ theme, active, activating, disabled, onPreview, onActivate, t }: ThemeCardProps) {
+  return (
+    <article
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        border: active ? '2px solid var(--caspian-primary, #111)' : '1px solid rgba(0,0,0,0.08)',
+        borderRadius: 12,
+        background: '#fff',
+        overflow: 'hidden',
+        transition: 'box-shadow 0.15s, transform 0.05s',
+      }}
+    >
+      <div style={{ position: 'relative', aspectRatio: '3 / 2', background: '#f5f5f5' }}>
+        <ThemeThumbnail theme={theme} />
+        {theme.isNew && <CornerBadge label={t('admin.appearance.badgeNew')} color="#2563eb" />}
+        {active && (
+          <CornerBadge
+            label={t('admin.appearance.badgeActive')}
+            color="var(--caspian-primary, #111)"
+            right
+          />
+        )}
+      </div>
+
+      <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
+        <div>
+          <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>{theme.name}</h3>
+          <p style={{ margin: '4px 0 0', fontSize: 13, color: '#666', lineHeight: 1.4 }}>
+            {theme.description}
+          </p>
+        </div>
+
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
+          {theme.categories.map((cat) => (
+            <span
+              key={cat}
+              style={{
+                fontSize: 11,
+                color: '#666',
+                background: 'rgba(0,0,0,0.05)',
+                padding: '3px 8px',
+                borderRadius: 4,
+              }}
+            >
+              {THEME_CATEGORY_LABELS[cat]}
+            </span>
+          ))}
+        </div>
+
+        <div style={{ display: 'flex', gap: 8, marginTop: 'auto', paddingTop: 8 }}>
+          <Button variant="outline" size="sm" onClick={onPreview} style={{ flex: 1 }}>
+            {t('admin.appearance.previewButton')}
+          </Button>
+          <Button
+            variant={active ? 'ghost' : 'primary'}
+            size="sm"
+            onClick={onActivate}
+            disabled={disabled || active}
+            loading={activating}
+            style={{ flex: 1 }}
+          >
+            {active
+              ? t('admin.appearance.activeButton')
+              : activating
+                ? t('admin.appearance.activating')
+                : t('admin.appearance.activateButton')}
+          </Button>
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function CornerBadge({
   label,
-  value,
-  onChange,
+  color,
+  right,
 }: {
   label: string;
-  value: string;
-  onChange: (value: string) => void;
+  color: string;
+  right?: boolean;
 }) {
   return (
-    <div>
-      <Label>{label}</Label>
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-        <input
-          type="color"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          style={{
-            width: 40,
-            height: 40,
-            padding: 0,
-            border: '1px solid rgba(0,0,0,0.15)',
-            borderRadius: 'var(--caspian-radius, 6px)',
-            background: 'transparent',
-            cursor: 'pointer',
-            flexShrink: 0,
-          }}
-        />
-        <Input value={value} onChange={(e) => onChange(e.target.value)} />
-      </div>
-    </div>
+    <span
+      style={{
+        position: 'absolute',
+        top: 12,
+        [right ? 'right' : 'left']: 12,
+        padding: '3px 10px',
+        background: color,
+        color: '#fff',
+        fontSize: 10,
+        fontWeight: 700,
+        letterSpacing: '0.08em',
+        textTransform: 'uppercase',
+        borderRadius: 4,
+      }}
+    >
+      {label}
+    </span>
+  );
+}
+
+function tokensEqual(a: ThemeTokens, b: ThemeTokens): boolean {
+  return (
+    a.primary === b.primary &&
+    a.primaryForeground === b.primaryForeground &&
+    a.accent === b.accent &&
+    a.radius === b.radius
   );
 }

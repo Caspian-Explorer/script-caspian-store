@@ -16,6 +16,42 @@ Do not omit the heading, rename it, or fold it into `### Notes`. This is how
 customers tell at a glance whether an upgrade needs attention.
 -->
 
+## v2.1.0 — Theme catalog: Avada-style grid with previewable themes
+
+The v2.0 Appearance page exposed raw `primary / foreground / accent / radius` color pickers — accurate, but nothing an admin who isn't a designer would enjoy. v2.1 rebuilds it as a **catalog grid of pre-designed themes**, each a complete out-of-the-box visual identity (colors + radius + optional serif-font override) shown as a card with thumbnail, name, category tags, and Preview / Activate buttons. A sidebar filters by category (Corporate, Shop, Creative, Portfolio, Education, Health & Beauty, Events, Food, Marketing, Minimal) with live counts, plus a search box.
+
+Ten starter themes ship: **Clean white, Minimal dark, Boutique, Editorial, Neon shop, Pastel studio, Academy, Kitchen table, Forum blue, Runway**. New themes land by PR into `THEME_CATALOG` ([src/theme/catalog.ts](src/theme/catalog.ts)) — there's no runtime registration hook.
+
+Preview opens a **popup window** rendering a dummy-data storefront (header, hero, 6-product grid, footer) with the chosen theme applied — no Firestore roundtrip required, so fresh installs can eyeball every theme before seeding real products. **Apply theme** writes the tokens to `scriptSettings/site.theme` and closes the popup.
+
+### Added
+
+- **Theme catalog** at [src/theme/catalog.ts](src/theme/catalog.ts). `THEME_CATALOG: readonly CatalogTheme[]` — 10 themes, each with `id`, `name`, `description`, `categories`, optional `isNew` / `fontFamily`, raw `tokens`, and `thumbnail` metadata (wordmark + tagline + background / foreground / accent for the SVG preview). Helpers: `findCatalogTheme(id)`, `countThemesByCategory()`, `THEME_CATEGORY_LABELS`. Back-compat: `THEME_PRESETS` and `THEME_PRESET_LABELS` are now derived from the catalog, so `save({ theme: THEME_PRESETS.cleanWhite })` still works.
+- **`<ThemeThumbnailSvg>`** at [src/theme/theme-thumbnail.tsx](src/theme/theme-thumbnail.tsx) — inline-SVG preview card. No binary assets; every thumbnail renders from the theme's own tokens so colors, radius, and wordmark match the activated result.
+- **`<AdminAppearancePage>` rebuild** at [src/admin/admin-appearance-page.tsx](src/admin/admin-appearance-page.tsx) — sidebar (search + category list with counts), responsive card grid, "NEW" badge for fresh themes, "Active" badge for the currently-saved theme (detected by token equality), Preview button (opens popup), Activate button (writes tokens).
+- **`<AdminAppearancePreviewPage>`** at [src/admin/admin-appearance-preview-page.tsx](src/admin/admin-appearance-preview-page.tsx) — full-page dummy-data storefront mockup for theme preview. Reads `?theme=<id>` from the URL, scopes theme tokens to a wrapper `div` (no global `:root` mutation — nothing leaks out of the popup), renders a sticky top banner with "Apply theme" and "Close" actions. Mount it at `/admin/appearance/preview`.
+- **Dummy-data primitives** at [src/theme/preview-demo-data.ts](src/theme/preview-demo-data.ts) — `DEMO_BRAND`, `DEMO_NAV`, `DEMO_HERO`, `DEMO_PRODUCTS`. Also re-exported from the main entry so consumers can reuse them in their own previewers.
+- **i18n** — 16 new `admin.appearance.*` keys covering the grid, sidebar, category labels-usage, and preview banner. Existing `settings.theme.*` keys are preserved.
+- **Scaffolder + example wiring** — `['appearance/preview', 'AdminAppearancePreviewPage']` appended to `adminRoutes` in [scaffold/create.mjs](scaffold/create.mjs), generating `src/app/admin/appearance/preview/page.tsx` in fresh scaffolds. Example app at [examples/nextjs/app/admin/appearance/preview/page.tsx](examples/nextjs/app/admin/appearance/preview/page.tsx).
+
+### Changed
+
+- **`<AdminAppearancePage>`** now renders a theme catalog grid instead of raw color pickers. The raw-token surface (`<ScriptSettingsPage>`'s color inputs) is unchanged for admins who want manual control — mount that page at a secondary route if you need it. A new `previewPath` prop on `<AdminAppearancePage>` (default `/admin/appearance/preview`) controls where Preview opens in case you mount the preview at a non-default route.
+- **`THEME_PRESETS`** widens from 1 entry (`cleanWhite`) back to 10, mirroring the catalog. Not a breaking change — consumers indexing it by the one existing key (`THEME_PRESETS.cleanWhite`) still resolve.
+
+### Consumer action required on upgrade
+
+Fresh scaffolds get the preview route wired automatically. **Existing installs on v2.0.x must add one route file** so the Preview popup has somewhere to land:
+
+```tsx
+// src/app/admin/appearance/preview/page.tsx
+'use client';
+import { AdminAppearancePreviewPage } from '@caspian-explorer/script-caspian-store';
+export default function Page() { return <AdminAppearancePreviewPage />; }
+```
+
+No Firestore rules, indexes, or Functions changes. No persisted-theme migration runs — whatever's already in `scriptSettings/site.theme` keeps rendering. To adopt a new theme, open the Appearance page and click Activate.
+
 ## v2.0.1 — Polish admin About error messages
 
 Small UX fix for the admin About page. When the GitHub releases API returns a non-2xx response, the page used to render `Couldn't reach GitHub: GitHub API 404:` — the `res.statusText` portion is blank on modern browsers (notably HTTP/2), so the message trailed off at a dangling colon. The service now drops the colon when there's nothing to follow, and adds hint text for the two status codes that actually show up in practice: `404 → Not found or private`, `403 → Rate-limited or forbidden`. Network failures (offline, DNS, CORS) now surface as `Network error` instead of the browser-specific `Failed to fetch` / `NetworkError when attempting to fetch resource`.
