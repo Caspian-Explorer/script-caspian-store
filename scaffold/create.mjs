@@ -568,6 +568,47 @@ if (args['with-functions']) {
   cpSync(join(sourceFirebaseDir, 'functions'), join(root, 'functions'), { recursive: true });
 }
 
+// ---- apphosting.yaml ----
+// Firebase App Hosting is Firebase's current Next.js-native deploy target
+// (git-based, Cloud Build -> Cloud Run). NEXT_PUBLIC_* vars must be available
+// at BUILD time for Next.js to inline them into the client bundle; hence
+// availability: [BUILD, RUNTIME]. Values left blank by design — consumers fill
+// them via the Firebase console or `firebase apphosting:secrets:set` (for the
+// sensitive ones). Always emitted: harmless if the consumer deploys to Vercel
+// instead, and keeps the "just deploy" path single-command for App Hosting users.
+write('apphosting.yaml', `# Firebase App Hosting config. Only read when deploying via Firebase App Hosting.
+# Safe to delete if you deploy to Vercel or elsewhere.
+#
+# NEXT_PUBLIC_* vars must be inlined at build time, so availability must include BUILD.
+# For sensitive values (none in this file by default), use Secret Manager + the
+# \`secret: <name>\` form instead of \`value:\`.
+runConfig:
+  minInstances: 0
+  maxInstances: 1
+env:
+  - variable: NEXT_PUBLIC_FIREBASE_API_KEY
+    value: ""
+    availability: [BUILD, RUNTIME]
+  - variable: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+    value: ""
+    availability: [BUILD, RUNTIME]
+  - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
+    value: ""
+    availability: [BUILD, RUNTIME]
+  - variable: NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
+    value: ""
+    availability: [BUILD, RUNTIME]
+  - variable: NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
+    value: ""
+    availability: [BUILD, RUNTIME]
+  - variable: NEXT_PUBLIC_FIREBASE_APP_ID
+    value: ""
+    availability: [BUILD, RUNTIME]
+  - variable: NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
+    value: ""
+    availability: [BUILD, RUNTIME]
+`);
+
 // ---- README ----
 write('README.md', `# ${targetDir.split(/[\\/]/).pop()}
 
@@ -601,6 +642,25 @@ npm run dev                  # http://localhost:3000
    \`\`\`
    (If the auto-promote window has closed, this is the explicit path. The AdminGuard access-denied screen also shows your uid with a Copy button if you prefer \`--uid\`.)
 7. **Open /admin/settings** to set brand name, logo, social links.
+8. **Deploy the Next.js site.** Two supported hosts — pick one:
+
+   **Vercel** (zero-config, native Next.js host):
+   \`\`\`bash
+   # Option A: push to GitHub, then import the repo at https://vercel.com/new
+   # Option B: install the CLI and deploy directly:
+   npx vercel@latest        # first run: links the project
+   npx vercel@latest --prod # subsequent deploys
+   \`\`\`
+   After the first deploy, paste every variable from your local \`.env.local\` into **Project Settings → Environment Variables** in the Vercel dashboard, then redeploy. Firestore, Storage, and Cloud Functions stay on Firebase — Vercel only hosts the Next.js site.
+
+   **Firebase App Hosting** (keeps everything on Firebase):
+   \`\`\`bash
+   firebase init apphosting       # creates a backend, links your GitHub repo
+   firebase deploy --only apphosting
+   \`\`\`
+   The scaffolder already dropped an \`apphosting.yaml\` with the \`NEXT_PUBLIC_*\` vars declared but empty. Fill the values in **Firebase console → App Hosting → your backend → Environment variables**, or commit them to \`apphosting.yaml\` (they're already public — bundled into the client). For anything sensitive, use \`firebase apphosting:secrets:set <NAME>\` and switch the entry in \`apphosting.yaml\` from \`value:\` to \`secret: <NAME>\`.
+
+   Either host works with the same Stripe webhook endpoint — the webhook points at a Cloud Function (\`https://<region>-<project-id>.cloudfunctions.net/stripeWebhook\`), not at your Next.js site, so you don't reconfigure it when switching hosts.
 
 ## Routes
 

@@ -2,6 +2,18 @@
 
 All notable changes will be documented in this file.
 
+## v1.16.0 — Frontend deployment path: Vercel + Firebase App Hosting
+
+Consumers who followed `INSTALL.md` end-to-end ended up with deployed Firestore rules, Storage rules, Cloud Functions, and seed data — but **no documented path for deploying the Next.js site itself**. The generated `npm run firebase:deploy` script ran `firebase deploy`, but the scaffolder's `firebase.json` has no `hosting` block, so only the backend rules/functions deployed. Closing that gap with first-class docs + a scaffolded `apphosting.yaml`.
+
+### Added
+- **Firebase App Hosting wiring in [scaffold/create.mjs](scaffold/create.mjs).** Scaffolded projects now ship an `apphosting.yaml` at the project root declaring the six `NEXT_PUBLIC_FIREBASE_*` vars + `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` with `availability: [BUILD, RUNTIME]` (BUILD is required — Next.js inlines `NEXT_PUBLIC_*` at build time). Values left blank by design; consumers fill them via the Firebase console or commit non-sensitive values. Safe to delete if the consumer deploys to Vercel instead.
+- **§8 "Deploy the Next.js site" in the scaffolder-generated README** ([scaffold/create.mjs](scaffold/create.mjs)). Two parallel subsections cover Vercel (`npx vercel@latest --prod`, paste env vars in dashboard) and Firebase App Hosting (`firebase init apphosting` + `firebase deploy --only apphosting`). Notes that the Stripe webhook points at the Cloud Function, not the Next.js site — switching hosts doesn't reconfigure it.
+- **§11 "Deploy the Next.js frontend" in [INSTALL.md](INSTALL.md)** for the manual-install path. Mirrors the scaffolder README but targets consumers embedding the package into an existing React app; documents the minimal `apphosting.yaml` shape for those who aren't using the scaffolder. Upgrade moves from §11 to §12.
+
+### Notes
+- No source changes; this is pure scaffolder + docs. Existing installs on v1.15.x or earlier can upgrade without code edits, then copy the `apphosting.yaml` template from the new [INSTALL.md §11](INSTALL.md#11-deploy-the-nextjs-frontend) if they want Firebase App Hosting.
+
 ## v1.15.0 — Fix first-sign-in profile create + admin nav link + AccountPage polish
 
 A consumer reported three issues on a fresh install: (1) `/account` was missing the Profile / Photo / Addresses cards and had a huge blank gap at the top, (2) there was no visible way to navigate to `/admin` from the UI. Root cause of (1) turned out to be a Firestore-rules bug that silently blocked first-ever profile creation; (2) was intentional security (hide admin from non-admins) but missing a `role === 'admin'` escape hatch. Fixed both, plus tightened the account-page layout.

@@ -24,7 +24,7 @@ Flags:
 - `--with-functions` — also scaffold the Stripe Cloud Functions tree into `functions/` (the generated `firebase.json` gets the matching `functions` block)
 - `--force` — scaffold into a non-empty directory (`.git`, `.gitignore`, `README.md`, `LICENSE` are preserved automatically)
 
-**If you used the scaffolder, stop here and follow the generated `my-store/README.md`** for Firebase + Stripe + seeding. The remainder of this document (§1–§11) is the manual-install path for people embedding the package into an existing React app; you don't need it after scaffolding.
+**If you used the scaffolder, stop here and follow the generated `my-store/README.md`** for Firebase + Stripe + seeding. The remainder of this document (§1–§12) is the manual-install path for people embedding the package into an existing React app; you don't need it after scaffolding.
 
 If you can't use `npm create` (e.g. offline mirror, locked-down network), the same scaffolder can be invoked directly from a clone:
 
@@ -468,7 +468,52 @@ Visit `/admin/settings` (site settings) and `/` → "Script settings" (or mount 
 
 ---
 
-## 11. Upgrade
+## 11. Deploy the Next.js frontend
+
+Two supported hosts. Both need the same `NEXT_PUBLIC_*` env vars from [§3](#3-mount-the-provider) re-entered on the host side (Next.js inlines them into the client bundle at build time, so they must be set before the host runs `next build`). The Stripe webhook keeps pointing at the Cloud Function deployed in [§5](#5-deploy-stripe-cloud-functions) regardless of which host you pick — you don't reconfigure it when switching.
+
+### Vercel
+
+Zero-config native Next.js host. Splits hosting (Vercel) from backend (Firebase).
+
+```bash
+# Option A: push to GitHub, then import the repo at https://vercel.com/new
+# Option B: install the CLI and deploy directly:
+npx vercel@latest        # first run: links the project
+npx vercel@latest --prod # subsequent deploys
+```
+
+After the first deploy, paste every variable from your local `.env.local` into **Project Settings → Environment Variables** in the Vercel dashboard, then redeploy. Apply them to Production / Preview / Development as needed.
+
+### Firebase App Hosting
+
+Firebase's current Next.js-native target (git-based, Cloud Build → Cloud Run). Keeps everything on Firebase.
+
+```bash
+firebase init apphosting       # creates a backend, links your GitHub repo
+firebase deploy --only apphosting
+```
+
+Create an `apphosting.yaml` at the project root listing the `NEXT_PUBLIC_*` vars with `availability: [BUILD, RUNTIME]` (BUILD is required — `NEXT_PUBLIC_*` must be inlined at build time):
+
+```yaml
+runConfig:
+  minInstances: 0
+  maxInstances: 1
+env:
+  - variable: NEXT_PUBLIC_FIREBASE_API_KEY
+    value: ""
+    availability: [BUILD, RUNTIME]
+  # … repeat for the other NEXT_PUBLIC_FIREBASE_* vars + NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
+```
+
+Fill the values in **Firebase console → App Hosting → your backend → Environment variables**, or commit them to `apphosting.yaml` (they're already public — bundled into the client). For anything sensitive, use `firebase apphosting:secrets:set <NAME>` and switch the entry from `value:` to `secret: <NAME>`.
+
+Consumers who used the [one-command scaffolder](#0-one-command-scaffold) already get an `apphosting.yaml` with the seven vars pre-declared.
+
+---
+
+## 12. Upgrade
 
 Pin to a tag; bump when ready:
 
