@@ -358,6 +358,87 @@ export const DEFAULT_MESSAGES: MessageDict = {
   'footer.newsletter.success': 'Subscribed!',
   'footer.newsletter.alreadySubscribed': 'Already subscribed',
   'footer.newsletter.error': 'Subscribe failed',
+
+  // Setup wizard
+  'setup.back': 'Go Back',
+  'setup.next': 'Next Step',
+  'setup.saving': 'Saving…',
+
+  'setup.steps.siteInfo': 'YOUR INFO',
+  'setup.steps.branding': 'BRANDING',
+  'setup.steps.features': 'ADD-ONS',
+  'setup.steps.summary': 'SUMMARY',
+
+  'setup.errors.brandNameRequired': 'Brand name is required',
+  'setup.errors.contactEmailInvalid': 'Invalid email',
+  'setup.errors.saveFailed': 'Could not save — check your connection and try again.',
+
+  // Setup — Site info
+  'setup.siteInfo.heading': 'Tell us about your store',
+  'setup.siteInfo.subhead': 'Your brand name and contact info. You can change any of this later in the admin panel.',
+  'setup.siteInfo.brandName': 'Brand name',
+  'setup.siteInfo.brandDescription': 'Short description',
+  'setup.siteInfo.brandDescriptionHint': 'e.g. Thoughtfully-made essentials',
+  'setup.siteInfo.contactEmail': 'Contact email',
+  'setup.siteInfo.currency': 'Currency',
+  'setup.siteInfo.currencyHint': 'Three-letter ISO 4217 code (USD, EUR, GBP).',
+
+  // Setup — Branding
+  'setup.branding.heading': 'Pick a look',
+  'setup.branding.subhead': 'Choose a theme preset and set your homepage hero. You can customize further in Settings.',
+  'setup.branding.themePreset': 'Theme preset',
+  'setup.branding.heroTitle': 'Hero title',
+  'setup.branding.heroTitlePlaceholder': 'Shop our latest collection',
+  'setup.branding.heroSubtitle': 'Hero subtitle',
+  'setup.branding.heroSubtitlePlaceholder': 'Curated essentials delivered to your door.',
+  'setup.branding.heroCta': 'Hero button label',
+
+  // Setup — Features
+  'setup.features.heading': 'Turn on what you need',
+  'setup.features.subhead': 'Every feature is on by default. Turn off anything you don’t want.',
+  'setup.features.reviews.title': 'Reviews',
+  'setup.features.reviews.desc': 'Let shoppers rate products.',
+  'setup.features.questions.title': 'Q&A',
+  'setup.features.questions.desc': 'Let shoppers ask questions on a product page.',
+  'setup.features.wishlist.title': 'Wishlist',
+  'setup.features.wishlist.desc': 'Save-for-later on every product card.',
+  'setup.features.promoCodes.title': 'Promo codes',
+  'setup.features.promoCodes.desc': 'Create discount codes in admin.',
+  'setup.features.guestCheckout.title': 'Guest checkout',
+  'setup.features.guestCheckout.desc': 'Let non-signed-in shoppers buy.',
+  'setup.features.multiLanguage.title': 'Multi-language',
+  'setup.features.multiLanguage.desc': 'Serve the store in more than one language.',
+
+  // Setup — Summary
+  'setup.summary.heading': 'Ready to open for business',
+  'setup.summary.subhead': 'Review your settings. You can edit anything from the admin panel afterwards.',
+  'setup.summary.brand': 'Brand',
+  'setup.summary.contactEmail': 'Contact email',
+  'setup.summary.currency': 'Currency',
+  'setup.summary.theme': 'Theme',
+  'setup.summary.themeCustom': 'Custom',
+  'setup.summary.hero': 'Hero title',
+  'setup.summary.features': 'Features',
+  'setup.summary.noFeatures': 'None enabled',
+  'setup.summary.confirm': 'Open my store',
+
+  // Setup — Init (dev-only Firebase paste)
+  'setup.init.heading': 'Connect your Firebase project',
+  'setup.init.subhead': 'Paste the web-app config from Firebase Console → Project settings → Your apps. We’ll write it to .env.local so your dev server can pick it up.',
+  'setup.init.devOnlyTitle': 'Development only.',
+  'setup.init.devOnlyBody': 'This form works only when running npm run dev. In production, set env vars on your host (Vercel, App Hosting).',
+  'setup.init.fields.apiKey': 'NEXT_PUBLIC_FIREBASE_API_KEY',
+  'setup.init.fields.authDomain': 'NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN',
+  'setup.init.fields.projectId': 'NEXT_PUBLIC_FIREBASE_PROJECT_ID',
+  'setup.init.fields.storageBucket': 'NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET',
+  'setup.init.fields.messagingSenderId': 'NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID',
+  'setup.init.fields.appId': 'NEXT_PUBLIC_FIREBASE_APP_ID',
+  'setup.init.submit': 'Write .env.local',
+  'setup.init.submitting': 'Writing…',
+  'setup.init.errorMissing': 'All fields are required.',
+  'setup.init.errorGeneric': 'Could not write .env.local. Check the dev server logs.',
+  'setup.init.successTitle': 'Saved to .env.local',
+  'setup.init.successBody': 'Stop the dev server (Ctrl+C), run npm run dev again, then go to /auth/register to create the first admin account.',
 };
 
 /**

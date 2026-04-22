@@ -601,6 +601,99 @@ export default function Page() {
 }
 `);
 
+// ---- Setup wizard routes (v1.24+) ----
+// /setup is an admin-gated 4-step wizard that writes `settings/site` +
+// `scriptSettings/site` (brand / theme / features) in one guided flow.
+// /setup/init is an unauthenticated, dev-only Firebase-config paste form that
+// writes `.env.local` via the companion API route. The API route refuses to
+// run when NODE_ENV !== 'development' so deploys can't overwrite production
+// env vars from a browser.
+write('src/app/setup/layout.tsx', `'use client';
+import type { ReactNode } from 'react';
+import { AdminGuard } from '@caspian-explorer/script-caspian-store';
+export default function SetupLayout({ children }: { children: ReactNode }) {
+  return <AdminGuard>{children}</AdminGuard>;
+}
+`);
+
+write('src/app/setup/page.tsx', `'use client';
+import { SetupWizard } from '@caspian-explorer/script-caspian-store';
+export default function Page() { return <SetupWizard />; }
+`);
+
+write('src/app/setup/init/page.tsx', `'use client';
+import { SetupInitPage } from '@caspian-explorer/script-caspian-store';
+export default function Page() { return <SetupInitPage />; }
+`);
+
+write('src/app/api/setup/write-env/route.ts', `import { NextResponse } from 'next/server';
+import { writeFile, readFile } from 'node:fs/promises';
+import path from 'node:path';
+
+// Dev-only. Refuses to run in production so a deployed site can't overwrite
+// its own env vars from a browser. Next.js also makes the filesystem
+// effectively read-only on most hosts (Vercel, App Hosting), so this route
+// would fail there anyway — the explicit guard returns a cleaner 403.
+export async function POST(request: Request) {
+  if (process.env.NODE_ENV !== 'development') {
+    return new NextResponse('setup/init is dev-only', { status: 403 });
+  }
+
+  const body = await request.json().catch(() => null);
+  if (!body || typeof body !== 'object') {
+    return new NextResponse('invalid body', { status: 400 });
+  }
+
+  const required = [
+    'apiKey',
+    'authDomain',
+    'projectId',
+    'storageBucket',
+    'messagingSenderId',
+    'appId',
+  ] as const;
+  for (const key of required) {
+    if (!body[key] || typeof body[key] !== 'string') {
+      return new NextResponse(\`missing \${key}\`, { status: 400 });
+    }
+  }
+
+  const envPath = path.join(process.cwd(), '.env.local');
+  let existing = '';
+  try {
+    existing = await readFile(envPath, 'utf8');
+  } catch {
+    // File absent — we create it below.
+  }
+
+  const lines: Record<string, string> = {
+    NEXT_PUBLIC_FIREBASE_API_KEY: body.apiKey,
+    NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: body.authDomain,
+    NEXT_PUBLIC_FIREBASE_PROJECT_ID: body.projectId,
+    NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: body.storageBucket,
+    NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: body.messagingSenderId,
+    NEXT_PUBLIC_FIREBASE_APP_ID: body.appId,
+  };
+
+  const preserved = existing
+    .split('\\n')
+    .filter((line) => {
+      const key = line.split('=')[0]?.trim();
+      return key && !(key in lines);
+    });
+
+  const next = [
+    ...preserved,
+    ...Object.entries(lines).map(([k, v]) => \`\${k}=\${v}\`),
+  ]
+    .join('\\n')
+    .replace(/\\n{3,}/g, '\\n\\n');
+
+  await writeFile(envPath, next + '\\n', 'utf8');
+  return NextResponse.json({ ok: true });
+}
+`);
+
 // ---- Firebase config ----
 // Copy the real rule files from the package's own firebase/ tree, so the user
 // can `firebase deploy --only firestore:rules,firestore:indexes,storage`
@@ -718,8 +811,12 @@ npm run dev                  # http://localhost:3000
 
 ## First-run checklist
 
+> **Prefer a GUI?** Two wizard routes ship by default:
+> - \`/setup/init\` — dev-only, unauth. Paste your Firebase web config; the wizard writes \`.env.local\` for you. Skip step 2 below if you use it.
+> - \`/setup\` — admin-only, post-install. A 4-step wizard that walks you through brand / theme / features in one flow. Replaces steps 7–8 below once Firebase is connected and you're signed in as admin.
+
 1. **Create a Firebase project** at <https://console.firebase.google.com>. Enable Authentication (Email/Password + Google), Firestore, Functions, Storage.
-2. **Populate \`.env.local\`** with the web config object from Project settings → Your apps.
+2. **Populate \`.env.local\`** with the web config object from Project settings → Your apps. *(Or run \`npm run dev\` and open \`/setup/init\` — paste the config there and the form writes \`.env.local\` for you, then restart dev.)*
 3. **Deploy Firestore rules + indexes + Storage rules** (the scaffolder already dropped \`firestore.rules\`, \`firestore.indexes.json\`, and \`storage.rules\` alongside this README):
    \`\`\`bash
    firebase deploy --only firestore:rules,firestore:indexes,storage
@@ -750,7 +847,7 @@ npm run dev                  # http://localhost:3000
    npm run grant-admin -- --project <projectId> --credentials ./service-account.json --email you@example.com
    \`\`\`
    (If the auto-promote window has closed, this is the explicit path. The AdminGuard access-denied screen also shows your uid with a Copy button if you prefer \`--uid\`.)
-7. **Open /admin/settings** to set brand name, logo, social links.
+7. **Configure your store.** Open \`/setup\` for the guided wizard (brand → theme → features → summary), or go straight to \`/admin/settings\` if you'd rather edit each section individually.
 8. **Deploy the Next.js site.** Two supported hosts — pick one:
 
    **Vercel** (zero-config, native Next.js host):

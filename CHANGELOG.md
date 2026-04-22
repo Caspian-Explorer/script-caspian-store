@@ -16,6 +16,20 @@ Do not omit the heading, rename it, or fold it into `### Notes`. This is how
 customers tell at a glance whether an upgrade needs attention.
 -->
 
+## v1.24.0 — Setup wizard: a guided `/setup` that replaces the CLI config dance
+
+The post-install checklist in the scaffolder README asked consumers to seed Firestore, open `/admin/settings`, edit the site doc, open `scriptSettings` for theming, toggle feature flags — seven separate touchpoints before a store felt "theirs." v1.24 collapses all of that into a 4-step wizard at `/setup` that writes the same Firestore docs behind one guided flow (Your info → Branding → Features → Summary), plus a dev-only `/setup/init` that pastes your Firebase web config into `.env.local` so the very first step of the manual README also becomes a form.
+
+### Added
+- **`<SetupWizard>`** at [src/components/setup/setup-wizard.tsx](src/components/setup/setup-wizard.tsx). Admin-gated 4-step wizard. Step 1 writes `settings/site` via the existing `saveSiteSettings` service; steps 2 and 3 write `scriptSettings/site.{theme,hero,features}` via the `useScriptSettings()` context save. Pre-populates the draft from whatever's already in Firestore, so reopening `/setup` on an existing store surfaces current values, not empty fields. Styled to match the common multi-step-form pattern: violet left-rail stepper + navy-CTA white panel on a cream-blue background.
+- **`<SetupInitPage>`** at [src/components/setup/setup-init-page.tsx](src/components/setup/setup-init-page.tsx). Dev-only Firebase-config paste form. POSTs to a companion Next.js API route that writes `.env.local` from the browser, then prompts the user to restart dev + register their first account (the `onUserCreate` trigger auto-promotes to admin from there). The API route 403s whenever `NODE_ENV !== 'development'` so a deployed site can't overwrite its own env vars from a browser.
+- **Supporting primitives** — `<SetupShell>`, `<SetupStepper>`, `SetupStep` type — all exported from the main entry so consumers can build custom flows with the same visual language.
+- **Scaffolder wiring** in [scaffold/create.mjs](scaffold/create.mjs). Fresh scaffolds ship `src/app/setup/{layout,page}.tsx`, `src/app/setup/init/page.tsx`, and `src/app/api/setup/write-env/route.ts` automatically. The generated README gets a "Prefer a GUI?" callout at the top of the First-run checklist pointing at `/setup/init` and `/setup`.
+- **i18n** — 67 new `setup.*` keys in [src/i18n/messages.ts](src/i18n/messages.ts) covering every label, placeholder, hint, and error message so existing `messagesByLocale` consumers can translate the wizard.
+
+### No consumer action required
+Pure additive release. The wizard is a new surface; existing `/admin/settings` flows still work unchanged. Existing installs on v1.23.x upgrade by bumping the dep and adding four route files — copy the snippets from [scaffold/create.mjs](scaffold/create.mjs) or re-run the scaffolder with `--force` into a sibling directory and diff.
+
 ## v1.23.0 — Admin header profile menu + setup-todo automation
 
 Final slice of the admin-UX overhaul started in v1.21. The admin shell now has a real profile dropdown in the header (avatar, name, "View storefront", "My profile", "Sign out") and the setup checklist at `/admin/todos` is self-driving — it auto-seeds on first load, auto-updates as the admin fixes things in other tabs, and a "Verify progress" button re-checks which items Firestore state says are done.

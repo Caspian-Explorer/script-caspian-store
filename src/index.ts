@@ -124,6 +124,22 @@ export {
   type ScriptSettingsPageProps,
 } from './components/script-settings-page';
 
+// Setup wizard (v1.24)
+export {
+  SetupWizard,
+  SetupInitPage,
+  SetupShell,
+  SetupStepper,
+  type SetupWizardProps,
+  type SetupInitPageProps,
+  type SetupShellProps,
+  type SetupStepperProps,
+  type SetupStep,
+  type WizardDraft,
+  type SiteInfoDraft,
+  type BrandingDraft,
+} from './components/setup';
+
 // Auth pages + account surface
 export {
   LoginPage,
