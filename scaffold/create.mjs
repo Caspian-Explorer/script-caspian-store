@@ -145,6 +145,13 @@ if (useCreateNextApp) {
 // When delegating to create-next-app, merge into what it wrote so we keep
 // Next's current dep pins and scripts. Otherwise write a hand-rolled version.
 const ourScripts = {
+  // `predev` clears port 3000 before `next dev` mounts. Mitigates a
+  // Windows-specific Turbopack zombie-worker bug: when the parent shell
+  // exits without clean shutdown, Node.exe worker PIDs can hold :3000, so
+  // the next `npm run dev` hangs on EADDRINUSE. `npx --yes kill-port 3000`
+  // is a no-op on other platforms (or when nothing holds the port), and
+  // `|| exit 0` keeps a "port free" exit-1 from aborting dev.
+  predev: 'npx --yes kill-port 3000 || exit 0',
   typecheck: 'tsc --noEmit',
   'firebase:deploy': 'firebase deploy',
   'firebase:sync': 'node node_modules/@caspian-explorer/script-caspian-store/firebase/scripts/sync-rules.mjs',

@@ -16,6 +16,18 @@ Do not omit the heading, rename it, or fold it into `### Notes`. This is how
 customers tell at a glance whether an upgrade needs attention.
 -->
 
+## v1.20.2 — `predev` kill-port in scaffolded `package.json` (Windows dev-server hygiene)
+
+One-line mitigation for a Windows-specific Turbopack zombie-worker bug. When the parent shell exits without clean shutdown, Next 16's Turbopack occasionally leaves Node.exe worker PIDs holding port 3000, causing the next `npm run dev` to hang on `EADDRINUSE`. `predev` clears the port first.
+
+### Added
+- **`predev` script in scaffolder-generated `package.json`**: `npx --yes kill-port 3000 || exit 0`. Cross-platform safe — `kill-port` is a no-op if nothing holds the port, and `|| exit 0` swallows a port-free exit-1 so `npm run dev` proceeds normally on macOS / Linux / Windows without zombies. Applied in both scaffold branches (hand-rolled and `--use-create-next-app` delegation) via the shared `ourScripts` object.
+
+### No consumer action required
+Scaffolder-only change. Existing scaffolded sites can add this manually to their `package.json` if they've been seeing EADDRINUSE on Windows; fresh scaffolds pick it up automatically. No source, public API, or ruleset change.
+
+Existing installs upgrade transparently via `npm install github:Caspian-Explorer/script-caspian-store#v1.20.2`.
+
 ## v1.20.1 — `firebase:sync` helper + `turbopack.root` in scaffolded `next.config.mjs`
 
 Carryover items from earlier install reports. Two independent scaffolder additions and one audit-only item.
