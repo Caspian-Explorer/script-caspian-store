@@ -42,5 +42,17 @@ service firebase.storage {
                    && request.resource.contentType.matches('image/(jpeg|png|webp|gif)');
       allow delete: if isAdmin();
     }
+
+    // Site-settings branding assets — logo and favicon uploaded from
+    // <AdminSiteSettingsPage>. Public read (the storefront renders the logo
+    // on every page), admin write up to 10 MB. SVG is allowed here because
+    // logos/favicons are commonly vector.
+    match /siteSettings/{path=**} {
+      allow read: if true;
+      allow write: if isAdmin()
+                   && request.resource.size < 10 * 1024 * 1024
+                   && request.resource.contentType.matches('image/(jpeg|png|webp|gif|svg\\+xml)');
+      allow delete: if isAdmin();
+    }
   }
 }

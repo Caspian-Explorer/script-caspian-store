@@ -32,6 +32,7 @@ import {
   addDoc,
   serverTimestamp,
 } from 'firebase/firestore';
+import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -44,6 +45,11 @@ before(async () => {
       rules: readFileSync(join(__dirname, 'firestore.rules'), 'utf8'),
       host: '127.0.0.1',
       port: 8080,
+    },
+    storage: {
+      rules: readFileSync(join(__dirname, 'storage.rules'), 'utf8'),
+      host: '127.0.0.1',
+      port: 9199,
     },
   });
 });
@@ -72,6 +78,24 @@ function authed(uid) {
 function unauthed() {
   return env.unauthenticatedContext().firestore();
 }
+
+function authedStorage(uid) {
+  return env.authenticatedContext(uid).storage();
+}
+
+function unauthedStorage() {
+  return env.unauthenticatedContext().storage();
+}
+
+// Tiny 1x1 PNG — valid image bytes for rules that check contentType but don't
+// inspect the blob. 70 bytes, well under any size cap.
+const PNG_1x1 = new Uint8Array([
+  0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52,
+  0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x08, 0x06, 0x00, 0x00, 0x00, 0x1f, 0x15, 0xc4,
+  0x89, 0x00, 0x00, 0x00, 0x0d, 0x49, 0x44, 0x41, 0x54, 0x78, 0x9c, 0x63, 0x00, 0x01, 0x00, 0x00,
+  0x05, 0x00, 0x01, 0x0d, 0x0a, 0x2d, 0xb4, 0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4e, 0x44, 0xae,
+  0x42, 0x60, 0x82,
+]);
 
 // ---- users/{uid} ------------------------------------------------------
 
@@ -279,4 +303,68 @@ test('adminTodos/{id}: admin write allowed', async () => {
   await seedAdmin('admin1');
   const db = authed('admin1');
   await assertSucceeds(setDoc(doc(db, 'adminTodos', 't1'), { title: 'New', done: false }));
+});
+
+// ---- storage: siteSettings/** ----------------------------------------
+// Branding uploads (logo + favicon) from <AdminSiteSettingsPage>. Added v1.21.
+//
+// Limitation: `isAdmin()` in storage.rules calls `firestore.get(...)` which is
+// a cross-service lookup. `@firebase/rules-unit-testing` does not wire the
+// storage rules runtime to read from the Firestore emulator in sandbox mode,
+// so any rule path that requires isAdmin() == true returns a null-lookup
+// error and denies. We therefore can't positively assert the admin-write
+// success path here. We cover the negative paths (unauthenticated, non-admin,
+// bad content-type) and the public-read path (using a rules-bypass seed).
+// Admin-write success is verified manually in the example app against a
+// fully-deployed emulator or live project.
+
+test('storage siteSettings/**: unauthenticated write denied', async () => {
+  await env.clearFirestore();
+  await env.clearStorage();
+  const storage = unauthedStorage();
+  await assertFails(
+    uploadBytes(storageRef(storage, 'siteSettings/logo.png'), PNG_1x1, {
+      contentType: 'image/png',
+    }),
+  );
+});
+
+test('storage siteSettings/**: non-admin write denied', async () => {
+  await env.clearFirestore();
+  await env.clearStorage();
+  const storage = authedStorage('alice');
+  await assertFails(
+    uploadBytes(storageRef(storage, 'siteSettings/logo.png'), PNG_1x1, {
+      contentType: 'image/png',
+    }),
+  );
+});
+
+test('storage siteSettings/**: disallowed content-type denied', async () => {
+  await env.clearFirestore();
+  await env.clearStorage();
+  await seedAdmin('admin1');
+  const storage = authedStorage('admin1');
+  const bytes = new TextEncoder().encode('<html></html>');
+  await assertFails(
+    uploadBytes(storageRef(storage, 'siteSettings/logo.html'), bytes, {
+      contentType: 'text/html',
+    }),
+  );
+});
+
+test('storage siteSettings/**: public read allowed', async () => {
+  await env.clearFirestore();
+  await env.clearStorage();
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    await uploadBytes(
+      storageRef(ctx.storage(), 'siteSettings/logo.png'),
+      PNG_1x1,
+      { contentType: 'image/png' },
+    );
+  });
+  const publicStorage = unauthedStorage();
+  await assertSucceeds(
+    getDownloadURL(storageRef(publicStorage, 'siteSettings/logo.png')),
+  );
 });

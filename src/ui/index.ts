@@ -6,3 +6,4 @@ export { Select, type SelectProps, type SelectOption } from './select';
 export { Skeleton, Badge, Avatar, Separator } from './misc';
 export { ToastProvider, useToast, type ToastMessage } from './toast';
 export { Table, THead, TBody, TR, TH, TD } from './table';
+export { ImageUploadField, type ImageUploadFieldProps } from './image-upload-field';

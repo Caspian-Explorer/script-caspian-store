@@ -201,6 +201,8 @@ export {
   TR,
   TH,
   TD,
+  ImageUploadField,
+  type ImageUploadFieldProps,
 } from './ui';
 
 // --- Services ---
@@ -415,6 +417,7 @@ export type {
   JournalArticle,
   Subscriber,
   SocialLink,
+  SocialPlatform,
   SiteSettings,
   PromoCode,
   AppliedPromoCode,
@@ -426,7 +429,7 @@ export type {
   LanguageDoc,
   AdminTodo,
 } from './types';
-export { DEFAULT_SCRIPT_SETTINGS } from './types';
+export { DEFAULT_SCRIPT_SETTINGS, SOCIAL_PLATFORMS } from './types';
 
 // --- Utilities ---
 export { cn } from './utils/cn';

@@ -138,8 +138,8 @@ export function SiteFooter({
                   href={link.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  aria-label={link.label || link.platform}
-                  title={link.label || link.platform}
+                  aria-label={link.platform}
+                  title={link.platform}
                   style={{
                     width: 36,
                     height: 36,

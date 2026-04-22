@@ -16,6 +16,39 @@ Do not omit the heading, rename it, or fold it into `### Notes`. This is how
 customers tell at a glance whether an upgrade needs attention.
 -->
 
+## v1.21.0 — Admin settings overhaul: localization + logo/favicon upload + social links rework
+
+First slice of a larger admin-UX overhaul. The storefront settings page was previously all plain text inputs — logo/favicon URLs had to be copy-pasted in from elsewhere, social-link `platform` was free-text (easy to typo), and there were no currency / timezone / country selectors. This release brings the page in line with what operators expect on day one.
+
+### Added
+- **Localization section in `<AdminSiteSettingsPage>`.** Three new dropdowns on [src/admin/admin-site-settings-page.tsx](src/admin/admin-site-settings-page.tsx):
+  - **Currency** — 29 most-common ISO 4217 codes (USD, EUR, GBP, JPY, CAD, AUD, CHF, CNY, INR, BRL, MXN, …).
+  - **Timezone** — populated at runtime from `Intl.supportedValuesOf('timeZone')` (typically ~420 IANA zones), with a 30-zone fallback list for older runtimes.
+  - **Country** — 40-country ISO 3166-1 alpha-2 subset covering the usual storefront footprint.
+  All three are optional on `SiteSettings`. Existing docs without these fields keep working.
+- **`<ImageUploadField>` UI primitive** at [src/ui/image-upload-field.tsx](src/ui/image-upload-field.tsx). Wraps the existing `uploadAdminImage()` helper with a preview, file picker, `Replace` / `Remove` buttons, and an optional URL fallback input. Exported from the main entry so consumers can reuse it in their own admin pages. Renders a placeholder when empty; uploads are scoped to a caller-supplied `storagePath` so Storage rules stay in control of what ends up where.
+- **`siteSettings/**` Storage rule block** in [firebase/storage.rules](firebase/storage.rules). Public read (the storefront renders the logo on every page), admin write up to 10 MB, content-type matches `image/(jpeg|png|webp|gif|svg+xml)`. SVG is permitted because logos and favicons are commonly vector.
+- **Rules-behavior test coverage for Storage.** [firebase/rules.test.mjs](firebase/rules.test.mjs) now also initializes the Storage emulator and asserts the siteSettings block: admin upload allowed (PNG + SVG), non-admin write denied, disallowed content-type (`text/html`) denied, public read allowed after an admin upload. Paves the way for `products/**` coverage in a later release.
+- **`SocialPlatform` type + `SOCIAL_PLATFORMS` constant** in [src/types.ts](src/types.ts). Closed union of the eight platforms the built-in `<SocialIcon>` registry already supports (`instagram`, `facebook`, `twitter`, `x`, `youtube`, `tiktok`, `linkedin`, `pinterest`). Exported from the main entry.
+
+### Changed
+- **`<AdminSiteSettingsPage>` logo + favicon** are now live file uploads via `<ImageUploadField>` instead of URL-only text inputs. The URL input is still available underneath each picker as a fallback for CDN-hosted images. Uploaded files land under `siteSettings/` in Firebase Storage.
+- **Social links editor** — `platform` is now a `<Select>` fed from `SOCIAL_PLATFORMS`, and a live `<SocialIcon>` preview renders next to each row so operators can see the icon they picked without saving first. The `label` text input has been removed; the platform name doubles as the aria-label / tooltip in the footer.
+- **`SocialLink.platform` type** narrowed from `string` to `SocialPlatform`. Consumer code that wrote arbitrary platform strings will no longer typecheck — migrate to one of the eight supported values (or extend `<SocialIcon>` + the union together). Existing Firestore docs with unknown platform strings fall through to the generic globe fallback icon at render time.
+- **`SocialLink.label`** removed from the public type. Any consumer code reading it loses access; the field was optional and most installs never set it. The footer no longer reads `label`, so removing it from existing docs has no visible effect.
+
+### Consumer action required on upgrade
+
+```bash
+npm install github:Caspian-Explorer/script-caspian-store#v1.21.0
+
+# Redeploy storage.rules so logo/favicon uploads work:
+cp node_modules/@caspian-explorer/script-caspian-store/firebase/storage.rules .
+firebase deploy --only storage
+```
+
+If you were using `SocialLink.label` in a fork or custom footer, fold the copy into the `platform` value or render it from your own table — the field is gone from `SiteSettings`.
+
 ## v1.20.2 — `predev` kill-port in scaffolded `package.json` (Windows dev-server hygiene)
 
 One-line mitigation for a Windows-specific Turbopack zombie-worker bug. When the parent shell exits without clean shutdown, Next 16's Turbopack occasionally leaves Node.exe worker PIDs holding port 3000, causing the next `npm run dev` to hang on `EADDRINUSE`. `predev` clears the port first.

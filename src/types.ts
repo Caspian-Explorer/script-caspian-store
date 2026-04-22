@@ -184,10 +184,34 @@ export interface Subscriber {
   subscribedAt: Timestamp;
 }
 
+/**
+ * Closed list of social-link platforms. Each value maps 1:1 to an icon in
+ * `<SocialIcon>` — keep this in sync with `src/components/social-icon.tsx`.
+ */
+export type SocialPlatform =
+  | 'instagram'
+  | 'facebook'
+  | 'twitter'
+  | 'x'
+  | 'youtube'
+  | 'tiktok'
+  | 'linkedin'
+  | 'pinterest';
+
+export const SOCIAL_PLATFORMS: readonly SocialPlatform[] = [
+  'instagram',
+  'facebook',
+  'twitter',
+  'x',
+  'youtube',
+  'tiktok',
+  'linkedin',
+  'pinterest',
+] as const;
+
 export interface SocialLink {
-  platform: string;
+  platform: SocialPlatform;
   url: string;
-  label?: string;
 }
 
 export interface SiteSettings {
@@ -199,6 +223,12 @@ export interface SiteSettings {
   contactPhone: string;
   contactAddress: string;
   businessHours: string;
+  /** ISO 4217 currency code (e.g. `USD`, `EUR`). Optional — added in v1.19. */
+  currency?: string;
+  /** IANA timezone (e.g. `America/New_York`). Optional — added in v1.19. */
+  timezone?: string;
+  /** ISO 3166-1 alpha-2 country code (e.g. `US`, `GB`). Optional — added in v1.19. */
+  country?: string;
   socialLinks: SocialLink[];
 }
 
