@@ -2,6 +2,29 @@
 
 All notable changes will be documented in this file.
 
+## v1.17.0 — Rules compile + behavior tests in CI
+
+The last two shipped bugs — v1.13.0 (`storage.rules` grammar) and v1.15.0 (`users/{uid}` first-create silently denied) — both escaped because nobody ran `firebase deploy` before release. The rules tree now has two safety nets: the Firebase emulator runs on every PR (compiles the rules files, fails CI on grammar errors), and [@firebase/rules-unit-testing](https://firebase.google.com/docs/rules/unit-tests) executes a small behavior suite against the rules (would have caught v1.15.0 at PR time).
+
+### Added
+- **[.github/workflows/rules.yml](.github/workflows/rules.yml)** — the repo's first GitHub Action. Triggers on push / PR that touches `firebase/*.rules`, `firebase/firestore.indexes.json`, `firebase/firebase.json`, the test file, or the workflow itself. Steps: checkout → setup Node 20 → setup Java 17 (emulators are JVM-based) → `npm install --legacy-peer-deps` → install `firebase-tools` globally → `firebase emulators:exec --only firestore,storage "node --test firebase/rules.test.mjs"`. The `emulators:exec` command boots the emulator (which parses the rules on startup and exits non-zero on grammar errors), runs the behavior suite, and tears down. Both bug classes fail CI before reaching a release.
+- **[firebase/rules.test.mjs](firebase/rules.test.mjs)** — Node-22 `node --test` + `@firebase/rules-unit-testing@5`. ~20 assertions covering:
+  - `users/{uid}` — auth user can self-create with `role='customer'` or role omitted; **cannot** self-create with `role='admin'`; **cannot** self-promote via update; unauth can't read. This is the exact regression that hit v1.15.0.
+  - `products/{id}` — public read; non-admin write denied; admin write succeeds.
+  - `orders/{id}` — auth user can create own order; cannot read another user's; admin can read any.
+  - `reviews/{id}` — auth user can create with `status='pending'` and rating in [1, 5]; cannot create with `status='approved'` or rating out of bounds.
+  - `adminTodos/{id}` — non-admin read/write denied; admin read/write succeeds.
+- **`emulators` + `storage` blocks in [firebase/firebase.json](firebase/firebase.json)** — firestore on `:8080`, storage on `:9199`, UI disabled, `singleProjectMode: true`. Required for `firebase emulators:exec` to know which services to boot.
+- **`@firebase/rules-unit-testing@^5.0.0`** added as a devDep in the main [package.json](package.json).
+- **`npm test` script:** `cd firebase && firebase emulators:exec --only firestore,storage "cd .. && node --test firebase/rules.test.mjs"`. Runs the same suite locally; requires `firebase-tools` on PATH and a JRE.
+
+### Changed
+- **[CLAUDE.md](CLAUDE.md) Pre-Commit Checklist step 2** flipped from "N/A — no test runner is configured" to the `npm test` instructions above, with a Java-not-installed fallback pointing at CI. The "don't add Jest/Vitest/Playwright" rule still applies for component/unit tests; the rules tests are a narrow exception.
+
+### Notes
+- Regression-verified locally: reverting the v1.15.0 `users/{uid}` rule fix makes three of the suite's assertions fail; re-applying the fix turns them green again. Proves the tests actually gate the bug they were written for, not just pass-through noise.
+- The install of `@firebase/rules-unit-testing` requires `--legacy-peer-deps` because its v5 peers `firebase@^10` while this repo pins `firebase@^11` as a devDep to match consumer peer deps. The behavior is fine at runtime; the workflow passes the flag explicitly.
+
 ## v1.16.1 — Scaffolder firebase-admin bump + upgrade-path docs
 
 Three small-but-real items from a post-v1.15 field review that didn't make it into v1.16.0: an `npm audit` footgun in the scaffolder's `firebase-admin` pin, a stale version pin in the manual-install copy-paste, and a missing upgrade-procedure note that causes "every route 500s" on in-place upgrades.

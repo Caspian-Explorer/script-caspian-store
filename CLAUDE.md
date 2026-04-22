@@ -119,7 +119,15 @@ Follow these steps **in order** before every `git commit`. If a step fails, fix 
 
 ### 2. Test
 
-**N/A — no test runner is configured.** Do not add Jest/Vitest/Playwright without asking the user first.
+```bash
+npm test
+```
+
+Runs the Firestore + Storage rules-behavior tests in [firebase/rules.test.mjs](firebase/rules.test.mjs) against the Firebase emulator, using Node's built-in `node --test` runner + `@firebase/rules-unit-testing`. The npm script wraps `firebase emulators:exec --only firestore,storage` around it, so the suite boots the emulator, runs, and tears it down.
+
+**Requires:** `firebase-tools` on PATH (or via `npx firebase`), and a JRE (Firebase emulators are Java-based; Java 17+ recommended). Skip locally and rely on CI if you don't have Java installed — the workflow at [.github/workflows/rules.yml](.github/workflows/rules.yml) runs this on every PR that touches `firebase/*.rules`.
+
+**Do not add Jest / Vitest / Playwright for component or unit tests** without asking first. The rules tests are a narrow, deliberately scoped exception.
 
 ### 3. Type-check
 

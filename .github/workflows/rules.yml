@@ -1,0 +1,59 @@
+name: Firebase rules — compile + behavior
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'firebase/firestore.rules'
+      - 'firebase/storage.rules'
+      - 'firebase/firestore.indexes.json'
+      - 'firebase/firebase.json'
+      - 'firebase/rules.test.mjs'
+      - 'package.json'
+      - '.github/workflows/rules.yml'
+  pull_request:
+    paths:
+      - 'firebase/firestore.rules'
+      - 'firebase/storage.rules'
+      - 'firebase/firestore.indexes.json'
+      - 'firebase/firebase.json'
+      - 'firebase/rules.test.mjs'
+      - 'package.json'
+      - '.github/workflows/rules.yml'
+  workflow_dispatch:
+
+jobs:
+  rules:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      # Firebase emulators are Java-based; the Firestore / Storage emulators
+      # need a JVM on PATH even when invoked via firebase-tools.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      # --legacy-peer-deps: @firebase/rules-unit-testing @5 peers firebase@10
+      # but the repo pins firebase@^11 as a devDep for type parity with
+      # consumer peerDependencies. The runtime behavior is fine; npm's strict
+      # resolver just refuses unless told otherwise.
+      - name: Install deps
+        run: npm install --legacy-peer-deps --no-audit --no-fund
+
+      - name: Install firebase-tools
+        run: npm install -g firebase-tools@latest
+
+      # Runs the emulator (which compiles firestore.rules + storage.rules on
+      # boot, exiting non-zero on grammar errors) and executes the behavior
+      # tests against it in one shot. Catches both the v1.13.0 and v1.15.0
+      # classes of bug before they reach a release.
+      - name: Run rules compile + behavior tests
+        working-directory: firebase
+        run: firebase emulators:exec --only firestore,storage --project caspian-rules-test "cd .. && node --test firebase/rules.test.mjs"
