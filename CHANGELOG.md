@@ -16,6 +16,18 @@ Do not omit the heading, rename it, or fold it into `### Notes`. This is how
 customers tell at a glance whether an upgrade needs attention.
 -->
 
+## v2.2.1 — DropdownMenu escapes overflow ancestors
+
+The admin Products page wraps its table in a scrollable box (`overflow-x: auto`, which per CSS also implies `overflow-y: auto`). `<DropdownMenu>` rendered its panel inline with `position: absolute`, so the 3-dot action menu on each product row was clipped by the table's scroll box — only the first item peeked through with a stray scrollbar. The component now portals the panel to `document.body` and positions it with `position: fixed` + coords computed from the trigger's `getBoundingClientRect()` (re-measured on `scroll` in capture phase + `resize`). Escapes every `overflow` ancestor — the same fix benefits `<AdminProfileMenu>` defensively.
+
+### Fixed
+
+- [src/ui/dropdown-menu.tsx](src/ui/dropdown-menu.tsx) — panel portals to `document.body` with `position: fixed`; click-outside handler now treats clicks inside either the trigger root OR the portaled panel as "inside" (previously it only checked the trigger root, which with a portal would have closed the menu before any item's `onSelect` fired); first-item autofocus wrapped in `requestAnimationFrame` so it runs after the two-pass position measure commits.
+
+### No consumer action required
+
+Internal-only bug fix; no public-API change. Existing installs continue to work, and every `<DropdownMenu>` consumer — including anything downstream of `<AdminProductsList>` or `<AdminProfileMenu>` — picks up the fix automatically on upgrade.
+
 ## v2.2.0 — Stripe: separate test + live publishable key fields, mode toggle
 
 The Stripe plugin had a single `publishableKey` field; going from test to live meant erasing one key and pasting the other (and re-configuring the Cloud Functions secret at the same time, which was easy to forget). v2.2 replaces that with **two dedicated fields** (`publishableKeyTest` / `publishableKeyLive`) and a **Mode dropdown** on the Stripe install — admins paste both keys once and flip a single dropdown to switch which pair the storefront uses. The server-side `STRIPE_SECRET_KEY` still has to be kept in sync manually; the dropdown's hint text reminds admins.

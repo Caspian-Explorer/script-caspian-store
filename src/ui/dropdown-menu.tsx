@@ -13,6 +13,7 @@ import {
   type ReactElement,
   type ReactNode,
 } from 'react';
+import { createPortal } from 'react-dom';
 import { cn } from '../utils/cn';
 
 export interface DropdownMenuProps {
@@ -40,11 +41,18 @@ export interface DropdownMenuItemProps {
   className?: string;
 }
 
+interface PanelPos {
+  top: number;
+  left: number | null;
+  right: number | null;
+}
+
 /**
  * Minimal headless dropdown. Click-outside + ESC close. Arrow keys move
- * focus between items. Positions with `position: absolute` under the trigger.
- * Rendered inline (no portal) — if you need to escape overflow: hidden, wrap
- * in a separate portal yourself.
+ * focus between items. The panel is portaled to `document.body` and
+ * positioned with `position: fixed`, so it escapes every `overflow`
+ * ancestor — callers can drop `<DropdownMenu>` inside scroll containers
+ * (e.g. the admin products table) without clipping.
  */
 export function DropdownMenu({
   trigger,
@@ -54,6 +62,7 @@ export function DropdownMenu({
   className,
 }: DropdownMenuProps) {
   const [open, setOpen] = useState(false);
+  const [panelPos, setPanelPos] = useState<PanelPos | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const menuId = useId();
@@ -63,8 +72,31 @@ export function DropdownMenu({
 
   useEffect(() => {
     if (!open) return;
+    const update = () => {
+      if (!rootRef.current) return;
+      const r = rootRef.current.getBoundingClientRect();
+      setPanelPos({
+        top: r.bottom + 4,
+        left: align === 'end' ? null : r.left,
+        right: align === 'end' ? window.innerWidth - r.right : null,
+      });
+    };
+    update();
+    window.addEventListener('resize', update);
+    window.addEventListener('scroll', update, true);
+    return () => {
+      window.removeEventListener('resize', update);
+      window.removeEventListener('scroll', update, true);
+    };
+  }, [open, align]);
+
+  useEffect(() => {
+    if (!open) return;
     const onDown = (e: Event) => {
-      if (rootRef.current && !rootRef.current.contains(e.target as Node)) close();
+      const target = e.target as Node;
+      if (rootRef.current?.contains(target)) return;
+      if (panelRef.current?.contains(target)) return;
+      close();
     };
     const onKey = (e: globalThis.KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -82,9 +114,14 @@ export function DropdownMenu({
   }, [open, close]);
 
   useEffect(() => {
-    if (!open || !panelRef.current) return;
-    const first = panelRef.current.querySelector<HTMLElement>('[role="menuitem"]:not([aria-disabled="true"])');
-    first?.focus();
+    if (!open) return;
+    const id = requestAnimationFrame(() => {
+      const first = panelRef.current?.querySelector<HTMLElement>(
+        '[role="menuitem"]:not([aria-disabled="true"])',
+      );
+      first?.focus();
+    });
+    return () => cancelAnimationFrame(id);
   }, [open]);
 
   const handlePanelKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
@@ -145,6 +182,41 @@ export function DropdownMenu({
       })
     : trigger;
 
+  const panel =
+    open && panelPos && typeof document !== 'undefined'
+      ? createPortal(
+          <div
+            ref={panelRef}
+            id={menuId}
+            role="menu"
+            tabIndex={-1}
+            onKeyDown={handlePanelKeyDown}
+            style={{
+              position: 'fixed',
+              top: panelPos.top,
+              ...(panelPos.left != null ? { left: panelPos.left } : {}),
+              ...(panelPos.right != null ? { right: panelPos.right } : {}),
+              zIndex: 50,
+              minWidth,
+              background: '#fff',
+              borderRadius: 'var(--caspian-radius, 8px)',
+              border: '1px solid rgba(0,0,0,0.1)',
+              boxShadow: '0 6px 24px rgba(0,0,0,0.08)',
+              padding: 4,
+              display: 'flex',
+              flexDirection: 'column',
+            }}
+            onClick={(e) => {
+              const target = e.target as HTMLElement;
+              if (target.closest('[role="menuitem"]')) close();
+            }}
+          >
+            {children}
+          </div>,
+          document.body,
+        )
+      : null;
+
   return (
     <div
       ref={rootRef}
@@ -152,37 +224,7 @@ export function DropdownMenu({
       style={{ position: 'relative', display: 'inline-block' }}
     >
       {triggerWithProps}
-      {open && (
-        <div
-          ref={panelRef}
-          id={menuId}
-          role="menu"
-          tabIndex={-1}
-          onKeyDown={handlePanelKeyDown}
-          style={{
-            position: 'absolute',
-            top: 'calc(100% + 4px)',
-            [align === 'end' ? 'right' : 'left']: 0,
-            zIndex: 50,
-            minWidth,
-            background: '#fff',
-            borderRadius: 'var(--caspian-radius, 8px)',
-            border: '1px solid rgba(0,0,0,0.1)',
-            boxShadow: '0 6px 24px rgba(0,0,0,0.08)',
-            padding: 4,
-            display: 'flex',
-            flexDirection: 'column',
-          }}
-          onClick={(e) => {
-            // Close when any item handler finishes. Items call their onSelect
-            // before this bubbles up.
-            const target = e.target as HTMLElement;
-            if (target.closest('[role="menuitem"]')) close();
-          }}
-        >
-          {children}
-        </div>
-      )}
+      {panel}
     </div>
   );
 }
