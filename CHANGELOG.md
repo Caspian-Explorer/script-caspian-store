@@ -16,6 +16,40 @@ Do not omit the heading, rename it, or fold it into `### Notes`. This is how
 customers tell at a glance whether an upgrade needs attention.
 -->
 
+## v1.23.0 — Admin header profile menu + setup-todo automation
+
+Final slice of the admin-UX overhaul started in v1.21. The admin shell now has a real profile dropdown in the header (avatar, name, "View storefront", "My profile", "Sign out") and the setup checklist at `/admin/todos` is self-driving — it auto-seeds on first load, auto-updates as the admin fixes things in other tabs, and a "Verify progress" button re-checks which items Firestore state says are done.
+
+### Added
+- **`<AdminProfileMenu>`** at [src/admin/admin-profile-menu.tsx](src/admin/admin-profile-menu.tsx). Avatar + dropdown. Mount it into `<AdminShell headerRight>` from your admin layout. Resolves `displayName` / `photoURL` / email from `useAuth()`; falls back to an initial-circle when no photo. Consumer-configurable props: `storefrontHref`, `profileHref`, `afterSignOutHref`, `avatarSize`.
+- **Four new icons** in [src/ui/icons.tsx](src/ui/icons.tsx): `UserIcon`, `LogOutIcon`, `CheckIcon`, `RefreshIcon`. Exported from the main entry.
+- **`listenAdminTodos(db, callback, onError?)`** in [src/services/admin-todo-service.ts](src/services/admin-todo-service.ts). `onSnapshot`-backed live subscription ordered by the todo `order` field. Replaces the one-shot `listAdminTodos()` call in `<AdminTodoPage>` so changes made in another tab (or by the auto-verify below) reflect instantly.
+- **`verifyAdminTodos(db, todos)`** + **`AUTO_DETECTABLE_TODO_IDS`** in [src/services/admin-todo-detectors.ts](src/services/admin-todo-detectors.ts). One-shot detectors for eight of the seeded first-run items: admin role granted (tautological — you're reading the page), site settings edited, ≥ 2 active languages, at least one category / product / shipping method, homepage hero edited, a category marked featured. Deploy-related items (`deploy-firestore-rules`, `deploy-storage-rules`, `deploy-cloud-functions`, `configure-stripe-webhook`) are intentionally absent — they aren't observable from Firestore and stay manual.
+- **"Verify progress" button** in `<AdminTodoPage>` wires `verifyAdminTodos()` + `updateAdminTodo()` so a single click flips every auto-detectable item whose work has been done.
+
+### Changed
+- **`<AdminTodoPage>`** now uses the live snapshot listener instead of a one-shot fetch. Auto-seeds `DEFAULT_ADMIN_TODOS` on first visit if the collection is empty, so the admin doesn't need the "Seed setup checklist" button to see the list. The button is renamed "Re-seed defaults" and remains available for recovery if someone deletes a default item and wants it back.
+- **Scaffolder + example admin layout** now mount `<AdminProfileMenu />` into `<AdminShell headerRight>`. Fresh scaffolds pick this up automatically; existing consumers can add one import + one prop (see below).
+
+### No consumer action required
+Pure additive — no schema change, no storage-rules change, no migration. Existing admin pages keep working without the profile menu until you opt in.
+
+To opt in in an existing install, update your `app/admin/layout.tsx` (or equivalent):
+
+```tsx
+import { AdminGuard, AdminProfileMenu, AdminShell } from '@caspian-explorer/script-caspian-store';
+
+export default function AdminLayout({ children }) {
+  return (
+    <AdminGuard>
+      <AdminShell headerRight={<AdminProfileMenu />}>{children}</AdminShell>
+    </AdminGuard>
+  );
+}
+```
+
+Existing installs upgrade transparently via `npm install github:Caspian-Explorer/script-caspian-store#v1.23.0`.
+
 ## v1.22.0 — Admin products overhaul: category dropdown + color palette + image upload + 3-dot actions
 
 Second slice of the admin-UX overhaul started in v1.21. Products were free-text everywhere — category was a text input (easy to typo, no connection to the categories collection), color was a text input (no swatch guidance), and images were URL-only. The product list had Edit + Delete buttons inline with no `#` column, no filters beyond search, and no way to jump to the storefront PDP. This release closes all of those.

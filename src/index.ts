@@ -323,10 +323,15 @@ export {
   createAdminTodo,
   updateAdminTodo,
   deleteAdminTodo,
+  listenAdminTodos,
   seedDefaultAdminTodos,
   DEFAULT_ADMIN_TODOS,
   type AdminTodoWriteInput,
 } from './services/admin-todo-service';
+export {
+  verifyAdminTodos,
+  AUTO_DETECTABLE_TODO_IDS,
+} from './services/admin-todo-detectors';
 export {
   listJournalArticles,
   getJournalArticle,
@@ -382,6 +387,7 @@ export {
   AdminLanguagesPage,
   AdminSiteSettingsPage,
   AdminTodoPage,
+  AdminProfileMenu,
   DEFAULT_PAGE_KEYS,
   type AdminGuardProps,
   type AdminShellProps,
@@ -393,6 +399,7 @@ export {
   type AdminOrderDetailProps,
   type AdminPagesPageProps,
   type AdminFaqsPageProps,
+  type AdminProfileMenuProps,
 } from './admin';
 
 // --- Types ---

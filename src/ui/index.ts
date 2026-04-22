@@ -19,4 +19,8 @@ export {
   EditIcon,
   TrashIcon,
   ExternalLinkIcon,
+  UserIcon,
+  LogOutIcon,
+  CheckIcon,
+  RefreshIcon,
 } from './icons';

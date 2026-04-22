@@ -4,6 +4,7 @@ import {
   deleteDoc,
   doc,
   getDocs,
+  onSnapshot,
   orderBy,
   query,
   setDoc,
@@ -12,6 +13,7 @@ import {
   writeBatch,
   type Firestore,
   type QueryDocumentSnapshot,
+  type Unsubscribe,
 } from 'firebase/firestore';
 import type { AdminTodo } from '../types';
 
@@ -33,6 +35,25 @@ export async function listAdminTodos(db: Firestore): Promise<AdminTodo[]> {
   const q = query(collection(db, 'adminTodos'), orderBy('order', 'asc'));
   const snap = await getDocs(q);
   return snap.docs.map(docToAdminTodo);
+}
+
+/**
+ * Live subscription to the `adminTodos` collection ordered by `order`.
+ * `callback` fires on every Firestore snapshot with the current list (empty
+ * array while the collection is empty). Returns an `Unsubscribe` — call it
+ * on unmount.
+ */
+export function listenAdminTodos(
+  db: Firestore,
+  callback: (todos: AdminTodo[]) => void,
+  onError?: (err: Error) => void,
+): Unsubscribe {
+  const q = query(collection(db, 'adminTodos'), orderBy('order', 'asc'));
+  return onSnapshot(
+    q,
+    (snap) => callback(snap.docs.map(docToAdminTodo)),
+    (err) => onError?.(err),
+  );
 }
 
 export interface AdminTodoWriteInput {

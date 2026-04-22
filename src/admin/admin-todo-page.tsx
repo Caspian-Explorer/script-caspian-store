@@ -1,16 +1,18 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { AdminTodo } from '../types';
 import {
   createAdminTodo,
   deleteAdminTodo,
-  listAdminTodos,
+  listenAdminTodos,
   seedDefaultAdminTodos,
   updateAdminTodo,
 } from '../services/admin-todo-service';
+import { verifyAdminTodos } from '../services/admin-todo-detectors';
 import { useCaspianFirebase } from '../provider/caspian-store-provider';
 import { Button } from '../ui/button';
+import { CheckIcon, RefreshIcon } from '../ui/icons';
 import { Input } from '../ui/input';
 import { Badge, Skeleton } from '../ui/misc';
 import { useToast } from '../ui/toast';
@@ -22,20 +24,30 @@ export function AdminTodoPage({ className }: { className?: string }) {
   const [newTitle, setNewTitle] = useState('');
   const [adding, setAdding] = useState(false);
   const [seeding, setSeeding] = useState(false);
+  const [verifying, setVerifying] = useState(false);
   const [hideDone, setHideDone] = useState(false);
-
-  const load = async () => {
-    try {
-      setTodos(await listAdminTodos(db));
-    } catch (error) {
-      console.error('[caspian-store] Failed to list todos:', error);
-    }
-  };
+  const autoSeededRef = useRef(false);
 
   useEffect(() => {
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    const unsubscribe = listenAdminTodos(
+      db,
+      async (next) => {
+        setTodos(next);
+        if (next.length === 0 && !autoSeededRef.current) {
+          autoSeededRef.current = true;
+          try {
+            await seedDefaultAdminTodos(db);
+          } catch (error) {
+            console.error('[caspian-store] Auto-seed failed:', error);
+          }
+        }
+      },
+      (err) => {
+        console.error('[caspian-store] Todos listener error:', err);
+      },
+    );
+    return () => unsubscribe();
+  }, [db]);
 
   const progress = useMemo(() => {
     if (!todos || todos.length === 0) return { done: 0, total: 0, pct: 0 };
@@ -49,14 +61,11 @@ export function AdminTodoPage({ className }: { className?: string }) {
   }, [todos, hideDone]);
 
   const handleToggle = async (t: AdminTodo) => {
-    const next = !t.done;
-    setTodos((prev) => (prev ? prev.map((x) => (x.id === t.id ? { ...x, done: next } : x)) : prev));
     try {
-      await updateAdminTodo(db, t.id, { done: next });
+      await updateAdminTodo(db, t.id, { done: !t.done });
     } catch (error) {
       console.error('[caspian-store] Toggle failed:', error);
       toast({ title: 'Update failed', variant: 'destructive' });
-      setTodos((prev) => (prev ? prev.map((x) => (x.id === t.id ? { ...x, done: !next } : x)) : prev));
     }
   };
 
@@ -67,7 +76,6 @@ export function AdminTodoPage({ className }: { className?: string }) {
       const order = (todos?.length ?? 0) + 1;
       await createAdminTodo(db, { title: newTitle.trim(), order, isDefault: false });
       setNewTitle('');
-      await load();
     } catch (error) {
       console.error('[caspian-store] Add failed:', error);
       toast({ title: 'Add failed', variant: 'destructive' });
@@ -80,7 +88,6 @@ export function AdminTodoPage({ className }: { className?: string }) {
     if (!confirm(`Delete "${t.title}"?`)) return;
     try {
       await deleteAdminTodo(db, t.id);
-      setTodos((prev) => (prev ? prev.filter((x) => x.id !== t.id) : prev));
     } catch (error) {
       console.error('[caspian-store] Delete failed:', error);
       toast({ title: 'Delete failed', variant: 'destructive' });
@@ -91,7 +98,6 @@ export function AdminTodoPage({ className }: { className?: string }) {
     setSeeding(true);
     try {
       const written = await seedDefaultAdminTodos(db);
-      await load();
       toast({
         title:
           written === 0
@@ -106,13 +112,36 @@ export function AdminTodoPage({ className }: { className?: string }) {
     }
   };
 
+  const handleVerify = async () => {
+    if (!todos) return;
+    setVerifying(true);
+    try {
+      const ids = await verifyAdminTodos(db, todos);
+      if (ids.length === 0) {
+        toast({ title: 'Nothing new to mark done' });
+      } else {
+        await Promise.all(
+          ids.map((id) => updateAdminTodo(db, id, { done: true })),
+        );
+        toast({
+          title: `Marked ${ids.length} item${ids.length === 1 ? '' : 's'} done`,
+        });
+      }
+    } catch (error) {
+      console.error('[caspian-store] Verify failed:', error);
+      toast({ title: 'Verify failed', variant: 'destructive' });
+    } finally {
+      setVerifying(false);
+    }
+  };
+
   return (
     <div className={className}>
       <header style={{ marginBottom: 16 }}>
         <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0 }}>Todo list</h1>
         <p style={{ color: '#666', marginTop: 4 }}>
-          Track setup actions and operational tasks. Seed the default first-run checklist if this
-          is a fresh install.
+          First-run setup checklist. Auto-seeded on first visit; &quot;Verify progress&quot; re-checks
+          what&apos;s been done.
         </p>
       </header>
 
@@ -150,6 +179,16 @@ export function AdminTodoPage({ className }: { className?: string }) {
               />
             </div>
           </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleVerify}
+            loading={verifying}
+            title="Re-check which items are done based on Firestore state"
+          >
+            <RefreshIcon size={14} />
+            Verify progress
+          </Button>
           <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 14 }}>
             <input type="checkbox" checked={hideDone} onChange={(e) => setHideDone(e.target.checked)} />
             Hide completed
@@ -181,11 +220,9 @@ export function AdminTodoPage({ className }: { className?: string }) {
         <Button onClick={handleAdd} loading={adding} disabled={!newTitle.trim()}>
           + Add task
         </Button>
-        {todos !== null && todos.length === 0 && (
-          <Button variant="outline" onClick={handleSeedDefaults} loading={seeding}>
-            Seed setup checklist
-          </Button>
-        )}
+        <Button variant="outline" onClick={handleSeedDefaults} loading={seeding}>
+          Re-seed defaults
+        </Button>
       </section>
 
       {visibleTodos === null ? (
@@ -202,7 +239,7 @@ export function AdminTodoPage({ className }: { className?: string }) {
         >
           {todos && todos.length > 0 && hideDone
             ? 'All tasks completed — nice.'
-            : 'No tasks yet. Click "Seed setup checklist" to load the first-run actions.'}
+            : 'No tasks yet. The default checklist is seeding…'}
         </div>
       ) : (
         <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -237,6 +274,7 @@ export function AdminTodoPage({ className }: { className?: string }) {
                     color: t.done ? '#888' : '#111',
                   }}
                 >
+                  {t.done && <CheckIcon size={16} />}
                   {t.title}
                   {t.isDefault && <Badge variant="secondary">Setup</Badge>}
                 </div>
