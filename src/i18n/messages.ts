@@ -347,6 +347,7 @@ export const DEFAULT_MESSAGES: MessageDict = {
   'navigation.openCart': 'Open cart',
   'navigation.wishlist': 'Wishlist',
   'navigation.myAccount': 'My account',
+  'navigation.admin': 'Admin',
 
   // Site shell — footer
   'footer.about.title': 'About',

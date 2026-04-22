@@ -2,6 +2,20 @@
 
 All notable changes will be documented in this file.
 
+## v1.15.0 — Fix first-sign-in profile create + admin nav link + AccountPage polish
+
+A consumer reported three issues on a fresh install: (1) `/account` was missing the Profile / Photo / Addresses cards and had a huge blank gap at the top, (2) there was no visible way to navigate to `/admin` from the UI. Root cause of (1) turned out to be a Firestore-rules bug that silently blocked first-ever profile creation; (2) was intentional security (hide admin from non-admins) but missing a `role === 'admin'` escape hatch. Fixed both, plus tightened the account-page layout.
+
+### Fixed
+- **[firebase/firestore.rules](firebase/firestore.rules) `users/{uid}` rule blocked first-ever profile creation.** The single `allow write` rule required `request.resource.data.role == resource.data.role`, but on create `resource.data` is null, so `'customer' == null` evaluated false and the write was denied. The client's [auth-context.tsx](src/context/auth-context.tsx) silently caught the permission error and set `userProfile = null`, which made every profile-dependent UI card (`<ProfileCard>`, `<ProfilePhotoCard>`, `<AddressBook>`) early-return null. Rule now splits into `allow create` (permits role absent or explicitly `'customer'`) and `allow update` (role must equal existing). Admin-branch and read-self are unchanged.
+- **Consumer action required after upgrading:** re-deploy the Firestore rules — `firebase deploy --only firestore:rules` — or the bug persists on already-deployed projects. The rule ships in both the package's `firebase/firestore.rules` and any scaffolded consumer's own copy.
+
+### Added
+- **Admin nav link in [SiteHeader](src/components/site-header.tsx).** A small "Admin" button renders in the right-side cluster (before the account avatar) only when `userProfile.role === 'admin'`. Clicks through to `/admin`. Invisible to non-admins — no information leak. New i18n key `navigation.admin`.
+
+### Changed
+- **[AccountPage](src/components/auth/account-page.tsx) layout polished.** Wrapped in a `maxWidth: 960` container with `32px/24px` padding so it no longer stretches edge-to-edge on wide screens. Header now renders an [Avatar](src/ui/misc.tsx) (user's `photoURL` if present, initial fallback) next to the title + signed-in-as line, on a subtle gradient card. Section order tightened: Photo → Profile → Addresses → Password → Orders → Delete. No prop changes; `AccountPageProps` remains the same.
+
 ## v1.14.0 — Fix `<DynamicFavicon>` rendered outside `<CaspianStoreProvider>`
 
 Consumer running a fresh scaffolded install saw `Error: useCaspianStore must be called inside <CaspianStoreProvider>` at runtime. Root cause: the scaffolder and INSTALL.md §3 both emitted a `layout.tsx` with `<DynamicFavicon />` as a **sibling** of `<Providers>` instead of a child. [`<DynamicFavicon>`](src/components/dynamic-favicon.tsx) calls `useCaspianFirebase()` which requires the provider above it in the tree.

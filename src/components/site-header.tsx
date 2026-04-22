@@ -66,7 +66,7 @@ export function SiteHeader({
   const t = useT();
   const Link = useCaspianLink();
   const { db } = useCaspianFirebase();
-  const { user, loading } = useAuth();
+  const { user, userProfile, loading } = useAuth();
   const { count: cartCount } = useCart();
   const { wishlist } = useWishlist();
   const wishlistCount = wishlist.length;
@@ -229,11 +229,24 @@ export function SiteHeader({
 
             {!loading && user ? (
               userMenu ?? (
-                <Link href="/account">
-                  <Button variant="outline" size="sm">
-                    {(user.displayName ?? user.email ?? '?').slice(0, 1).toUpperCase()}
-                  </Button>
-                </Link>
+                <>
+                  {userProfile?.role === 'admin' && (
+                    <Link
+                      href="/admin"
+                      style={{ textDecoration: 'none' }}
+                      aria-label={t('navigation.admin')}
+                    >
+                      <Button variant="outline" size="sm">
+                        {t('navigation.admin')}
+                      </Button>
+                    </Link>
+                  )}
+                  <Link href="/account">
+                    <Button variant="outline" size="sm">
+                      {(user.displayName ?? user.email ?? '?').slice(0, 1).toUpperCase()}
+                    </Button>
+                  </Link>
+                </>
               )
             ) : (
               <Link href={accountHref}>

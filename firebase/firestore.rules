@@ -40,8 +40,18 @@ service cloud.firestore {
 
     match /users/{uid} {
       allow read: if isAuth() && request.auth.uid == uid;
-      allow write: if isAuth() && request.auth.uid == uid
-                   && (!('role' in request.resource.data) || request.resource.data.role == resource.data.role);
+      // On create: a user can write their own profile; role must be absent
+      // or explicitly 'customer'. This is the only path — on first sign-in
+      // resource.data is null, so the update-rule's role-equality check
+      // (request.resource.data.role == resource.data.role) would fail
+      // against null and silently deny the write, leaving userProfile null
+      // in auth-context and every profile-dependent UI card blank.
+      allow create: if isAuth() && request.auth.uid == uid
+                    && (!('role' in request.resource.data) || request.resource.data.role == 'customer');
+      // On update: role must stay as it is on the existing doc — blocks
+      // self-promotion. Admin writes go through the isAdmin() branch below.
+      allow update: if isAuth() && request.auth.uid == uid
+                    && (!('role' in request.resource.data) || request.resource.data.role == resource.data.role);
       allow read, write: if isAdmin();
     }
 
