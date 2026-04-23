@@ -17,6 +17,7 @@ import {
   type DocumentSnapshot,
 } from 'firebase/firestore';
 import type { Product } from '../types';
+import { stripUndefined } from '../utils/strip-undefined';
 
 export interface ProductFilters {
   category?: string;
@@ -112,7 +113,7 @@ export async function createProduct(
   id?: string,
 ): Promise<string> {
   const now = Timestamp.now();
-  const payload = { ...data, createdAt: now, updatedAt: now };
+  const payload = stripUndefined({ ...data, createdAt: now, updatedAt: now });
   if (id) {
     await setDoc(doc(db, 'products', id), payload);
     return id;
@@ -126,7 +127,10 @@ export async function updateProduct(
   id: string,
   data: Partial<ProductWriteInput>,
 ): Promise<void> {
-  await updateDoc(doc(db, 'products', id), { ...data, updatedAt: Timestamp.now() });
+  await updateDoc(
+    doc(db, 'products', id),
+    stripUndefined({ ...data, updatedAt: Timestamp.now() }),
+  );
 }
 
 export async function deleteProduct(db: Firestore, id: string): Promise<void> {

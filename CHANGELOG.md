@@ -16,6 +16,23 @@ Do not omit the heading, rename it, or fold it into `### Notes`. This is how
 customers tell at a glance whether an upgrade needs attention.
 -->
 
+## v2.5.1 — Fix Firestore "undefined field" rejection on product and promo-code save
+
+Both the admin product editor and the new-promo-code dialog were building write payloads that included optional fields (e.g. `weightKg`, `shortDescription`, `details` on products; `minOrderAmount`, `maxDiscount` on promo codes) with `undefined` values when the admin left them blank. Firestore's SDK rejects any document key whose value is `undefined`, so saves failed with `Function addDoc() called with invalid data. Unsupported field value: undefined (found in field weightKg ...)`. The fix lives in the service layer: a new `stripUndefined` helper drops `undefined` keys from the payload before `addDoc`/`setDoc`/`updateDoc` runs. Service-layer placement means every current and future caller is protected without changing form code.
+
+### Fixed
+
+- **Create/edit Product** with empty optional fields no longer throws `Unsupported field value: undefined`. ([src/services/product-service.ts](src/services/product-service.ts))
+- **Create/edit Promo code** with empty `Min order amount` and/or `Max discount` no longer throws the same error. ([src/services/promo-code-service.ts](src/services/promo-code-service.ts))
+
+### Added
+
+- **`stripUndefined(obj)`** internal utility at [src/utils/strip-undefined.ts](src/utils/strip-undefined.ts) — shallow copy with `undefined`-valued keys omitted. Preserves `null`, `false`, `0`, `''`, and empty arrays/objects (all valid Firestore field values).
+
+### No consumer action required
+
+Upgrade and the affected admin save flows start working again — no code or schema changes on the consumer side.
+
 ## v2.5.0 — Retail-skin storefront + admin layout overhaul with notifications
 
 Two parallel pushes landed together. On the storefront, four design screenshots defined the cleanWhite theme's look across the funnel: a product page with a vertical thumbnail rail and tabbed content, a full-page shopping bag, and a two-card checkout step — v2.5 implements that skin end-to-end and adds the product-content and tax/countries primitives it needs. On the admin side, the shell was rebuilt so the sidebar runs full-height (not under the header), the header starts from the right of the sidebar with a toggle icon at its far left, a notifications bell lives in the header with an unread badge + dropdown, and a new `/admin/notifications` page lists every active signal — starting with available-library-update alerts and pending moderation items.

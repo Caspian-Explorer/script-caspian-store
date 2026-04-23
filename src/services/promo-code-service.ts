@@ -15,6 +15,7 @@ import {
   type QueryDocumentSnapshot,
 } from 'firebase/firestore';
 import type { AppliedPromoCode, PromoCode } from '../types';
+import { stripUndefined } from '../utils/strip-undefined';
 
 function docToPromoCode(snap: QueryDocumentSnapshot): PromoCode {
   const data = snap.data();
@@ -43,7 +44,11 @@ export async function createPromoCode(
   input: PromoCodeWriteInput,
   id?: string,
 ): Promise<string> {
-  const payload = { ...input, code: input.code.toUpperCase(), createdAt: Timestamp.now() };
+  const payload = stripUndefined({
+    ...input,
+    code: input.code.toUpperCase(),
+    createdAt: Timestamp.now(),
+  });
   if (id) {
     await setDoc(doc(db, 'promoCodes', id), payload);
     return id;
@@ -59,7 +64,7 @@ export async function updatePromoCode(
 ): Promise<void> {
   const patch: Partial<PromoCodeWriteInput> = { ...input };
   if (typeof patch.code === 'string') patch.code = patch.code.toUpperCase();
-  await updateDoc(doc(db, 'promoCodes', id), patch);
+  await updateDoc(doc(db, 'promoCodes', id), stripUndefined(patch));
 }
 
 export async function deletePromoCode(db: Firestore, id: string): Promise<void> {
