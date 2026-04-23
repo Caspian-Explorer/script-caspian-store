@@ -16,6 +16,60 @@ Do not omit the heading, rename it, or fold it into `### Notes`. This is how
 customers tell at a glance whether an upgrade needs attention.
 -->
 
+## v2.11.0 — Transactional email system (C1)
+
+First half of Release C. The library now ships a complete transactional email surface: admin UI for editing per-type templates, global sender settings, reference Cloud Functions that listen on `orders/{id}` writes and deliver via SendGrid, and a callable for the "Send test" button.
+
+### Added
+
+- **`SiteSettings`-adjacent email config** — two new Firestore collections:
+  - `emailSettings/site` singleton (`EmailSettings`): `fromName`, `fromAddress`, `replyTo`, `logoUrl`, `accentColor`, `backgroundColor`, `footerText`, and a master `enabled` toggle.
+  - `emailTemplates/{key}` collection (`EmailTemplate`) with one doc per key: `new_order_admin`, `cancelled_order_admin`, `failed_order_admin`, `processing_order`, `completed_order`, `refunded_order`, `customer_note`, `new_account`. Each doc carries `enabled`, `subject`, `heading`, `additionalContent`, and `recipients` (for admin-audience templates).
+- **`<AdminEmailsPage>`** at `/admin/emails` — global sender settings section + templates table with an edit dialog that shows a live preview using sample placeholder data (`{site_title}`, `{order_number}`, `{order_total}`, `{order_date}`, `{customer_name}`, `{customer_email}`) and a "Send test" button per template.
+- **Admin nav entry** — a new "Emails" item in `DEFAULT_ADMIN_NAV` between Payments and Languages.
+- **Service layer** — [src/services/email-service.ts](src/services/email-service.ts) exports `getEmailSettings`, `saveEmailSettings`, `listEmailTemplates`, `saveEmailTemplate`, `sendTestEmail`, plus `DEFAULT_EMAIL_SETTINGS`, `EMAIL_TEMPLATE_AUDIENCE`, `EMAIL_TEMPLATE_LABELS` helpers. `listEmailTemplates` hydrates defaults for keys that haven't been saved yet, so the admin table always shows all 8 rows on first run.
+- **Firestore collection refs** — `emailTemplates`, `emailSettingsDoc` added to [src/firebase/collections.ts](src/firebase/collections.ts).
+- **Firestore rules** — admin-only read/write on both collections; the Cloud Function bypasses via Admin SDK.
+- **Reference Cloud Functions** in [firebase/functions-admin/](firebase/functions-admin/):
+  - `runEmailOnOrderCreate` — fires on `orders/{id}` create. Sends the matching admin + customer templates based on `status` at creation time.
+  - `runEmailOnOrderUpdate` — fires on `orders/{id}` update. Only sends when `status` actually changes (not on every cart-items tweak).
+  - `sendTestEmail` — HTTPS callable, admin-gated. Invoked by the admin page's "Send test" button; renders with sample placeholders and delivers to a supplied recipient.
+- **Pluggable sender** at [firebase/functions-admin/src/email-sender.ts](firebase/functions-admin/src/email-sender.ts). Ships with SendGrid via `@sendgrid/mail`. Swap to Resend / SES / Postmark by replacing `sendViaSendGrid` — callers depend only on the `{ to, from, subject, html, text }` signature.
+- **Inline-styled HTML template shell** at [firebase/functions-admin/src/email-renderer.ts](firebase/functions-admin/src/email-renderer.ts) — intentionally minimal (no `<head>`, no stylesheets) for maximum Gmail / Outlook / Apple Mail compatibility. Merchants customize via the `EmailSettings` fields (logo, accent color, footer), not by editing HTML.
+
+### Exports added
+
+`EmailSettings`, `EmailTemplate`, `EmailTemplateKey`, `EmailAudience` types; `EMAIL_TEMPLATE_KEYS` const; `getEmailSettings`, `saveEmailSettings`, `listEmailTemplates`, `saveEmailTemplate`, `sendTestEmail`, `DEFAULT_EMAIL_SETTINGS`, `EMAIL_TEMPLATE_AUDIENCE`, `EMAIL_TEMPLATE_LABELS`, `SaveEmailTemplateInput`, `SendTestEmailInput`; `<AdminEmailsPage>` + `AdminEmailsPageProps`.
+
+### Consumer action required on upgrade
+
+To actually deliver emails:
+
+1. **Set the SendGrid API key** as a Functions secret:
+   ```bash
+   firebase functions:secrets:set SENDGRID_API_KEY
+   ```
+   The value is injected into every email-sending function at runtime. Stores that don't set it see a `[email-sender] SENDGRID_API_KEY not set` warning and no email is sent — handy for local emulator runs.
+
+2. **Redeploy `functions-admin`** to pick up the new triggers and the `sendTestEmail` callable:
+   ```bash
+   cd firebase/functions-admin
+   npm install
+   npm run build
+   firebase deploy --only functions:caspian-admin
+   ```
+
+3. **Deploy the updated `firestore.rules`** so the admin UI can read/write the two new collections:
+   ```bash
+   firebase deploy --only firestore:rules
+   ```
+
+4. (In the admin UI) open **`/admin/emails`**, fill in global sender settings, toggle the master `enabled` switch, and save. No templates need to be touched — defaults are rendered until a merchant edits one.
+
+Stores that leave the master `enabled: false` or never set a `SENDGRID_API_KEY` see zero change in behavior — the Cloud Functions are deployed but exit early.
+
+---
+
 ## v2.10.0 — Account creation policy + guest checkout + GDPR retention Cloud Function
 
 Closes Release B. Adds the four account-creation toggles, real guest checkout via Firebase anonymous auth, an optional "send password setup link" sign-up flow, and the first scheduled Cloud Function in the library — `runRetentionCleanup` — that deletes inactive accounts and old orders according to a merchant-configured retention window.

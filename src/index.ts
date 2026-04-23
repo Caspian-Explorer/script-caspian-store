@@ -490,6 +490,7 @@ export {
   AdminJournalPage,
   AdminPagesPage,
   AdminFaqsPage,
+  AdminEmailsPage,
   AdminShippingPluginsPage,
   AdminPaymentPluginsPage,
   AdminPromoCodesPage,
@@ -530,6 +531,7 @@ export {
   type IsoCountry,
   type AdminProfileMenuProps,
   type AdminOnboardingProgressProps,
+  type AdminEmailsPageProps,
 } from './admin';
 
 // --- Types ---
@@ -590,7 +592,25 @@ export type {
   // v2.10 additions — accounts + privacy
   AccountSettings,
   PrivacyRetentionSettings,
+  // v2.11 additions — transactional emails
+  EmailSettings,
+  EmailTemplate,
+  EmailTemplateKey,
+  EmailAudience,
 } from './types';
+export { EMAIL_TEMPLATE_KEYS } from './types';
+export {
+  getEmailSettings,
+  saveEmailSettings,
+  listEmailTemplates,
+  saveEmailTemplate,
+  sendTestEmail,
+  DEFAULT_EMAIL_SETTINGS,
+  EMAIL_TEMPLATE_AUDIENCE,
+  EMAIL_TEMPLATE_LABELS,
+  type SaveEmailTemplateInput,
+  type SendTestEmailInput,
+} from './services/email-service';
 export { DEFAULT_SCRIPT_SETTINGS, SOCIAL_PLATFORMS } from './types';
 
 // --- Utilities ---

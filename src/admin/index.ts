@@ -24,6 +24,7 @@ export {
   type AdminPagesPageProps,
 } from './admin-pages-page';
 export { AdminFaqsPage, type AdminFaqsPageProps } from './admin-faqs-page';
+export { AdminEmailsPage, type AdminEmailsPageProps } from './admin-emails-page';
 export { AdminShippingPluginsPage } from './admin-shipping-plugins-page';
 export { AdminPaymentPluginsPage } from './admin-payment-plugins-page';
 export { AdminPromoCodesPage } from './admin-promo-codes-page';

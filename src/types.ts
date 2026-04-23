@@ -425,6 +425,102 @@ export interface PrivacyRetentionSettings {
   retainCompletedOrdersDays?: number;
 }
 
+/**
+ * Closed set of transactional email templates the library ships. Each key
+ * corresponds to a Firestore doc at `emailTemplates/{key}` that the admin
+ * can edit independently. Added in v2.11.
+ *
+ * Admin emails (→ merchant): `new_order_admin`, `cancelled_order_admin`,
+ * `failed_order_admin`. Customer emails (→ shopper):
+ * `processing_order`, `completed_order`, `refunded_order`, `customer_note`,
+ * `new_account`.
+ *
+ * Note: password-reset emails are handled natively by Firebase Auth and are
+ * not templated here — change the look in the Firebase console instead.
+ */
+export type EmailTemplateKey =
+  | 'new_order_admin'
+  | 'cancelled_order_admin'
+  | 'failed_order_admin'
+  | 'processing_order'
+  | 'completed_order'
+  | 'refunded_order'
+  | 'customer_note'
+  | 'new_account';
+
+export const EMAIL_TEMPLATE_KEYS: readonly EmailTemplateKey[] = [
+  'new_order_admin',
+  'cancelled_order_admin',
+  'failed_order_admin',
+  'processing_order',
+  'completed_order',
+  'refunded_order',
+  'customer_note',
+  'new_account',
+] as const;
+
+/** Whether a template's primary recipient is the merchant (`admin`) or the shopper (`customer`). */
+export type EmailAudience = 'admin' | 'customer';
+
+/**
+ * A single editable email template. `key` is the stable identifier the Cloud
+ * Function keys off of; `subject`, `heading`, `additionalContent` are the
+ * only merchant-authored strings — the surrounding HTML shell is rendered
+ * by the sender from the global `EmailSettings`. Added in v2.11.
+ */
+export interface EmailTemplate {
+  id: EmailTemplateKey;
+  key: EmailTemplateKey;
+  /** `false` suppresses sending for this template entirely. */
+  enabled: boolean;
+  /** Email subject line. Supports `{placeholder}` substitution. */
+  subject: string;
+  /** Large heading at the top of the email body. Supports `{placeholder}` substitution. */
+  heading: string;
+  /**
+   * Optional merchant copy shown below the heading, above the order summary.
+   * Supports `{placeholder}` substitution and newlines. Stored as plain text;
+   * rendered into paragraphs by the sender.
+   */
+  additionalContent: string;
+  /**
+   * Admin recipients for `audience: 'admin'` templates. Empty array → fall
+   * back to `SiteSettings.contactEmail`. Ignored for customer templates.
+   */
+  recipients: string[];
+  /** Used for grouping / routing in admin and the sender. Not merchant-editable. */
+  audience: EmailAudience;
+  updatedAt: Timestamp;
+}
+
+/**
+ * Merchant-authored global sender config for transactional emails. Lives at
+ * `emailSettings/site` and is loaded by both the admin UI (for editing) and
+ * the Cloud Function (for rendering). Added in v2.11.
+ */
+export interface EmailSettings {
+  id: 'site';
+  /** Sender display name (e.g. "Acme Store"). Falls back to `SiteSettings.brandName`. */
+  fromName: string;
+  /** Sender email address. Must be verified with the underlying provider (SendGrid, SES, etc.). */
+  fromAddress: string;
+  /** Optional Reply-To header. Leave blank to use the From address. */
+  replyTo?: string;
+  /** Logo URL shown at the top of every email body. Falls back to `SiteSettings.logoUrl`. */
+  logoUrl?: string;
+  /** Color palette applied to the email shell (header background, button background, body text). */
+  accentColor: string;
+  backgroundColor: string;
+  /** Footer copy shown below every email (company address, unsubscribe note). Plain text; newlines split paragraphs. */
+  footerText: string;
+  /**
+   * Master toggle. When `false`, the Cloud Function logs and exits without
+   * sending any email. Useful during development to avoid accidental sends.
+   */
+  enabled: boolean;
+  updatedAt: Timestamp;
+}
+
 export interface SiteSettings {
   logoUrl: string;
   faviconUrl?: string;

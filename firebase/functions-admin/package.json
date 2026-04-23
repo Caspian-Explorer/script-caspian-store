@@ -1,7 +1,7 @@
 {
   "name": "caspian-admin-functions",
-  "version": "0.1.0",
-  "description": "Firebase Cloud Functions for Caspian Store admin triggers (auto-promote, etc.). No Stripe dependency — deployable without Stripe secrets.",
+  "version": "0.2.0",
+  "description": "Firebase Cloud Functions for Caspian Store admin triggers (auto-promote, scheduled retention, transactional emails). No Stripe dependency — deployable without Stripe secrets.",
   "main": "lib/index.js",
   "engines": {
     "node": "22"
@@ -15,6 +15,7 @@
     "logs": "firebase functions:log --only caspian-admin"
   },
   "dependencies": {
+    "@sendgrid/mail": "^8.1.0",
     "firebase-admin": "^13.0.0",
     "firebase-functions": "^7.0.0"
   },

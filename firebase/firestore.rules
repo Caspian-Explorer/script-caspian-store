@@ -157,5 +157,18 @@ service cloud.firestore {
       allow read: if isAdmin();
       allow write: if isAdmin();
     }
+
+    // Transactional email config (v2.11). Admin-only on both read and write —
+    // contains sender addresses, admin recipient lists, and unfiltered
+    // template bodies that shouldn't leak to shoppers. Cloud Functions
+    // bypass rules via the Admin SDK.
+    match /emailSettings/{id} {
+      allow read: if isAdmin();
+      allow write: if isAdmin();
+    }
+    match /emailTemplates/{id} {
+      allow read: if isAdmin();
+      allow write: if isAdmin();
+    }
   }
 }

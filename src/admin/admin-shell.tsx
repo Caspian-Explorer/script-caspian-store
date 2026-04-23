@@ -39,6 +39,7 @@ export const DEFAULT_ADMIN_NAV: AdminNavItem[] = [
   { href: '/admin/search-terms', label: 'Search terms' },
   { href: '/admin/shipping-plugins', label: 'Shipping' },
   { href: '/admin/payment-plugins', label: 'Payments' },
+  { href: '/admin/emails', label: 'Emails' },
   { href: '/admin/languages', label: 'Languages' },
   { href: '/admin/appearance', label: 'Appearance' },
   { href: '/admin/settings', label: 'Settings' },
