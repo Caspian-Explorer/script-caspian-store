@@ -24,7 +24,7 @@ interface ActiveCheckout {
  * Picks the first enabled install in `paymentPluginInstalls` (by `order`).
  * If none is installed-and-enabled, `startCheckout` throws and the returned
  * `activeInstall` / `activePlugin` are null so the UI can render guidance
- * toward `/admin/payment-plugins`.
+ * toward `/admin/settings/payments`.
  */
 export function useCheckout() {
   const { db, functions, auth } = useCaspianFirebase();

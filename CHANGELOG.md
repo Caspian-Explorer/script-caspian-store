@@ -16,74 +16,149 @@ Do not omit the heading, rename it, or fold it into `### Notes`. This is how
 customers tell at a glance whether an upgrade needs attention.
 -->
 
-## v2.15.0 — Email provider plugin catalog + caspian-email codebase split
+## v3.0.0 — Admin sidebar redesign · Self-healing error logging · Email plugin catalog
 
-Turns email sending into a first-class plugin catalog (mirroring shipping + payments), adds **Brevo** alongside the existing **SendGrid** provider, and splits the email Cloud Functions into their own `caspian-email` codebase. Also fixes a scaffolder miss where `AdminEmailsPage` (v2.11.0) and the new `AdminEmailPluginsPage` were reachable from the admin sidebar but had no generated route files, plus adds a CI smoke test that blocks future drift.
+Three features ship as one breaking release:
 
-Two friction points motivated this release:
+1. **Admin sidebar redesign (#41 / mod1181).** The flat 23-item sidebar is replaced with a grouped, icon-aware, collapsible tree. Collapsing the sidebar now leaves a 56px icon rail visible instead of hiding the nav entirely. Settings moves from a single page into a sub-sidebared shell hosting General / Shipping / Payments / Email providers / Emails / Languages. Todos, Notifications, and Search terms are folded into the Dashboard as collapsible sections; their standalone pages and routes are removed.
 
-1. **Fresh v2.12–v2.14 scaffolds 404'd on `/admin/emails`.** v2.11 shipped `AdminEmailsPage` and added an "Emails" item to `DEFAULT_ADMIN_NAV`, but [scaffold/create.mjs](scaffold/create.mjs) was never updated to generate the matching `src/app/admin/emails/page.tsx`. Same class of bug as v2.4's `AdminSearchTermsPage` miss.
+2. **Self-healing error logging (mod1182).** Every runtime error on an installation — client React errors, service-layer catches, Cloud Functions exceptions — is captured to a new `errorLogs` Firestore collection and surfaced on `/admin/about` with a one-click "Report upstream" button that opens a pre-filled GitHub issue against this repo. Messages are redacted (emails, bearer tokens, Firebase API keys, query-string values) before write; 24h dedup bumps a `seenCount` instead of duplicating.
 
-2. **`functions-admin` broke its own zero-secrets invariant.** v2.11 added email senders + the contact-email trigger to `functions-admin/` with `defineSecret('SENDGRID_API_KEY')` declarations. Firebase CLI rejected `firebase deploy --only functions:caspian-admin` unless that secret existed — even for consumers not using email. This reopened the admin-bootstrap chicken-and-egg that the v1.16.0 Stripe codebase split was meant to close. Consumers had to `echo PLACEHOLDER | firebase functions:secrets:set SENDGRID_API_KEY --data-file=-` just to deploy `onUserCreate`.
+3. **Email provider plugin catalog.** Email sending becomes a first-class plugin catalog (mirroring shipping + payments), adds **Brevo** alongside **SendGrid**, and splits the email Cloud Functions into a new `caspian-email` codebase with zero `defineSecret` declarations — provider API keys live in Firestore (`emailPluginInstalls`, admin-only read) and are configured through `/admin/settings/email-providers`. Closes the admin-bootstrap chicken-and-egg the v1.16 Stripe split was meant to close.
 
-### Added
+All three are bundled because (2) and (3) were already in the working tree when (1) landed and an intermediate tag followed by a breaking v3 a day later would have been noisier than one combined release. The CHANGELOG below is split by feature; skim the section(s) that apply to you.
+
+### Breaking changes (mod1181 — admin sidebar)
+
+Eight admin routes are **removed entirely**. Existing bookmarks to these paths 404:
+
+| Removed route | Replacement |
+|---|---|
+| `/admin/shipping-plugins` | `/admin/settings/shipping` |
+| `/admin/payment-plugins` | `/admin/settings/payments` |
+| `/admin/email-plugins` | `/admin/settings/email-providers` |
+| `/admin/emails` | `/admin/settings/emails` |
+| `/admin/languages` | `/admin/settings/languages` |
+| `/admin/todos` | `/admin` (Todo section on Dashboard) |
+| `/admin/notifications` | `/admin#notifications` (Notifications section on Dashboard) |
+| `/admin/search-terms` | `/admin#search-terms` (Search terms section on Dashboard) |
+
+Public exports removed: `AdminTodoPage`, `AdminNotificationsPage`, `AdminSearchTermsPage` and their `*Props` types. The underlying data services (todo, notifications, search-terms) are unchanged and still exported — only the page-shell components are gone.
+
+### Added — admin sidebar (mod1181)
+
+- **Grouped navigation** in [src/admin/admin-shell.tsx](src/admin/admin-shell.tsx). New `AdminNavGroup` type with per-group chevron, left-indented children, and a subtle vertical rule connecting them. Four default groups — Catalog (Products + Categories + Collections + Promo codes), People (Users + Subscribers), Sales (Orders + Reviews), Content (Pages + FAQs + Journal). Group expand/collapse state persists in `localStorage` under `caspian:admin:nav:groups`; the group containing the active route auto-expands on hard refresh.
+- **Flat icon rail** when the sidebar is collapsed. Every leaf renders as an icon-only link with a native `title` tooltip; groups are separated by thin horizontal dividers. Width toggles between 240px (open) and 56px (collapsed). Replaces the pre-v3 "collapse = hide sidebar entirely" behavior.
+- **`<AdminSettingsShell>`** ([src/admin/admin-settings-shell.tsx](src/admin/admin-settings-shell.tsx)) — URL-driven sub-sidebar modeled on `<AdminAppearancePage>`. Mounts at `/admin/settings/[[...slug]]` and switches the right-hand panel by slug. `/admin/settings` with no slug redirects to `/admin/settings/general`. Sub-pages: General, Shipping, Payments, Email providers, Emails, Languages.
+- **Dashboard sections** ([src/admin/dashboard-sections/](src/admin/dashboard-sections/)) — `<DashboardTodoSection>`, `<DashboardNotificationsSection>`, `<DashboardSearchTermsSection>` + shared `<DashboardSection>` wrapper. Each is collapsible with per-section `localStorage` persistence. Notifications auto-open when unread > 0; Todos auto-open when pending > 0; Search terms default to closed. The bell's "View all" link now opens `/admin#notifications` and auto-expands that section.
+- **24 new stroke-SVG admin icons** in [src/ui/icons.tsx](src/ui/icons.tsx) — DashboardIcon, PackageIcon, TagIcon, FolderIcon, LayersIcon, TicketIcon, UsersIcon, MailIcon, ShoppingCartIcon, ReceiptIcon, StarIcon, FileTextIcon, FileIcon, BookOpenIcon, PaletteIcon, SettingsIcon, TruckIcon, CreditCardIcon, AtSignIcon, InboxIcon, GlobeIcon, SlidersIcon, InfoIcon, ChevronRightIcon. Hand-rolled (no icon-library dep) following the existing `svgDefaults` helper.
+- **Default link styling** in [src/styles/globals.css](src/styles/globals.css) — `.caspian-root a` gets `color: var(--caspian-primary)`, no underline, a subtle `underline-on-hover` with 3px offset, and a `:focus-visible` outline. Scoped to `.caspian-root` so the admin shell's inline styles are unaffected.
+- **i18n keys** — `admin.nav.groups.{catalog,people,sales,content}`, `admin.dashboard.{todos,notifications,searchTerms}.*`, `admin.settings.*` in [src/i18n/messages.ts](src/i18n/messages.ts).
+- **New public exports:** `AdminSettingsShell`, `SETTINGS_SUB_NAV`, `AdminNavLeaf`, `AdminNavGroup`, `AdminSettingsShellProps`.
+
+### Added — self-healing error logging (mod1182)
+
+- **Client capture:** new `<ErrorBoundary>` mounted outermost in the provider tree, plus `window.onerror` / `unhandledrejection` handlers. Exported as a top-level component.
+- **Service-layer capture:** `reportServiceError(db, scope, error)` in [src/services/error-log-service.ts](src/services/error-log-service.ts), wired into high-traffic catches in auth-context, cart-context, admin-dashboard, admin-contacts-list, admin-emails-page. Remaining `[caspian-store] console.error` sites left for a follow-up sweep.
+- **Cloud Functions capture:** `reportFunctionError()` in each of the three codebases (`caspian-admin`, `caspian-stripe`, `caspian-email`) writing via the Admin SDK. Wired into email-sender, stripe-webhook, stripe-session, and retention-cleanup error paths.
+- **Firestore schema:** new `errorLogs/{autoId}` collection ([src/firebase/collections.ts](src/firebase/collections.ts)). Rules gate create with required scalar fields + capped lengths + `source` enum + `seenCount == 1`; admin-only read/update/delete. Composite index `(origin, message, timestamp desc)` for the 24h dedup lookup. 7 new rules-behavior tests in [firebase/rules.test.mjs](firebase/rules.test.mjs).
+- **Redaction** ([src/utils/redact-error.ts](src/utils/redact-error.ts)) — strips emails, bearer tokens, Firebase AIza keys, query-string values; caps `message` ≤ 2000 and `stack` ≤ 4000 chars before write. Reused by `buildUpstreamIssueUrl()`, which also clamps the final URL ≤ 6000 chars to stay under GitHub's practical limit.
+- **Admin triage surface** at `/admin/about` — lists recent errors with origin, source, message, stack, `seenCount`, and two one-click actions: "Dismiss" (admin-only delete) and "Report upstream" (opens pre-filled GitHub issue).
+- **Retention:** optional `retainErrorLogsDays` field on `SiteSettings.privacy`; the existing daily `runRetentionCleanup` schedule trims expired docs. Admin Settings → General surfaces the field in the existing privacy block.
+- **New public exports:** `ErrorBoundary`, `logError`, `listRecentErrors`, `dismissError`, `reportServiceError`, `buildUpstreamIssueUrl`, `redactError`, `redactString`, `ErrorLog`, `ErrorLogSource`.
+
+### Added — email provider plugin catalog
 
 - **Email plugin catalog** at [src/email/](src/email/) — `EMAIL_PLUGIN_CATALOG`, `EMAIL_PLUGIN_IDS`, `getEmailPlugin`, plus `SENDGRID_PLUGIN` and `BREVO_PLUGIN`. Each plugin is a metadata record (`{ id, name, description, defaultConfig, validateConfig }`) that the admin UI browses and the runtime resolves against a per-store install. New providers land by PR into the catalog.
-- **`<AdminEmailPluginsPage>`** ([src/admin/admin-email-plugins-page.tsx](src/admin/admin-email-plugins-page.tsx)) — mounted at `/admin/email-plugins`. Browse-and-install UI mirroring `<AdminPaymentPluginsPage>`. One configuration field per install (API key) + display label + order. New installs start disabled — the admin explicitly enables after validating.
+- **`<AdminEmailPluginsPage>`** ([src/admin/admin-email-plugins-page.tsx](src/admin/admin-email-plugins-page.tsx)) — browse-and-install UI mirroring `<AdminPaymentPluginsPage>`. One configuration field per install (API key) + display label + order. New installs start disabled — the admin explicitly enables after validating. In v3.0.0 this renders inside `<AdminSettingsShell>` at `/admin/settings/email-providers`.
 - **`EmailPluginInstall` Firestore type** + `emailPluginInstalls` collection ([src/types.ts](src/types.ts), [src/firebase/collections.ts](src/firebase/collections.ts)). Admin-only read AND write in [firebase/firestore.rules](firebase/firestore.rules) — the API key lives in `config`, unlike shipping/payment installs which are publicly readable. Cloud Functions read via the Admin SDK, which bypasses rules.
-- **Email-plugin service** ([src/services/email-plugin-service.ts](src/services/email-plugin-service.ts)) — `listEmailPluginInstalls`, `createEmailPluginInstall`, `updateEmailPluginInstall`, `deleteEmailPluginInstall` + `EmailPluginInstallWriteInput`. Signature matches the shipping + payment plugin services.
+- **Email-plugin service** ([src/services/email-plugin-service.ts](src/services/email-plugin-service.ts)) — `listEmailPluginInstalls`, `createEmailPluginInstall`, `updateEmailPluginInstall`, `deleteEmailPluginInstall` + `EmailPluginInstallWriteInput`.
 - **New `caspian-email` Cloud Functions codebase** at [firebase/functions-email/](firebase/functions-email/) — `runEmailOnOrderCreate`, `runEmailOnOrderUpdate`, `runEmailOnContactCreate`, `sendTestEmail`. **No `defineSecret` calls** — the dispatcher in `email-sender.ts` loads the first enabled `emailPluginInstalls` doc from Firestore at runtime, resolves SendGrid or Brevo, and delegates. `firebase deploy --only functions:caspian-email` runs with zero secrets configured; it's just dormant until an admin installs a provider.
 - **Brevo SDK integration** — `@getbrevo/brevo` dependency in `functions-email`; `sendViaBrevo()` in [firebase/functions-email/src/email-sender.ts](firebase/functions-email/src/email-sender.ts) maps the internal `SendableMessage` to Brevo's `SendSmtpEmail` shape.
-- **Scaffolder `--with-email` flag** in [scaffold/create.mjs](scaffold/create.mjs) — mirrors `--with-stripe`. When passed, copies `functions-email/` + adds the `caspian-email` codebase entry to `firebase.json`. The `/admin/email-plugins` and `/admin/emails` route files are generated regardless of the flag.
-- **Scaffolder-vs-nav CI smoke** — [scripts/check-scaffold-routes.mjs](scripts/check-scaffold-routes.mjs) + [.github/workflows/scaffold-routes-smoke.yml](.github/workflows/scaffold-routes-smoke.yml). Regex-diffs `DEFAULT_ADMIN_NAV` hrefs against the scaffolder's `adminRoutes` array on every PR touching either file. Blocks the v2.4 / v2.11 / v2.12 class of regression where a nav entry ships without a matching scaffolder route.
-- **i18n keys** — `admin.emailPlugins.*` in [src/i18n/messages.ts](src/i18n/messages.ts) covering title, browse dialog, columns, actions, config fields, toasts, errors.
-- **Admin nav entry** — `{ href: '/admin/email-plugins', label: 'Email providers' }` in `DEFAULT_ADMIN_NAV` ([src/admin/admin-shell.tsx](src/admin/admin-shell.tsx)), between Payments and Emails. The existing "Emails" entry (template + sender-settings editor) stays put.
+- **Scaffolder `--with-email` flag** in [scaffold/create.mjs](scaffold/create.mjs) — mirrors `--with-stripe`. When passed, copies `functions-email/` + adds the `caspian-email` codebase entry to `firebase.json`.
+- **Scaffolder-vs-nav CI smoke** — [scripts/check-scaffold-routes.mjs](scripts/check-scaffold-routes.mjs) + [.github/workflows/scaffold-routes-smoke.yml](.github/workflows/scaffold-routes-smoke.yml). Regex-diffs `DEFAULT_ADMIN_NAV` hrefs against the scaffolder's `adminRoutes` array on every PR touching either file. Blocks the v2.4 / v2.11 / v2.12 class of regression where a nav entry shipped without a matching scaffolder route.
+- **i18n keys** — `admin.emailPlugins.*` in [src/i18n/messages.ts](src/i18n/messages.ts).
 
 ### Changed
 
-- **`functions-admin` returns to zero-secrets** ([firebase/functions-admin/](firebase/functions-admin/)). Drops `@sendgrid/mail` dep, drops the three email triggers + `sendTestEmail` re-export, drops the renderer + sender. Remaining surface: `onUserCreate`, `claimAdmin`, `runRetentionCleanup`. Description updated.
+- **`<AdminNotificationsBell>`** ([src/admin/admin-notifications-bell.tsx](src/admin/admin-notifications-bell.tsx)) — default `viewAllHref` changes from `/admin/notifications` to `/admin#notifications` since the standalone notifications page is gone.
+- **`<AdminDashboard>`** now renders three new collapsible sections below the stat-card grid.
+- **Scaffolder** ([scaffold/create.mjs](scaffold/create.mjs)) — removes eight old admin routes from `adminRoutes` and replaces the single `settings` entry with a `[[...slug]]` catch-all that mounts `<AdminSettingsShell>`. Updates consumer README to document the new route layout.
+- **`functions-admin` returns to zero-secrets** ([firebase/functions-admin/](firebase/functions-admin/)). Drops `@sendgrid/mail`, drops the three email triggers + `sendTestEmail` re-export, drops the renderer + sender. Remaining surface: `onUserCreate`, `claimAdmin`, `runRetentionCleanup`.
 - **`firebase.json`** gains the `caspian-email` codebase entry (between `caspian-admin` and `caspian-stripe`).
-- **Scaffolder `adminRoutes`** — `['emails', 'AdminEmailsPage']` and `['email-plugins', 'AdminEmailPluginsPage']` added.
-- **Generated consumer README** — the Cloud Functions step in the first-run checklist gets an Email subsection describing `--with-email`, `deploy:email`, and the admin-UI configuration flow.
 - **Consumer `package.json` scripts** — scaffolds gain `deploy:email` alongside `deploy:admin` and `deploy:stripe`.
+
+### Removed
+
+- `AdminTodoPage`, `AdminNotificationsPage`, `AdminSearchTermsPage` and their `*Props` type exports.
+- Scaffolder route templates for `/admin/todos`, `/admin/notifications`, `/admin/search-terms`, `/admin/shipping-plugins`, `/admin/payment-plugins`, `/admin/email-plugins`, `/admin/emails`, `/admin/languages`.
 
 ### Consumer action required on upgrade
 
-Existing v2.11–v2.14 consumers who already set `SENDGRID_API_KEY` and want email to keep working need to migrate the three files into the new codebase, deploy it, and reconfigure the provider through the admin UI:
+Upgrade is a four-part operation:
+
+**(1) Bump the dep + rebuild**
 
 ```bash
-# 1. Pull the new functions-email/ tree out of the installed library into your repo root.
+npm install github:Caspian-Explorer/script-caspian-store#v3.0.0
+rm -rf .next
+```
+
+**(2) Regenerate the `src/app/admin/` tree for the new sidebar layout.** The simplest path is to delete your admin/ directory and re-run the scaffolder in a scratch dir to copy over the v3 route files. The surgical path:
+
+```bash
+# Remove the eight dead route files + their now-empty dirs:
+for d in todos notifications search-terms shipping-plugins payment-plugins email-plugins emails languages; do
+  rm -rf "src/app/admin/$d"
+done
+
+# Replace the single /admin/settings route with the catch-all shell:
+rm -f src/app/admin/settings/page.tsx
+mkdir -p 'src/app/admin/settings/[[...slug]]'
+cat > 'src/app/admin/settings/[[...slug]]/page.tsx' <<'EOF'
+'use client';
+import { AdminSettingsShell } from '@caspian-explorer/script-caspian-store';
+export default function Page() { return <AdminSettingsShell />; }
+EOF
+```
+
+If you linked to any of the removed `/admin/*` URLs from your own code (custom header items, outbound emails, help docs), update them to the `/admin/settings/*` or `/admin#anchor` equivalents from the table above.
+
+**(3) Pull + deploy the updated Firestore rules and indexes** (picks up `errorLogs` + admin-only `emailPluginInstalls` + new composite indexes):
+
+```bash
+cp node_modules/@caspian-explorer/script-caspian-store/firebase/firestore.rules .
+cp node_modules/@caspian-explorer/script-caspian-store/firebase/firestore.indexes.json .
+firebase deploy --only firestore:rules,firestore:indexes
+```
+
+**(4) Handle the email codebase split.** If you currently use SendGrid via the pre-v3 `functions-admin` path:
+
+```bash
+# 4a. Pull the new functions-email/ tree out of the installed library.
 cp -r node_modules/@caspian-explorer/script-caspian-store/firebase/functions-email .
 printf 'node_modules\nlib/\n' > functions-email/.gitignore
 
-# 2. Register the new codebase in firebase.json — add between caspian-admin and caspian-stripe:
-#    {
-#      "source": "functions-email",
-#      "codebase": "caspian-email",
+# 4b. Register the new codebase in firebase.json — add between caspian-admin and caspian-stripe:
+#    { "source": "functions-email", "codebase": "caspian-email",
 #      "runtime": "nodejs22",
-#      "predeploy": ["npm --prefix \"$RESOURCE_DIR\" run build"]
-#    }
+#      "predeploy": ["npm --prefix \"$RESOURCE_DIR\" run build"] }
 
-# 3. Pull the updated firestore.rules (admin-only emailPluginInstalls), rebuild
-#    functions-admin (email deps are gone), install + deploy both codebases:
-cp node_modules/@caspian-explorer/script-caspian-store/firebase/firestore.rules .
-firebase deploy --only firestore:rules
+# 4c. Rebuild functions-admin (email deps are gone), install + deploy both codebases:
 cd functions-admin && npm install && cd ..
 cd functions-email && npm install && cd ..
 firebase deploy --only functions:caspian-admin,functions:caspian-email
 
-# 4. Open /admin/email-plugins in your deployed app, install SendGrid or Brevo,
-#    paste the API key, save, click Enable. Order + contact emails resume on the
-#    next trigger.
+# 4d. Open /admin/settings/email-providers, install SendGrid or Brevo, paste the API key,
+#     save, click Enable. Order + contact emails resume on the next trigger.
 
-# 5. (Optional cleanup) the old SENDGRID_API_KEY Functions secret is no longer
-#    read by anything; delete it if you don't plan to re-use it:
+# 4e. (Optional) delete the old secret if nothing else reads it:
 firebase functions:secrets:destroy SENDGRID_API_KEY
 ```
 
-Consumers who **don't** use email at all: just run step 3 — the codebase split alone restores `functions:caspian-admin` to zero-secrets deploys.
+If you don't use email at all: skip step 4 — step 3 alone restores `functions:caspian-admin` to zero-secrets deploys.
 
-If you scaffolded after v2.11.0 and noticed `/admin/emails` 404'd, also create the route file `src/app/admin/emails/page.tsx` (and if you want the new `/admin/email-plugins` page, `src/app/admin/email-plugins/page.tsx`) with the one-liner export pattern the scaffolder uses. Fresh scaffolds from v2.15.0 onward generate both automatically.
+The error-logging feature (mod1182) activates automatically once the Firestore rules and indexes from step 3 are deployed. Visit `/admin/about` to see captured errors; set `SiteSettings.privacy.retainErrorLogsDays` from Admin → Settings → General if you want automatic pruning.
 
 ## v2.14.1 — Security: npm audit remediation for Cloud Functions
 

@@ -22,7 +22,7 @@ Flags:
 
 - `--package-tag vX.Y.Z` — pin the generated project to a specific release (default: latest)
 - `--with-stripe` — also scaffold the Stripe Cloud Functions tree into `functions-stripe/` (and add the matching `caspian-stripe` codebase to `firebase.json`). The admin codebase (`functions-admin/`, auto-promote trigger) is always scaffolded — it has no secrets and is deployable immediately.
-- `--with-email` (v2.15.0+) — also scaffold the transactional-email Cloud Functions tree into `functions-email/` (adds the `caspian-email` codebase to `firebase.json`). Ships the order + contact-form triggers and the `sendTestEmail` callable. No secrets required at deploy time — the provider API key (SendGrid or Brevo) is stored in Firestore under `emailPluginInstalls` and configured via `/admin/email-plugins` after deploy.
+- `--with-email` (v3.0.0+) — also scaffold the transactional-email Cloud Functions tree into `functions-email/` (adds the `caspian-email` codebase to `firebase.json`). Ships the order + contact-form triggers and the `sendTestEmail` callable. No secrets required at deploy time — the provider API key (SendGrid or Brevo) is stored in Firestore under `emailPluginInstalls` and configured via `/admin/settings/email-providers` after deploy.
 - `--with-functions` — deprecated alias for `--with-stripe`, kept for back-compat
 - `--no-apphosting` — suppress `apphosting.yaml` in the output. Useful for Vercel-only deployments where the file would otherwise sit unused. (v1.20.0+)
 - `--force` — scaffold into a non-empty directory (`.git`, `.gitignore`, `README.md`, `LICENSE` are preserved automatically)
@@ -257,7 +257,7 @@ If you already have a `firestore.rules`, merge the `match /<collection>/{id} { .
 v1.16.0+ ships **three codebases** so you can deploy admin triggers without having any provider configured:
 
 - `caspian-admin` — `onUserCreate` (auto-promote first user to admin), `claimAdmin`, scheduled retention cleanup. **No secrets**, no provider deps. Always deployable.
-- `caspian-email` (v2.15.0+) — transactional email triggers (`runEmailOnOrderCreate`, `runEmailOnOrderUpdate`, `runEmailOnContactCreate`) + `sendTestEmail` callable. **No secrets at deploy time**; the provider (SendGrid or Brevo) API key lives in Firestore under `emailPluginInstalls` and is configured via the `/admin/email-plugins` admin page.
+- `caspian-email` (v3.0.0+) — transactional email triggers (`runEmailOnOrderCreate`, `runEmailOnOrderUpdate`, `runEmailOnContactCreate`) + `sendTestEmail` callable. **No secrets at deploy time**; the provider (SendGrid or Brevo) API key lives in Firestore under `emailPluginInstalls` and is configured via the `/admin/settings/email-providers` admin page.
 - `caspian-stripe` — `createStripeCheckoutSession`, `stripeWebhook`, `getStripeSession`. Requires `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` as Functions secrets.
 
 Copy the codebases you need from `node_modules` into your project root, merge the `functions` entries into your `firebase.json`, then deploy them separately:
@@ -284,14 +284,14 @@ The `deploy:admin` helper (shipped with the scaffolded `package.json` in v1.19.0
 
 Raw `firebase deploy --only functions:caspian-admin` still works if you prefer it (or if you're not using the scaffolded `package.json`).
 
-**Email codebase (v2.15.0+ — only when you want transactional email):**
+**Email codebase (v3.0.0+ — only when you want transactional email):**
 
 ```bash
 cd functions-email && npm install && cd ..
-npm run deploy:email    # v2.15.0+ helper
+npm run deploy:email    # v3.0.0+ helper
 ```
 
-No `functions:secrets:set` step. Configure the provider after deploy at `/admin/email-plugins`: browse the catalog (SendGrid, Brevo), install one, paste the API key, save, click **Enable**. The key is stored in `emailPluginInstalls/{id}` (admin-only read+write in `firestore.rules`), and the Cloud Function dispatcher reads it via the Admin SDK at send time. If no provider is installed, order + contact triggers log a warning and return without sending — harmless for stores that don't use email.
+No `functions:secrets:set` step. Configure the provider after deploy at `/admin/settings/email-providers`: browse the catalog (SendGrid, Brevo), install one, paste the API key, save, click **Enable**. The key is stored in `emailPluginInstalls/{id}` (admin-only read+write in `firestore.rules`), and the Cloud Function dispatcher reads it via the Admin SDK at send time. If no provider is installed, order + contact triggers log a warning and return without sending — harmless for stores that don't use email.
 
 **Stripe codebase (only when you have Stripe keys):**
 
@@ -310,7 +310,7 @@ https://<region>-<project-id>.cloudfunctions.net/stripeWebhook
 
 Subscribe to `checkout.session.completed`. Paste the resulting `whsec_…` into the `STRIPE_WEBHOOK_SECRET` secret and redeploy.
 
-**Install Stripe in the admin UI.** Once the Cloud Functions are deployed, sign in as admin and go to `/admin/payment-plugins`. Click **Browse providers** → **Install** on the Stripe card, paste your publishable key (`pk_live_…` or `pk_test_…`), save, then click **Enable**. The publishable key is stored in Firestore under `paymentPluginInstalls`; only the secret/webhook keys live in Cloud Functions secrets. `useCheckout` picks up enabled plugin installs automatically — no redeploy needed after flipping a provider on or off.
+**Install Stripe in the admin UI.** Once the Cloud Functions are deployed, sign in as admin and go to `/admin/settings/payments`. Click **Browse providers** → **Install** on the Stripe card, paste your publishable key (`pk_live_…` or `pk_test_…`), save, then click **Enable**. The publishable key is stored in Firestore under `paymentPluginInstalls`; only the secret/webhook keys live in Cloud Functions secrets. `useCheckout` picks up enabled plugin installs automatically — no redeploy needed after flipping a provider on or off.
 
 ---
 

@@ -13,7 +13,7 @@
  *                                    #   + webhook) — admin codebase is always scaffolded
  *     [--with-email]                # also copy firebase/functions-email/ (transactional
  *                                    #   email via SendGrid/Brevo plugins — configure at
- *                                    #   /admin/email-plugins after deploy)
+ *                                    #   /admin/settings/email-providers after deploy)
  *     [--with-functions]            # deprecated alias for --with-stripe (back-compat)
  *     [--no-apphosting]             # suppress apphosting.yaml in the output (default: emit).
  *                                    #   Useful for Vercel deployments where the file would
@@ -1069,7 +1069,7 @@ npm run dev                  # http://localhost:3000
    npm run deploy:stripe
    \`\`\`
 
-   Then go to \`/admin/payment-plugins\`, click **Browse providers → Install** on the Stripe card, paste your publishable (\`pk_...\`) key, save, and click **Enable**. The publishable key lives in Firestore under \`paymentPluginInstalls\`; only server-side secrets live in Cloud Functions secrets.
+   Then go to \`/admin/settings/payments\`, click **Browse providers → Install** on the Stripe card, paste your publishable (\`pk_...\`) key, save, and click **Enable**. The publishable key lives in Firestore under \`paymentPluginInstalls\`; only server-side secrets live in Cloud Functions secrets.
 
    If you also scaffolded with \`--with-email\`, deploy the email codebase. **No secrets to set** — the provider (SendGrid or Brevo) API key is stored in Firestore under \`emailPluginInstalls\` (admin-only read) and loaded by the dispatcher at runtime:
    \`\`\`bash
@@ -1077,7 +1077,7 @@ npm run dev                  # http://localhost:3000
    npm run deploy:email
    \`\`\`
 
-   Then go to \`/admin/email-plugins\`, click **Browse providers → Install** on SendGrid or Brevo, paste the API key, save, and click **Enable**. Order-lifecycle and contact-form emails will start firing the next time a shopper triggers one. Configure sender identity + templates at \`/admin/emails\`.
+   Then go to \`/admin/settings/email-providers\`, click **Browse providers → Install** on SendGrid or Brevo, paste the API key, save, and click **Enable**. Order-lifecycle and contact-form emails will start firing the next time a shopper triggers one. Configure sender identity + templates at \`/admin/settings/emails\`.
 5. **Seed Firestore:**
    \`\`\`bash
    # After downloading a service-account JSON:
@@ -1125,17 +1125,20 @@ npm run dev                  # http://localhost:3000
 - \`/faqs\`, \`/shipping-returns\`, \`/size-guide\`
 
 ### Admin (requires \`users/{uid}.role === 'admin'\`)
-- \`/admin\` — dashboard
-- \`/admin/todos\` — setup + operational checklist (seed defaults on first visit)
-- \`/admin/products\`, \`/admin/orders\`, \`/admin/reviews\`
-- \`/admin/journal\`, \`/admin/pages\`, \`/admin/faqs\`
-- \`/admin/shipping-plugins\` — install / configure shipping providers
-- \`/admin/payment-plugins\` — install / configure payment providers (Stripe, …)
-- \`/admin/promo-codes\`, \`/admin/subscribers\`, \`/admin/users\`
-- \`/admin/categories\`, \`/admin/collections\`, \`/admin/languages\`
-- \`/admin/settings\` — brand / logo / favicon / social
+- \`/admin\` — dashboard (includes collapsible Todo / Notifications / Search-terms sections)
+- \`/admin/products\`, \`/admin/categories\`, \`/admin/collections\`, \`/admin/promo-codes\`
+- \`/admin/users\`, \`/admin/subscribers\`
+- \`/admin/orders\`, \`/admin/reviews\`
+- \`/admin/pages\`, \`/admin/faqs\`, \`/admin/journal\`
 - \`/admin/appearance\` — theme catalog grid (preview + activate)
 - \`/admin/appearance/preview\` — dummy-data preview window
+- \`/admin/settings/general\` — brand / logo / favicon / social / privacy
+- \`/admin/settings/shipping\` — install / configure shipping providers
+- \`/admin/settings/payments\` — install / configure payment providers (Stripe, …)
+- \`/admin/settings/email-providers\` — install / configure email providers (SendGrid, Brevo)
+- \`/admin/settings/emails\` — edit transactional email templates
+- \`/admin/settings/languages\` — enable / disable locales
+- \`/admin/about\` — library info + error-log triage surface
 
 ## Customizing
 

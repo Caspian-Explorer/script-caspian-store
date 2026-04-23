@@ -146,7 +146,7 @@ export const DEFAULT_ADMIN_TODOS: Array<{ id: string; title: string; description
     id: 'activate-languages',
     title: 'Activate the languages you want to ship',
     description:
-      'Open /admin/languages and toggle `isActive` on the locales you plan to support. Only English is active by default.',
+      'Open /admin/settings/languages and toggle `isActive` on the locales you plan to support. Only English is active by default.',
   },
   {
     id: 'seed-categories',
@@ -164,7 +164,7 @@ export const DEFAULT_ADMIN_TODOS: Array<{ id: string; title: string; description
     id: 'verify-shipping-plugins',
     title: 'Verify shipping plugins',
     description:
-      'Open /admin/shipping-plugins and confirm the seeded flat-rate + free-over-threshold installs match your pricing. The checkout rate picker reads `shippingPluginInstalls` live.',
+      'Open /admin/settings/shipping and confirm the seeded flat-rate + free-over-threshold installs match your pricing. The checkout rate picker reads `shippingPluginInstalls` live.',
   },
   {
     id: 'edit-homepage-hero',

@@ -6,7 +6,7 @@ import { useCaspianFirebase, useCaspianLink } from '../provider/caspian-store-pr
 import { listenAdminTodos } from '../services/admin-todo-service';
 
 export interface AdminOnboardingProgressProps {
-  /** Where clicking the ring navigates. Default `/admin/todos`. */
+  /** Where clicking the ring navigates. Default `/admin#todos` (v3.0.0+). */
   href?: string;
   /** Ring diameter in pixels. Default 32. */
   size?: number;
@@ -21,7 +21,7 @@ export interface AdminOnboardingProgressProps {
  * noise on established stores.
  */
 export function AdminOnboardingProgress({
-  href = '/admin/todos',
+  href = '/admin#todos',
   size = 32,
   hideWhenDone = true,
 }: AdminOnboardingProgressProps) {
