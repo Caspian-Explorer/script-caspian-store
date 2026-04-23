@@ -13,6 +13,7 @@ import type { Firestore } from 'firebase/firestore';
 import type { CartItem, CartItemRef, Product } from '../types';
 import { getProductsByIds } from '../services/product-service';
 import { loadUserCart, saveUserCart } from '../services/cart-service';
+import { reportServiceError } from '../services/error-log-service';
 import { useAuth } from './auth-context';
 
 interface CartContextValue {
@@ -99,7 +100,7 @@ export function CartProvider({ db, children }: { db: Firestore; children: ReactN
           return next;
         });
       } catch (error) {
-        console.error('[caspian-store] Failed to hydrate cart:', error);
+        reportServiceError(db, 'cart-context.hydrate', error);
       }
     })();
     return () => {
@@ -114,7 +115,7 @@ export function CartProvider({ db, children }: { db: Firestore; children: ReactN
         try {
           await saveUserCart(db, user.uid, next);
         } catch (error) {
-          console.error('[caspian-store] Failed to save cart:', error);
+          reportServiceError(db, 'cart-context.saveCart', error);
         }
       } else {
         writeLocal(next);

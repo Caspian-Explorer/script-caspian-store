@@ -100,6 +100,15 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Email plugin installs — admin-only read AND write. The plugin config
+    // stores the provider API key (SendGrid / Brevo). Cloud Functions read
+    // via the Admin SDK, which bypasses rules. Shoppers never need to see
+    // this collection, unlike shipping/payment installs. Added in v2.14.
+    match /emailPluginInstalls/{id} {
+      allow read: if isAdmin();
+      allow write: if isAdmin();
+    }
+
     match /faqs/{id} {
       allow read: if true;
       allow write: if isAdmin();
@@ -191,6 +200,30 @@ service cloud.firestore {
     match /emailTemplates/{id} {
       allow read: if isAdmin();
       allow write: if isAdmin();
+    }
+
+    // Error logs (mod1182). Writes are public because crashes happen in
+    // unauthenticated shopper sessions too — gate abuse with a strict shape
+    // check (required scalar fields, capped string lengths, fixed source
+    // enum, forbidden admin fields). Reads, updates, and deletes are
+    // admin-only: the panel at /admin/about lists them, the admin dismisses
+    // them, and the scheduled retention sweep trims them. Cloud Functions
+    // write via the Admin SDK which bypasses rules entirely.
+    match /errorLogs/{id} {
+      allow create: if request.resource.data.source in ['client', 'service', 'cloud-function']
+                    && request.resource.data.origin is string
+                    && request.resource.data.origin.size() > 0
+                    && request.resource.data.origin.size() <= 200
+                    && request.resource.data.message is string
+                    && request.resource.data.message.size() > 0
+                    && request.resource.data.message.size() <= 2000
+                    && (!('stack' in request.resource.data)
+                        || (request.resource.data.stack is string
+                            && request.resource.data.stack.size() <= 4000))
+                    && request.resource.data.libraryVersion is string
+                    && request.resource.data.libraryVersion.size() <= 40
+                    && request.resource.data.seenCount == 1;
+      allow read, update, delete: if isAdmin();
     }
   }
 }

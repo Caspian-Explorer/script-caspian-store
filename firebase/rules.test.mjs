@@ -410,6 +410,91 @@ test('contacts/{id}: admin update status allowed', async () => {
   );
 });
 
+// ---- errorLogs/{id} ---------------------------------------------------
+// Self-healing error logs (mod1182). Open create with a strict shape gate
+// (crashes happen in unauth shopper sessions too); admin-only everything else.
+
+const VALID_ERROR_DOC = {
+  source: 'client',
+  origin: 'ErrorBoundary',
+  message: 'TypeError: foo is undefined',
+  libraryVersion: '2.16.0',
+  seenCount: 1,
+  timestamp: serverTimestamp(),
+  lastSeenAt: serverTimestamp(),
+};
+
+test('errorLogs/{id}: unauthenticated create allowed with valid shape', async () => {
+  await env.clearFirestore();
+  const db = unauthed();
+  await assertSucceeds(addDoc(collection(db, 'errorLogs'), { ...VALID_ERROR_DOC }));
+});
+
+test('errorLogs/{id}: create rejected when source is unknown', async () => {
+  await env.clearFirestore();
+  const db = unauthed();
+  await assertFails(
+    addDoc(collection(db, 'errorLogs'), { ...VALID_ERROR_DOC, source: 'bogus' }),
+  );
+});
+
+test('errorLogs/{id}: create rejected when stack oversize', async () => {
+  await env.clearFirestore();
+  const db = unauthed();
+  await assertFails(
+    addDoc(collection(db, 'errorLogs'), {
+      ...VALID_ERROR_DOC,
+      stack: 'x'.repeat(4001),
+    }),
+  );
+});
+
+test('errorLogs/{id}: create rejected when seenCount != 1', async () => {
+  await env.clearFirestore();
+  const db = unauthed();
+  await assertFails(
+    addDoc(collection(db, 'errorLogs'), { ...VALID_ERROR_DOC, seenCount: 5 }),
+  );
+});
+
+test('errorLogs/{id}: non-admin read denied', async () => {
+  await env.clearFirestore();
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), 'errorLogs', 'e1'), { ...VALID_ERROR_DOC });
+  });
+  await assertFails(getDoc(doc(authed('alice'), 'errorLogs', 'e1')));
+});
+
+test('errorLogs/{id}: admin read allowed', async () => {
+  await env.clearFirestore();
+  await seedAdmin('admin1');
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), 'errorLogs', 'e1'), { ...VALID_ERROR_DOC });
+  });
+  await assertSucceeds(getDoc(doc(authed('admin1'), 'errorLogs', 'e1')));
+});
+
+test('errorLogs/{id}: non-admin cannot bump seenCount', async () => {
+  await env.clearFirestore();
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), 'errorLogs', 'e1'), { ...VALID_ERROR_DOC });
+  });
+  await assertFails(
+    updateDoc(doc(authed('alice'), 'errorLogs', 'e1'), { seenCount: 2 }),
+  );
+});
+
+test('errorLogs/{id}: admin can bump seenCount', async () => {
+  await env.clearFirestore();
+  await seedAdmin('admin1');
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), 'errorLogs', 'e1'), { ...VALID_ERROR_DOC });
+  });
+  await assertSucceeds(
+    updateDoc(doc(authed('admin1'), 'errorLogs', 'e1'), { seenCount: 2 }),
+  );
+});
+
 // ---- storage: siteSettings/** ----------------------------------------
 // Branding uploads (logo + favicon) from <AdminSiteSettingsPage>. Added v1.21.
 //

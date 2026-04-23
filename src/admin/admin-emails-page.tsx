@@ -12,6 +12,7 @@ import {
   saveEmailTemplate,
   sendTestEmail,
 } from '../services/email-service';
+import { reportServiceError } from '../services/error-log-service';
 import { useCaspianFirebase } from '../provider/caspian-store-provider';
 import { Button } from '../ui/button';
 import { Dialog } from '../ui/dialog';
@@ -76,7 +77,7 @@ export function AdminEmailsPage({ className }: AdminEmailsPageProps) {
       setSettings(s ?? { ...DEFAULT_EMAIL_SETTINGS, updatedAt: null as never });
       setSettingsDirty(false);
     } catch (error) {
-      console.error('[caspian-store] Failed to load email config:', error);
+      reportServiceError(db, 'admin-emails-page.load', error);
       toast({ title: 'Failed to load email config', variant: 'destructive' });
     }
   };
@@ -103,7 +104,7 @@ export function AdminEmailsPage({ className }: AdminEmailsPageProps) {
       toast({ title: 'Email settings saved' });
       setSettingsDirty(false);
     } catch (error) {
-      console.error('[caspian-store] Save email settings failed:', error);
+      reportServiceError(db, 'admin-emails-page.saveSettings', error);
       toast({ title: 'Save failed', variant: 'destructive' });
     } finally {
       setSavingSettings(false);
@@ -144,7 +145,7 @@ export function AdminEmailsPage({ className }: AdminEmailsPageProps) {
       await loadAll();
       closeTemplate();
     } catch (error) {
-      console.error('[caspian-store] Save template failed:', error);
+      reportServiceError(db, 'admin-emails-page.saveTemplate', error);
       toast({ title: 'Save failed', variant: 'destructive' });
     } finally {
       setSavingTemplate(false);
@@ -172,7 +173,7 @@ export function AdminEmailsPage({ className }: AdminEmailsPageProps) {
         });
       }
     } catch (error) {
-      console.error('[caspian-store] Test send failed:', error);
+      reportServiceError(db, 'admin-emails-page.sendTest', error);
       toast({
         title: 'Test send failed',
         description: error instanceof Error ? error.message : undefined,

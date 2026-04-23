@@ -382,6 +382,48 @@ export const DEFAULT_MESSAGES: MessageDict = {
   'admin.paymentPlugins.errors.removeFailed': 'Remove failed',
   'admin.paymentPlugins.errors.toggleFailed': 'Toggle failed',
 
+  // Admin — email plugins (v2.14)
+  'admin.emailPlugins.title': 'Email providers',
+  'admin.emailPlugins.subtitle':
+    'Install and configure a transactional-email provider. Only enabled installs are used — the first enabled install wins.',
+  'admin.emailPlugins.browse': 'Browse providers',
+  'admin.emailPlugins.browseTitle': 'Available email providers',
+  'admin.emailPlugins.browseSubtitle':
+    'Pick a provider to install. You can edit configuration after installing.',
+  'admin.emailPlugins.install': 'Install',
+  'admin.emailPlugins.empty':
+    'No email providers installed yet. Install one so order emails and contact-form auto-replies can send.',
+  'admin.emailPlugins.confirmRemove': 'Remove this email provider install?',
+  'admin.emailPlugins.installTitle': 'Install email provider',
+  'admin.emailPlugins.configureTitle': 'Configure email provider',
+  'admin.emailPlugins.col.order': 'Order',
+  'admin.emailPlugins.col.name': 'Name',
+  'admin.emailPlugins.col.plugin': 'Provider',
+  'admin.emailPlugins.col.status': 'Status',
+  'admin.emailPlugins.col.actions': 'Actions',
+  'admin.emailPlugins.status.enabled': 'Enabled',
+  'admin.emailPlugins.status.disabled': 'Disabled',
+  'admin.emailPlugins.action.enable': 'Enable',
+  'admin.emailPlugins.action.disable': 'Disable',
+  'admin.emailPlugins.action.remove': 'Remove',
+  'admin.emailPlugins.field.name': 'Display name',
+  'admin.emailPlugins.field.nameHint':
+    'Label shown in admin — e.g. "SendGrid — production" or "Brevo — staging".',
+  'admin.emailPlugins.field.order': 'Order',
+  'admin.emailPlugins.field.apiKey': 'API key',
+  'admin.emailPlugins.field.apiKeyHint.sendgrid':
+    'SendGrid API key starting with "SG.". Generate at sendgrid.com → Settings → API Keys.',
+  'admin.emailPlugins.field.apiKeyHint.brevo':
+    'Brevo API key starting with "xkeysib-". Generate at brevo.com → SMTP & API → API Keys.',
+  'admin.emailPlugins.toasts.installed': 'Provider installed',
+  'admin.emailPlugins.toasts.updated': 'Provider updated',
+  'admin.emailPlugins.toasts.removed': 'Provider removed',
+  'admin.emailPlugins.errors.nameRequired': 'Display name is required',
+  'admin.emailPlugins.errors.invalidConfig': 'Invalid configuration',
+  'admin.emailPlugins.errors.saveFailed': 'Save failed',
+  'admin.emailPlugins.errors.removeFailed': 'Remove failed',
+  'admin.emailPlugins.errors.toggleFailed': 'Toggle failed',
+
   'admin.appearance.title': 'Appearance',
   'admin.appearance.subtitle': 'Pick a preset or fine-tune the storefront theme tokens.',
   'admin.appearance.gridSubtitle':
@@ -713,6 +755,42 @@ export const DEFAULT_MESSAGES: MessageDict = {
   'admin.dashboard.recentContactsEmpty': 'No contact submissions yet.',
   'admin.dashboard.recentContactsNewPill': '{count, plural, =0 {no new} one {# new} other {# new}}',
   'admin.dashboard.viewAll': 'View all →',
+
+  // Admin sidebar groups (v3.0.0)
+  'admin.nav.groups.catalog': 'Catalog',
+  'admin.nav.groups.people': 'People',
+  'admin.nav.groups.sales': 'Sales',
+  'admin.nav.groups.content': 'Content',
+
+  // Admin dashboard sections — folded-in Todo / Notifications / Search-terms (v3.0.0)
+  'admin.dashboard.todos.title': 'Todo list',
+  'admin.dashboard.todos.subtitle': 'First-run setup checklist. Auto-seeded on first visit.',
+  'admin.dashboard.notifications.title': 'Notifications',
+  'admin.dashboard.notifications.subtitle': 'Live signals from your store and this library.',
+  'admin.dashboard.searchTerms.title': 'Search terms',
+
+  // Admin settings (v3.0.0) — internal sub-sidebar
+  'admin.settings.title': 'Settings',
+  'admin.settings.subtitle': 'Configure how your store processes orders, delivers email, and renders content.',
+  'admin.settings.nav.general': 'General',
+  'admin.settings.nav.shipping': 'Shipping',
+  'admin.settings.nav.payments': 'Payments',
+  'admin.settings.nav.emailProviders': 'Email providers',
+  'admin.settings.nav.emails': 'Emails',
+  'admin.settings.nav.languages': 'Languages',
+
+  // Admin About — errors on this installation (mod1182)
+  'admin.about.errors.title': 'Errors on this installation',
+  'admin.about.errors.description':
+    'Recent errors captured from the storefront, admin, and Cloud Functions on this install. Admins only.',
+  'admin.about.errors.empty': 'No errors captured.',
+  'admin.about.errors.loadFailed': "Couldn't load errors — admin only.",
+  'admin.about.errors.refresh': 'Refresh',
+  'admin.about.errors.dismiss': 'Dismiss',
+  'admin.about.errors.dismissFailed': 'Dismiss failed',
+  'admin.about.errors.reportUpstream': 'Report upstream',
+  'admin.about.errors.showDetails': 'Details',
+  'admin.about.errors.hideDetails': 'Hide',
 };
 
 /**

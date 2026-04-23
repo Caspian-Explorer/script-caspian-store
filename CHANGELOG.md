@@ -16,6 +16,75 @@ Do not omit the heading, rename it, or fold it into `### Notes`. This is how
 customers tell at a glance whether an upgrade needs attention.
 -->
 
+## v2.15.0 — Email provider plugin catalog + caspian-email codebase split
+
+Turns email sending into a first-class plugin catalog (mirroring shipping + payments), adds **Brevo** alongside the existing **SendGrid** provider, and splits the email Cloud Functions into their own `caspian-email` codebase. Also fixes a scaffolder miss where `AdminEmailsPage` (v2.11.0) and the new `AdminEmailPluginsPage` were reachable from the admin sidebar but had no generated route files, plus adds a CI smoke test that blocks future drift.
+
+Two friction points motivated this release:
+
+1. **Fresh v2.12–v2.14 scaffolds 404'd on `/admin/emails`.** v2.11 shipped `AdminEmailsPage` and added an "Emails" item to `DEFAULT_ADMIN_NAV`, but [scaffold/create.mjs](scaffold/create.mjs) was never updated to generate the matching `src/app/admin/emails/page.tsx`. Same class of bug as v2.4's `AdminSearchTermsPage` miss.
+
+2. **`functions-admin` broke its own zero-secrets invariant.** v2.11 added email senders + the contact-email trigger to `functions-admin/` with `defineSecret('SENDGRID_API_KEY')` declarations. Firebase CLI rejected `firebase deploy --only functions:caspian-admin` unless that secret existed — even for consumers not using email. This reopened the admin-bootstrap chicken-and-egg that the v1.16.0 Stripe codebase split was meant to close. Consumers had to `echo PLACEHOLDER | firebase functions:secrets:set SENDGRID_API_KEY --data-file=-` just to deploy `onUserCreate`.
+
+### Added
+
+- **Email plugin catalog** at [src/email/](src/email/) — `EMAIL_PLUGIN_CATALOG`, `EMAIL_PLUGIN_IDS`, `getEmailPlugin`, plus `SENDGRID_PLUGIN` and `BREVO_PLUGIN`. Each plugin is a metadata record (`{ id, name, description, defaultConfig, validateConfig }`) that the admin UI browses and the runtime resolves against a per-store install. New providers land by PR into the catalog.
+- **`<AdminEmailPluginsPage>`** ([src/admin/admin-email-plugins-page.tsx](src/admin/admin-email-plugins-page.tsx)) — mounted at `/admin/email-plugins`. Browse-and-install UI mirroring `<AdminPaymentPluginsPage>`. One configuration field per install (API key) + display label + order. New installs start disabled — the admin explicitly enables after validating.
+- **`EmailPluginInstall` Firestore type** + `emailPluginInstalls` collection ([src/types.ts](src/types.ts), [src/firebase/collections.ts](src/firebase/collections.ts)). Admin-only read AND write in [firebase/firestore.rules](firebase/firestore.rules) — the API key lives in `config`, unlike shipping/payment installs which are publicly readable. Cloud Functions read via the Admin SDK, which bypasses rules.
+- **Email-plugin service** ([src/services/email-plugin-service.ts](src/services/email-plugin-service.ts)) — `listEmailPluginInstalls`, `createEmailPluginInstall`, `updateEmailPluginInstall`, `deleteEmailPluginInstall` + `EmailPluginInstallWriteInput`. Signature matches the shipping + payment plugin services.
+- **New `caspian-email` Cloud Functions codebase** at [firebase/functions-email/](firebase/functions-email/) — `runEmailOnOrderCreate`, `runEmailOnOrderUpdate`, `runEmailOnContactCreate`, `sendTestEmail`. **No `defineSecret` calls** — the dispatcher in `email-sender.ts` loads the first enabled `emailPluginInstalls` doc from Firestore at runtime, resolves SendGrid or Brevo, and delegates. `firebase deploy --only functions:caspian-email` runs with zero secrets configured; it's just dormant until an admin installs a provider.
+- **Brevo SDK integration** — `@getbrevo/brevo` dependency in `functions-email`; `sendViaBrevo()` in [firebase/functions-email/src/email-sender.ts](firebase/functions-email/src/email-sender.ts) maps the internal `SendableMessage` to Brevo's `SendSmtpEmail` shape.
+- **Scaffolder `--with-email` flag** in [scaffold/create.mjs](scaffold/create.mjs) — mirrors `--with-stripe`. When passed, copies `functions-email/` + adds the `caspian-email` codebase entry to `firebase.json`. The `/admin/email-plugins` and `/admin/emails` route files are generated regardless of the flag.
+- **Scaffolder-vs-nav CI smoke** — [scripts/check-scaffold-routes.mjs](scripts/check-scaffold-routes.mjs) + [.github/workflows/scaffold-routes-smoke.yml](.github/workflows/scaffold-routes-smoke.yml). Regex-diffs `DEFAULT_ADMIN_NAV` hrefs against the scaffolder's `adminRoutes` array on every PR touching either file. Blocks the v2.4 / v2.11 / v2.12 class of regression where a nav entry ships without a matching scaffolder route.
+- **i18n keys** — `admin.emailPlugins.*` in [src/i18n/messages.ts](src/i18n/messages.ts) covering title, browse dialog, columns, actions, config fields, toasts, errors.
+- **Admin nav entry** — `{ href: '/admin/email-plugins', label: 'Email providers' }` in `DEFAULT_ADMIN_NAV` ([src/admin/admin-shell.tsx](src/admin/admin-shell.tsx)), between Payments and Emails. The existing "Emails" entry (template + sender-settings editor) stays put.
+
+### Changed
+
+- **`functions-admin` returns to zero-secrets** ([firebase/functions-admin/](firebase/functions-admin/)). Drops `@sendgrid/mail` dep, drops the three email triggers + `sendTestEmail` re-export, drops the renderer + sender. Remaining surface: `onUserCreate`, `claimAdmin`, `runRetentionCleanup`. Description updated.
+- **`firebase.json`** gains the `caspian-email` codebase entry (between `caspian-admin` and `caspian-stripe`).
+- **Scaffolder `adminRoutes`** — `['emails', 'AdminEmailsPage']` and `['email-plugins', 'AdminEmailPluginsPage']` added.
+- **Generated consumer README** — the Cloud Functions step in the first-run checklist gets an Email subsection describing `--with-email`, `deploy:email`, and the admin-UI configuration flow.
+- **Consumer `package.json` scripts** — scaffolds gain `deploy:email` alongside `deploy:admin` and `deploy:stripe`.
+
+### Consumer action required on upgrade
+
+Existing v2.11–v2.14 consumers who already set `SENDGRID_API_KEY` and want email to keep working need to migrate the three files into the new codebase, deploy it, and reconfigure the provider through the admin UI:
+
+```bash
+# 1. Pull the new functions-email/ tree out of the installed library into your repo root.
+cp -r node_modules/@caspian-explorer/script-caspian-store/firebase/functions-email .
+printf 'node_modules\nlib/\n' > functions-email/.gitignore
+
+# 2. Register the new codebase in firebase.json — add between caspian-admin and caspian-stripe:
+#    {
+#      "source": "functions-email",
+#      "codebase": "caspian-email",
+#      "runtime": "nodejs22",
+#      "predeploy": ["npm --prefix \"$RESOURCE_DIR\" run build"]
+#    }
+
+# 3. Pull the updated firestore.rules (admin-only emailPluginInstalls), rebuild
+#    functions-admin (email deps are gone), install + deploy both codebases:
+cp node_modules/@caspian-explorer/script-caspian-store/firebase/firestore.rules .
+firebase deploy --only firestore:rules
+cd functions-admin && npm install && cd ..
+cd functions-email && npm install && cd ..
+firebase deploy --only functions:caspian-admin,functions:caspian-email
+
+# 4. Open /admin/email-plugins in your deployed app, install SendGrid or Brevo,
+#    paste the API key, save, click Enable. Order + contact emails resume on the
+#    next trigger.
+
+# 5. (Optional cleanup) the old SENDGRID_API_KEY Functions secret is no longer
+#    read by anything; delete it if you don't plan to re-use it:
+firebase functions:secrets:destroy SENDGRID_API_KEY
+```
+
+Consumers who **don't** use email at all: just run step 3 — the codebase split alone restores `functions:caspian-admin` to zero-secrets deploys.
+
+If you scaffolded after v2.11.0 and noticed `/admin/emails` 404'd, also create the route file `src/app/admin/emails/page.tsx` (and if you want the new `/admin/email-plugins` page, `src/app/admin/email-plugins/page.tsx`) with the one-liner export pattern the scaffolder uses. Fresh scaffolds from v2.15.0 onward generate both automatically.
+
 ## v2.14.1 — Security: npm audit remediation for Cloud Functions
 
 Fixes all `@tootallnate/once <3.0.1` (GHSA-vpq2-c234-7xj6) and `uuid <14.0.0` (GHSA-w5hq-g745-h8pq) findings surfaced by `npm audit` in the Cloud Functions packages shipped with this library. These vulnerabilities enter via `firebase-admin`'s transitive `@google-cloud/storage → teeny-request → http-proxy-agent → @tootallnate/once` chain and are resolved without changing the top-level `firebase-admin ^13.0.0` pin — npm `overrides` in each `functions-*/package.json` force safe versions of the transitive deps.

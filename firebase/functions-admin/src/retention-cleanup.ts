@@ -2,6 +2,7 @@ import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { logger } from 'firebase-functions';
 import { getFirestore, Timestamp } from 'firebase-admin/firestore';
 import { getAuth } from 'firebase-admin/auth';
+import { reportFunctionError } from './error-report';
 
 /**
  * Daily personal-data retention cleanup. Reads `settings/site` for the
@@ -13,6 +14,7 @@ import { getAuth } from 'firebase-admin/auth';
  *   - Orders in status `'cancelled'` older than `retainCancelledOrdersDays`.
  *   - Orders in a failed state older than `retainFailedOrdersDays`.
  *   - Orders in status `'delivered'` older than `retainCompletedOrdersDays`.
+ *   - Error log docs older than `retainErrorLogsDays` (mod1182).
  *
  * Every retention field is optional — `undefined` means "keep indefinitely",
  * and the function silently skips that bucket. When the entire `privacy`
@@ -81,6 +83,19 @@ export const runRetentionCleanup = onSchedule(
         `[retention] Deleted ${deleted} completed orders older than ${privacy.retainCompletedOrdersDays} days.`,
       );
     }
+
+    if (typeof privacy.retainErrorLogsDays === 'number') {
+      const cutoffMs = cutoff(privacy.retainErrorLogsDays);
+      try {
+        const deleted = await deleteErrorLogs(db, cutoffMs);
+        logger.info(
+          `[retention] Deleted ${deleted} error logs older than ${privacy.retainErrorLogsDays} days.`,
+        );
+      } catch (err) {
+        logger.warn(`[retention] Error-log cleanup failed: ${String(err)}`);
+        void reportFunctionError('retention-cleanup.errorLogs', err);
+      }
+    }
   },
 );
 
@@ -89,6 +104,7 @@ interface RetentionConfig {
   retainCancelledOrdersDays?: number;
   retainFailedOrdersDays?: number;
   retainCompletedOrdersDays?: number;
+  retainErrorLogsDays?: number;
 }
 
 const BATCH_SIZE = 200;
@@ -154,5 +170,25 @@ async function deleteOrdersWithStatus(
     total += snap.size;
   }
   return total;
+}
+
+/** Trim the errorLogs collection for mod1182. One BATCH_SIZE pass per daily run. */
+async function deleteErrorLogs(
+  db: FirebaseFirestore.Firestore,
+  cutoffMs: number,
+): Promise<number> {
+  const cutoffTs = Timestamp.fromMillis(cutoffMs);
+  const snap = await db
+    .collection('errorLogs')
+    .where('timestamp', '<', cutoffTs)
+    .limit(BATCH_SIZE)
+    .get();
+
+  if (snap.empty) return 0;
+
+  const batch = db.batch();
+  snap.docs.forEach((d) => batch.delete(d.ref));
+  await batch.commit();
+  return snap.size;
 }
 

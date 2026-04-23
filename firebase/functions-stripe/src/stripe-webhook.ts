@@ -2,6 +2,7 @@ import { onRequest } from 'firebase-functions/v2/https';
 import { defineSecret } from 'firebase-functions/params';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import Stripe from 'stripe';
+import { reportFunctionError } from './error-report';
 
 const STRIPE_SECRET = defineSecret('STRIPE_SECRET_KEY');
 const STRIPE_WEBHOOK_SECRET = defineSecret('STRIPE_WEBHOOK_SECRET');
@@ -36,6 +37,7 @@ export const stripeWebhook = onRequest(
       );
     } catch (err) {
       console.error('[caspian-webhook] Signature verification failed:', err);
+      void reportFunctionError('stripe-webhook.signatureVerification', err);
       res.status(400).send('Webhook Error');
       return;
     }
@@ -85,6 +87,7 @@ export const stripeWebhook = onRequest(
         items = metadata.items ? JSON.parse(metadata.items) : [];
       } catch (err) {
         console.error('[caspian-webhook] Malformed metadata JSON:', err);
+        void reportFunctionError('stripe-webhook.malformedMetadata', err);
         res.status(400).send('Malformed metadata');
         return;
       }
@@ -172,6 +175,7 @@ export const stripeWebhook = onRequest(
       res.status(200).send(JSON.stringify({ received: true, orderId }));
     } catch (error) {
       console.error('[caspian-webhook] Failed to process checkout.session.completed:', error);
+      void reportFunctionError('stripe-webhook.processCheckoutCompleted', error);
       res.status(500).send('Failed to process order');
     }
   },

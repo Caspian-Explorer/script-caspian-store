@@ -10,13 +10,13 @@ import {
 } from '../hooks/use-admin-notifications';
 
 export interface AdminNotificationsBellProps extends UseAdminNotificationsOptions {
-  /** Where the "View all" link points. Default `/admin/notifications`. */
+  /** Where the "View all" link points. Default `/admin#notifications` (v3.0.0+). */
   viewAllHref?: string;
   className?: string;
 }
 
 export function AdminNotificationsBell({
-  viewAllHref = '/admin/notifications',
+  viewAllHref = '/admin#notifications',
   className,
   ...options
 }: AdminNotificationsBellProps) {

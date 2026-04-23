@@ -1,7 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../context/auth-context';
+import { useCaspianFirebase } from '../provider/caspian-store-provider';
+import { useT } from '../i18n/locale-context';
 import { CASPIAN_STORE_VERSION } from '../version';
 import {
   DEFAULT_REPO_NAME,
@@ -14,9 +16,15 @@ import {
   triggerSelfUpdate,
   type SelfUpdateResult,
 } from '../services/self-update-service';
+import {
+  listRecentErrors,
+  dismissError,
+  buildUpstreamIssueUrl,
+} from '../services/error-log-service';
+import type { ErrorLog } from '../types';
 import { useToast } from '../ui/toast';
 import { Button } from '../ui/button';
-import { ExternalLinkIcon, RefreshIcon } from '../ui/icons';
+import { ExternalLinkIcon, RefreshIcon, TrashIcon } from '../ui/icons';
 import { Badge, Separator, Skeleton } from '../ui/misc';
 
 export interface AdminAboutPageProps {
@@ -199,6 +207,10 @@ export function AdminAboutPage({
 
       <Separator />
 
+      <ErrorsSection owner={owner} repo={repo} />
+
+      <Separator />
+
       <div
         style={{
           display: 'flex',
@@ -217,6 +229,188 @@ export function AdminAboutPage({
         </ExternalLink>
       </div>
     </div>
+  );
+}
+
+/**
+ * Errors-on-this-installation panel (mod1182). Reads the most recent
+ * entries from `errorLogs` and lets the admin dismiss each one or open a
+ * pre-filled GitHub issue against the upstream repo.
+ */
+function ErrorsSection({ owner, repo }: { owner: string; repo: string }) {
+  const { db } = useCaspianFirebase();
+  const t = useT();
+  const { toast } = useToast();
+  const [errors, setErrors] = useState<ErrorLog[] | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoadFailed(false);
+    try {
+      const list = await listRecentErrors(db, 25);
+      setErrors(list);
+    } catch {
+      // Non-admin viewers hit this path; rules deny the read.
+      setErrors([]);
+      setLoadFailed(true);
+    }
+  }, [db]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  async function handleDismiss(id: string) {
+    setBusyId(id);
+    try {
+      await dismissError(db, id);
+      setErrors((prev) => (prev ? prev.filter((e) => e.id !== id) : prev));
+    } catch {
+      toast({ title: t('admin.about.errors.dismissFailed'), variant: 'destructive' });
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  function handleReport(entry: ErrorLog) {
+    const url = buildUpstreamIssueUrl(entry, { owner, repo });
+    if (typeof window !== 'undefined') window.open(url, '_blank', 'noopener,noreferrer');
+  }
+
+  return (
+    <section style={{ margin: '16px 0 0' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+        <h2 style={{ fontSize: 16, fontWeight: 600, margin: 0 }}>{t('admin.about.errors.title')}</h2>
+        <Button variant="outline" size="sm" onClick={() => void load()}>
+          <RefreshIcon size={14} /> {t('admin.about.errors.refresh')}
+        </Button>
+      </div>
+      <p style={{ color: '#666', fontSize: 13, margin: '0 0 12px' }}>
+        {t('admin.about.errors.description')}
+      </p>
+
+      {errors === null ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} style={{ height: 56 }} />
+          ))}
+        </div>
+      ) : errors.length === 0 ? (
+        <p style={{ color: '#666', fontSize: 13, margin: 0 }}>
+          {loadFailed ? t('admin.about.errors.loadFailed') : t('admin.about.errors.empty')}
+        </p>
+      ) : (
+        <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {errors.map((e) => (
+            <ErrorRow
+              key={e.id}
+              entry={e}
+              busy={busyId === e.id}
+              onDismiss={() => void handleDismiss(e.id)}
+              onReport={() => handleReport(e)}
+              t={t}
+            />
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+function ErrorRow({
+  entry,
+  busy,
+  onDismiss,
+  onReport,
+  t,
+}: {
+  entry: ErrorLog;
+  busy: boolean;
+  onDismiss: () => void;
+  onReport: () => void;
+  t: (key: string, params?: Record<string, string | number>) => string;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  return (
+    <li
+      style={{
+        padding: '12px 14px',
+        border: '1px solid #eee',
+        borderRadius: 'var(--caspian-radius, 8px)',
+        background: '#fff',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+        <Badge variant="outline">{entry.source}</Badge>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div
+            style={{
+              fontWeight: 600,
+              fontSize: 13,
+              fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+            title={entry.origin}
+          >
+            {entry.origin}
+          </div>
+          <div
+            style={{
+              fontSize: 13,
+              color: '#444',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+            title={entry.message}
+          >
+            {entry.message}
+          </div>
+          <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>
+            {formatDate(entry.timestamp?.toDate?.().toISOString?.() ?? '')}
+            {entry.seenCount > 1 && (
+              <>
+                {' · '}
+                <Badge variant="secondary">×{entry.seenCount}</Badge>
+              </>
+            )}
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          <Button variant="outline" size="sm" onClick={() => setExpanded((v) => !v)}>
+            {expanded ? t('admin.about.errors.hideDetails') : t('admin.about.errors.showDetails')}
+          </Button>
+          <Button variant="outline" size="sm" onClick={onReport}>
+            <ExternalLinkIcon size={14} /> {t('admin.about.errors.reportUpstream')}
+          </Button>
+          <Button variant="outline" size="sm" onClick={onDismiss} loading={busy}>
+            <TrashIcon size={14} /> {t('admin.about.errors.dismiss')}
+          </Button>
+        </div>
+      </div>
+      {expanded && entry.stack && (
+        <pre
+          style={{
+            margin: '10px 0 0',
+            padding: 10,
+            maxHeight: 220,
+            overflow: 'auto',
+            background: '#f8fafc',
+            border: '1px solid rgba(0,0,0,0.08)',
+            borderRadius: 6,
+            fontSize: 12,
+            lineHeight: 1.4,
+            whiteSpace: 'pre-wrap',
+            wordBreak: 'break-word',
+          }}
+        >
+          {entry.stack}
+        </pre>
+      )}
+    </li>
   );
 }
 

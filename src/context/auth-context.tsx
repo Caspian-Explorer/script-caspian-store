@@ -26,6 +26,7 @@ import {
 import { doc, getDoc, setDoc, Timestamp } from 'firebase/firestore';
 import type { CaspianFirebase } from '../firebase/client';
 import type { UserProfile } from '../types';
+import { logError, reportServiceError } from '../services/error-log-service';
 
 interface AuthContextValue {
   user: User | null;
@@ -99,7 +100,7 @@ export function AuthProvider({
           const profile = await fetchOrCreateUserProfile(firebase, firebaseUser);
           setUserProfile(profile);
         } catch (error) {
-          console.error('[caspian-store] Failed to fetch user profile:', error);
+          reportServiceError(firebase.db, 'auth-context.fetchProfile', error);
           setUserProfile(null);
         }
       } else {
@@ -153,7 +154,14 @@ export function AuthProvider({
       try {
         await sendPasswordResetEmail(firebase.auth, email);
       } catch (error) {
+        // Keep as warn — non-fatal; account was created successfully.
+        // eslint-disable-next-line no-console
         console.warn('[caspian-store] Password setup email failed to send:', error);
+        void logError(firebase.db, {
+          source: 'service',
+          origin: 'auth-context.sendPasswordResetEmail',
+          error,
+        });
       }
     },
     [firebase],
@@ -184,7 +192,7 @@ export function AuthProvider({
       const profile = await fetchOrCreateUserProfile(firebase, user);
       setUserProfile(profile);
     } catch (error) {
-      console.error('[caspian-store] Failed to refresh user profile:', error);
+      reportServiceError(firebase.db, 'auth-context.refreshProfile', error);
     }
   }, [firebase, user]);
 

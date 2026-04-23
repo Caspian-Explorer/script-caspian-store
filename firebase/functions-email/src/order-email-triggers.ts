@@ -5,20 +5,22 @@
  *
  *   - `emailSettings/site` doc is missing or `enabled: false`.
  *   - The target template doesn't exist yet or has `enabled: false`.
- *   - The SENDGRID_API_KEY secret isn't bound (the sender returns an error).
+ *   - No enabled `emailPluginInstalls` provider is configured (the
+ *     dispatcher in `email-sender.ts` logs + returns a failed SendResult).
  *
  * No retry: status transitions are the event of record and one missed email
  * is recoverable by the admin resending from the order detail page later.
+ *
+ * Functions-email has no `defineSecret` calls — provider API keys live in
+ * the install's `config` (admin-only read in firestore.rules). See
+ * email-sender.ts for the dispatch logic.
  */
 
 import { onDocumentCreated, onDocumentUpdated } from 'firebase-functions/v2/firestore';
 import { logger } from 'firebase-functions';
-import { defineSecret } from 'firebase-functions/params';
 import { getFirestore } from 'firebase-admin/firestore';
 import { send } from './email-sender';
 import { renderEmail, type EmailSettingsFields, type RenderContext } from './email-renderer';
-
-const SENDGRID_API_KEY = defineSecret('SENDGRID_API_KEY');
 
 type AdminTemplateKey = 'new_order_admin' | 'cancelled_order_admin' | 'failed_order_admin';
 type CustomerTemplateKey =
@@ -76,10 +78,7 @@ function adminTemplateForStatus(status: string | undefined): AdminTemplateKey | 
 }
 
 export const runEmailOnOrderCreate = onDocumentCreated(
-  {
-    document: 'orders/{id}',
-    secrets: [SENDGRID_API_KEY],
-  },
+  { document: 'orders/{id}' },
   async (event) => {
     const snap = event.data;
     if (!snap) return;
@@ -92,10 +91,7 @@ export const runEmailOnOrderCreate = onDocumentCreated(
 );
 
 export const runEmailOnOrderUpdate = onDocumentUpdated(
-  {
-    document: 'orders/{id}',
-    secrets: [SENDGRID_API_KEY],
-  },
+  { document: 'orders/{id}' },
   async (event) => {
     const before = event.data?.before.data() as OrderDoc | undefined;
     const after = event.data?.after.data() as OrderDoc | undefined;
@@ -153,23 +149,18 @@ async function sendForOrder(
     customerEmail: order.userEmail ?? '',
   };
 
-  const apiKey = SENDGRID_API_KEY.value();
-
   if (routes.adminKey) {
     const tpl = await loadTemplate(db, routes.adminKey);
     if (tpl && tpl.enabled) {
       const recipients = tpl.recipients.length > 0 ? tpl.recipients : siteContact ? [siteContact] : [];
       if (recipients.length > 0) {
         const rendered = renderEmail(tpl, settings, ctx);
-        const result = await send(
-          {
-            to: recipients,
-            from: { email: settings.fromAddress, name: settings.fromName },
-            replyTo: settings.replyTo || undefined,
-            ...rendered,
-          },
-          apiKey,
-        );
+        const result = await send({
+          to: recipients,
+          from: { email: settings.fromAddress, name: settings.fromName },
+          replyTo: settings.replyTo || undefined,
+          ...rendered,
+        });
         if (!result.ok) logger.warn(`[email] Admin send failed (${orderId}): ${result.error}`);
       } else {
         logger.warn(`[email] Admin template "${routes.adminKey}" has no recipients for ${orderId}.`);
@@ -181,15 +172,12 @@ async function sendForOrder(
     const tpl = await loadTemplate(db, routes.customerKey);
     if (tpl && tpl.enabled) {
       const rendered = renderEmail(tpl, settings, ctx);
-      const result = await send(
-        {
-          to: order.userEmail,
-          from: { email: settings.fromAddress, name: settings.fromName },
-          replyTo: settings.replyTo || undefined,
-          ...rendered,
-        },
-        apiKey,
-      );
+      const result = await send({
+        to: order.userEmail,
+        from: { email: settings.fromAddress, name: settings.fromName },
+        replyTo: settings.replyTo || undefined,
+        ...rendered,
+      });
       if (!result.ok) logger.warn(`[email] Customer send failed (${orderId}): ${result.error}`);
     }
   }

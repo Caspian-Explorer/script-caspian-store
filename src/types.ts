@@ -506,6 +506,8 @@ export interface PrivacyRetentionSettings {
   retainFailedOrdersDays?: number;
   /** Delete orders in status `'delivered'` older than this many days. */
   retainCompletedOrdersDays?: number;
+  /** Delete error log docs older than this many days. Added for mod1182. */
+  retainErrorLogsDays?: number;
 }
 
 /**
@@ -731,6 +733,65 @@ export interface PaymentPluginInstall {
   /** Plugin-specific configuration. Validated by the plugin's `validateConfig` at runtime. */
   config: Record<string, unknown>;
   createdAt: Timestamp;
+}
+
+/**
+ * Persisted install of an email-provider plugin. Added in v2.14 to replace
+ * the v2.11 `SENDGRID_API_KEY` Functions secret. Admin-only read/write —
+ * the API key lives in `config`, so the collection must not be publicly
+ * readable like shipping/payment installs are.
+ */
+export interface EmailPluginInstall {
+  id: string;
+  /** Which built-in plugin handles this install: 'sendgrid' or 'brevo'. */
+  pluginId: string;
+  /** Merchant-authored display label shown in admin (e.g. "SendGrid — production"). */
+  name: string;
+  /** When false, the dispatcher skips this install. Only the first enabled install is used. */
+  enabled: boolean;
+  order: number;
+  /** Plugin-specific configuration (includes apiKey). Validated by the plugin's `validateConfig` at runtime. */
+  config: Record<string, unknown>;
+  createdAt: Timestamp;
+}
+
+/**
+ * Source of an error log entry. `client` covers React render errors, global
+ * window handlers; `service` is an admin-page or context service call that
+ * failed at the call site; `cloud-function` is a failure captured in one of
+ * the Firebase Functions codebases via `reportFunctionError`.
+ */
+export type ErrorLogSource = 'client' | 'service' | 'cloud-function';
+
+/**
+ * One captured error on this installation. Added for mod1182 self-healing
+ * error logging. Surfaced on the admin About page; trimmed by the daily
+ * retention sweep when `PrivacyRetentionSettings.retainErrorLogsDays` is set.
+ *
+ * Writes are validated by `match /errorLogs/{id}` in firestore.rules —
+ * keep the shape and length caps in sync with those checks.
+ */
+export interface ErrorLog {
+  id: string;
+  timestamp: Timestamp;
+  source: ErrorLogSource;
+  /** Stable identifier for where the error came from (e.g. `ErrorBoundary`, `auth-context.fetchProfile`, `caspian-stripe.createCheckout`). */
+  origin: string;
+  /** Redacted error message. */
+  message: string;
+  /** Redacted + truncated stack (≤ 4000 chars). */
+  stack?: string;
+  /** Small scalar-only bag for extra context (request id, plugin id, …). */
+  context?: Record<string, string | number | boolean>;
+  userAgent?: string;
+  /** `location.pathname` at the time of the client-side error. */
+  route?: string;
+  /** `CASPIAN_STORE_VERSION` at the time of the error. */
+  libraryVersion: string;
+  firebaseProjectId?: string;
+  /** Bumps when the same (origin, message) recurs within 24h. Admin-only update. */
+  seenCount: number;
+  lastSeenAt: Timestamp;
 }
 
 export interface ProductCategoryDoc {

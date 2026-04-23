@@ -73,7 +73,8 @@ See [INSTALL.md](./INSTALL.md) for the **one-command scaffolder**, **Vite** / **
 | **Script Settings** — `<ScriptSettingsPage />`, theme tokens via CSS vars | ✅ |
 | `firebase/firestore.rules` + `firebase/firestore.indexes.json` | ✅ |
 | **Payment plugins** — pluggable providers (Stripe included); install/configure at `/admin/payment-plugins` | ✅ |
-| Cloud Functions — Stripe callable + webhook | ✅ (deployed as scaffold) |
+| **Email plugins** — pluggable providers (SendGrid + Brevo); install/configure at `/admin/email-plugins`; API key in Firestore, no Functions secrets | ✅ (v2.15.0+) |
+| Cloud Functions — Stripe callable + webhook; transactional-email dispatcher (caspian-email codebase) | ✅ (deployed as scaffold) |
 | **Storefront — PLP:** `<ProductListPage />`, `<ProductGrid />`, `<ProductCard />` | ✅ |
 | **Storefront — PDP:** `<ProductDetailPage />`, `<ProductGallery />`, size/qty pickers, Add to cart | ✅ |
 | **Reviews & Q&A:** `<ProductReviews />` with summary, list, sort, write/ask dialogs, Verified Purchase badge | ✅ |
@@ -118,6 +119,8 @@ AdminProductsList, AdminProductEditor,
 AdminOrdersList, AdminOrderDetail,
 AdminReviewsModeration, AdminSiteSettingsPage,
 AdminUsersPage, AdminContactsList,
+AdminEmailsPage, AdminEmailPluginsPage,
+AdminShippingPluginsPage, AdminPaymentPluginsPage,
 AdminAppearancePage, AdminAppearancePreviewPage,
 AdminAboutPage
 

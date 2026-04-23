@@ -1,56 +1,34 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { AdminTodo } from '../types';
+import type { AdminTodo } from '../../types';
 import {
   createAdminTodo,
   deleteAdminTodo,
   listenAdminTodos,
   seedDefaultAdminTodos,
   updateAdminTodo,
-} from '../services/admin-todo-service';
-import { verifyAdminTodos } from '../services/admin-todo-detectors';
-import {
-  fetchRecentReleases,
-  isUpdateAvailable,
-} from '../services/github-updates-service';
-import { useCaspianFirebase, useCaspianLink } from '../provider/caspian-store-provider';
-import { Button } from '../ui/button';
-import { CheckIcon, ExternalLinkIcon, RefreshIcon } from '../ui/icons';
-import { Input } from '../ui/input';
-import { Badge, Skeleton } from '../ui/misc';
-import { useToast } from '../ui/toast';
-import { CASPIAN_STORE_VERSION } from '../version';
+} from '../../services/admin-todo-service';
+import { verifyAdminTodos } from '../../services/admin-todo-detectors';
+import { useCaspianFirebase } from '../../provider/caspian-store-provider';
+import { Button } from '../../ui/button';
+import { CheckIcon, RefreshIcon } from '../../ui/icons';
+import { Input } from '../../ui/input';
+import { Badge, Skeleton } from '../../ui/misc';
+import { useToast } from '../../ui/toast';
+import { DashboardSection } from './dashboard-section';
 
-export function AdminTodoPage({ className }: { className?: string }) {
+export function DashboardTodoSection() {
   const { db } = useCaspianFirebase();
   const { toast } = useToast();
-  const Link = useCaspianLink();
   const [todos, setTodos] = useState<AdminTodo[] | null>(null);
   const [newTitle, setNewTitle] = useState('');
   const [adding, setAdding] = useState(false);
   const [seeding, setSeeding] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [hideDone, setHideDone] = useState(false);
-  const [latestVersion, setLatestVersion] = useState<string | null>(null);
+  const [showAll, setShowAll] = useState(false);
   const autoSeededRef = useRef(false);
-
-  useEffect(() => {
-    let alive = true;
-    fetchRecentReleases(undefined, undefined, 1)
-      .then((releases) => {
-        if (alive && releases[0]?.version) setLatestVersion(releases[0].version);
-      })
-      .catch(() => {
-        // Silent — the upgrade hint is a nicety.
-      });
-    return () => {
-      alive = false;
-    };
-  }, []);
-
-  const updateAvailable =
-    latestVersion !== null && isUpdateAvailable(CASPIAN_STORE_VERSION, latestVersion);
 
   useEffect(() => {
     const unsubscribe = listenAdminTodos(
@@ -81,8 +59,11 @@ export function AdminTodoPage({ className }: { className?: string }) {
 
   const visibleTodos = useMemo(() => {
     if (!todos) return null;
-    return hideDone ? todos.filter((t) => !t.done) : todos;
-  }, [todos, hideDone]);
+    const filtered = hideDone ? todos.filter((t) => !t.done) : todos;
+    return showAll ? filtered : filtered.slice(0, 10);
+  }, [todos, hideDone, showAll]);
+
+  const pendingCount = useMemo(() => (todos ?? []).filter((t) => !t.done).length, [todos]);
 
   const handleToggle = async (t: AdminTodo) => {
     try {
@@ -144,12 +125,8 @@ export function AdminTodoPage({ className }: { className?: string }) {
       if (ids.length === 0) {
         toast({ title: 'Nothing new to mark done' });
       } else {
-        await Promise.all(
-          ids.map((id) => updateAdminTodo(db, id, { done: true })),
-        );
-        toast({
-          title: `Marked ${ids.length} item${ids.length === 1 ? '' : 's'} done`,
-        });
+        await Promise.all(ids.map((id) => updateAdminTodo(db, id, { done: true })));
+        toast({ title: `Marked ${ids.length} item${ids.length === 1 ? '' : 's'} done` });
       }
     } catch (error) {
       console.error('[caspian-store] Verify failed:', error);
@@ -159,18 +136,19 @@ export function AdminTodoPage({ className }: { className?: string }) {
     }
   };
 
-  return (
-    <div className={className}>
-      <header style={{ marginBottom: 16 }}>
-        <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0 }}>Todo list</h1>
-        <p style={{ color: '#666', marginTop: 4 }}>
-          First-run setup checklist. Auto-seeded on first visit; &quot;Verify progress&quot; re-checks
-          what&apos;s been done.
-        </p>
-      </header>
+  const totalFiltered = (todos ?? []).filter((t) => (hideDone ? !t.done : true)).length;
+  const hasMore = totalFiltered > 10 && !showAll;
 
+  return (
+    <DashboardSection
+      title="Todo list"
+      subtitle="First-run setup checklist. Auto-seeded on first visit."
+      count={pendingCount}
+      defaultOpen={pendingCount > 0}
+      anchorId="todos"
+    >
       {todos !== null && todos.length > 0 && (
-        <section
+        <div
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -179,9 +157,10 @@ export function AdminTodoPage({ className }: { className?: string }) {
             background: '#f6f6f6',
             borderRadius: 8,
             marginBottom: 16,
+            flexWrap: 'wrap',
           }}
         >
-          <div style={{ flex: 1 }}>
+          <div style={{ flex: 1, minWidth: 200 }}>
             <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 6 }}>
               {progress.done} / {progress.total} complete ({progress.pct}%)
             </div>
@@ -203,24 +182,17 @@ export function AdminTodoPage({ className }: { className?: string }) {
               />
             </div>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleVerify}
-            loading={verifying}
-            title="Re-check which items are done based on Firestore state"
-          >
-            <RefreshIcon size={14} />
-            Verify progress
+          <Button variant="outline" size="sm" onClick={handleVerify} loading={verifying}>
+            <RefreshIcon size={14} /> Verify progress
           </Button>
           <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 14 }}>
             <input type="checkbox" checked={hideDone} onChange={(e) => setHideDone(e.target.checked)} />
             Hide completed
           </label>
-        </section>
+        </div>
       )}
 
-      <section
+      <div
         style={{
           display: 'flex',
           gap: 8,
@@ -247,37 +219,7 @@ export function AdminTodoPage({ className }: { className?: string }) {
         <Button variant="outline" onClick={handleSeedDefaults} loading={seeding}>
           Re-seed defaults
         </Button>
-      </section>
-
-      {updateAvailable && latestVersion && (
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 12,
-            padding: 14,
-            marginBottom: 8,
-            border: '1px solid var(--caspian-primary, #111)',
-            borderRadius: 8,
-            background: '#fff',
-          }}
-        >
-          <Badge>New</Badge>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 600, fontSize: 15 }}>
-              Upgrade library to v{latestVersion}
-            </div>
-            <p style={{ margin: '4px 0 0', fontSize: 13, color: '#666' }}>
-              You&apos;re on v{CASPIAN_STORE_VERSION}. See what changed in the About page.
-            </p>
-          </div>
-          <Link href="/admin/about">
-            <Button variant="outline" size="sm">
-              View release notes <ExternalLinkIcon size={14} />
-            </Button>
-          </Link>
-        </div>
-      )}
+      </div>
 
       {visibleTodos === null ? (
         <Skeleton style={{ height: 200 }} />
@@ -296,63 +238,72 @@ export function AdminTodoPage({ className }: { className?: string }) {
             : 'No tasks yet. The default checklist is seeding…'}
         </div>
       ) : (
-        <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {visibleTodos.map((t) => (
-            <li
-              key={t.id}
-              style={{
-                display: 'flex',
-                gap: 12,
-                padding: 14,
-                border: '1px solid #eee',
-                borderRadius: 8,
-                background: t.done ? '#fafafa' : '#fff',
-              }}
-            >
-              <input
-                type="checkbox"
-                checked={t.done}
-                onChange={() => handleToggle(t)}
-                style={{ marginTop: 4, cursor: 'pointer' }}
-                aria-label={`Mark "${t.title}" as ${t.done ? 'not done' : 'done'}`}
-              />
-              <div style={{ flex: 1 }}>
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 8,
-                    fontWeight: 600,
-                    fontSize: 15,
-                    textDecoration: t.done ? 'line-through' : 'none',
-                    color: t.done ? '#888' : '#111',
-                  }}
-                >
-                  {t.done && <CheckIcon size={16} />}
-                  {t.title}
-                  {t.isDefault && <Badge variant="secondary">Setup</Badge>}
-                </div>
-                {t.description && (
-                  <p
+        <>
+          <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {visibleTodos.map((t) => (
+              <li
+                key={t.id}
+                style={{
+                  display: 'flex',
+                  gap: 12,
+                  padding: 14,
+                  border: '1px solid #eee',
+                  borderRadius: 8,
+                  background: t.done ? '#fafafa' : '#fff',
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={t.done}
+                  onChange={() => handleToggle(t)}
+                  style={{ marginTop: 4, cursor: 'pointer' }}
+                  aria-label={`Mark "${t.title}" as ${t.done ? 'not done' : 'done'}`}
+                />
+                <div style={{ flex: 1 }}>
+                  <div
                     style={{
-                      margin: '6px 0 0',
-                      fontSize: 13,
-                      color: '#666',
-                      lineHeight: 1.5,
-                      whiteSpace: 'pre-wrap',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      fontWeight: 600,
+                      fontSize: 15,
+                      textDecoration: t.done ? 'line-through' : 'none',
+                      color: t.done ? '#888' : '#111',
                     }}
                   >
-                    {t.description}
-                  </p>
-                )}
-              </div>
-              <Button variant="outline" size="sm" onClick={() => handleDelete(t)}>
-                Delete
+                    {t.done && <CheckIcon size={16} />}
+                    {t.title}
+                    {t.isDefault && <Badge variant="secondary">Setup</Badge>}
+                  </div>
+                  {t.description && (
+                    <p
+                      style={{
+                        margin: '6px 0 0',
+                        fontSize: 13,
+                        color: '#666',
+                        lineHeight: 1.5,
+                        whiteSpace: 'pre-wrap',
+                      }}
+                    >
+                      {t.description}
+                    </p>
+                  )}
+                </div>
+                <Button variant="outline" size="sm" onClick={() => handleDelete(t)}>
+                  Delete
+                </Button>
+              </li>
+            ))}
+          </ul>
+          {hasMore && (
+            <div style={{ marginTop: 12, textAlign: 'center' }}>
+              <Button variant="outline" size="sm" onClick={() => setShowAll(true)}>
+                Show all {totalFiltered} tasks
               </Button>
-            </li>
-          ))}
-        </ul>
+            </div>
+          )}
+        </>
       )}
-    </div>
+    </DashboardSection>
   );
 }

@@ -14,6 +14,12 @@
       "predeploy": ["npm --prefix \"$RESOURCE_DIR\" run build"]
     },
     {
+      "source": "functions-email",
+      "codebase": "caspian-email",
+      "runtime": "nodejs22",
+      "predeploy": ["npm --prefix \"$RESOURCE_DIR\" run build"]
+    },
+    {
       "source": "functions-stripe",
       "codebase": "caspian-stripe",
       "runtime": "nodejs22",

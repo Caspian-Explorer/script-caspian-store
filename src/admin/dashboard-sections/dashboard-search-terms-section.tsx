@@ -1,31 +1,29 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import type { SearchTerm } from '../types';
+import type { SearchTerm } from '../../types';
 import {
   clearAllSearchTerms,
   deleteSearchTerm,
   listSearchTerms,
   type SearchTermSortBy,
-} from '../services/search-term-service';
-import { useCaspianFirebase } from '../provider/caspian-store-provider';
-import { Button } from '../ui/button';
-import { Input } from '../ui/input';
-import { Select } from '../ui/select';
-import { Skeleton } from '../ui/misc';
-import { Table, TBody, TD, TH, THead, TR } from '../ui/table';
-import { useToast } from '../ui/toast';
+} from '../../services/search-term-service';
+import { useCaspianFirebase } from '../../provider/caspian-store-provider';
+import { Button } from '../../ui/button';
+import { Input } from '../../ui/input';
+import { Select } from '../../ui/select';
+import { Skeleton } from '../../ui/misc';
+import { Table, TBody, TD, TH, THead, TR } from '../../ui/table';
+import { useToast } from '../../ui/toast';
+import { DashboardSection } from './dashboard-section';
 
-export interface AdminSearchTermsPageProps {
-  className?: string;
-}
-
-export function AdminSearchTermsPage({ className }: AdminSearchTermsPageProps) {
+export function DashboardSearchTermsSection() {
   const { db } = useCaspianFirebase();
   const { toast } = useToast();
   const [terms, setTerms] = useState<SearchTerm[] | null>(null);
   const [sortBy, setSortBy] = useState<SearchTermSortBy>('count');
   const [search, setSearch] = useState('');
+  const [showAll, setShowAll] = useState(false);
   const [clearing, setClearing] = useState(false);
 
   const load = useCallback(async () => {
@@ -44,7 +42,8 @@ export function AdminSearchTermsPage({ className }: AdminSearchTermsPageProps) {
   const filtered = (terms ?? []).filter((t) =>
     search ? t.term.toLowerCase().includes(search.toLowerCase()) : true,
   );
-
+  const visible = showAll ? filtered : filtered.slice(0, 10);
+  const hasMore = filtered.length > 10 && !showAll;
   const totalSearches = (terms ?? []).reduce((sum, t) => sum + t.count, 0);
 
   const handleDelete = async (t: SearchTerm) => {
@@ -76,28 +75,28 @@ export function AdminSearchTermsPage({ className }: AdminSearchTermsPageProps) {
   };
 
   return (
-    <div className={className}>
-      <header
-        style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}
-      >
-        <div>
-          <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0 }}>Search terms</h1>
-          <p style={{ color: '#666', marginTop: 4 }}>
-            {terms === null
-              ? '…'
-              : `${terms.length} unique · ${totalSearches} total search${totalSearches === 1 ? '' : 'es'}`}
-          </p>
-        </div>
+    <DashboardSection
+      title="Search terms"
+      subtitle={
+        terms === null
+          ? undefined
+          : `${terms.length} unique · ${totalSearches} total search${totalSearches === 1 ? '' : 'es'}`
+      }
+      count={terms?.length}
+      defaultOpen={false}
+      anchorId="search-terms"
+      action={
         <Button
           variant="destructive"
+          size="sm"
           onClick={handleClearAll}
           disabled={!terms?.length || clearing}
           loading={clearing}
         >
           Clear all
         </Button>
-      </header>
-
+      }
+    >
       <div style={{ display: 'flex', gap: 12, marginBottom: 12, flexWrap: 'wrap' }}>
         <Input
           placeholder="Search in terms…"
@@ -125,39 +124,48 @@ export function AdminSearchTermsPage({ className }: AdminSearchTermsPageProps) {
             : 'No terms match your filter.'}
         </p>
       ) : (
-        <Table>
-          <THead>
-            <TR>
-              <TH>Term</TH>
-              <TH style={{ textAlign: 'right', width: 100 }}>Searches</TH>
-              <TH style={{ width: 200 }}>Last searched</TH>
-              <TH style={{ width: 200 }}>First searched</TH>
-              <TH style={{ textAlign: 'right', width: 120 }}>Actions</TH>
-            </TR>
-          </THead>
-          <TBody>
-            {filtered.map((t) => (
-              <TR key={t.id}>
-                <TD style={{ fontWeight: 500 }}>{t.term}</TD>
-                <TD style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
-                  {t.count.toLocaleString()}
-                </TD>
-                <TD style={{ color: '#888', fontSize: 13 }}>
-                  {t.lastSearchedAt?.toDate ? t.lastSearchedAt.toDate().toLocaleString() : '—'}
-                </TD>
-                <TD style={{ color: '#888', fontSize: 13 }}>
-                  {t.firstSearchedAt?.toDate ? t.firstSearchedAt.toDate().toLocaleString() : '—'}
-                </TD>
-                <TD style={{ textAlign: 'right' }}>
-                  <Button variant="destructive" size="sm" onClick={() => handleDelete(t)}>
-                    Delete
-                  </Button>
-                </TD>
+        <>
+          <Table>
+            <THead>
+              <TR>
+                <TH>Term</TH>
+                <TH style={{ textAlign: 'right', width: 100 }}>Searches</TH>
+                <TH style={{ width: 200 }}>Last searched</TH>
+                <TH style={{ width: 200 }}>First searched</TH>
+                <TH style={{ textAlign: 'right', width: 120 }}>Actions</TH>
               </TR>
-            ))}
-          </TBody>
-        </Table>
+            </THead>
+            <TBody>
+              {visible.map((t) => (
+                <TR key={t.id}>
+                  <TD style={{ fontWeight: 500 }}>{t.term}</TD>
+                  <TD style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                    {t.count.toLocaleString()}
+                  </TD>
+                  <TD style={{ color: '#888', fontSize: 13 }}>
+                    {t.lastSearchedAt?.toDate ? t.lastSearchedAt.toDate().toLocaleString() : '—'}
+                  </TD>
+                  <TD style={{ color: '#888', fontSize: 13 }}>
+                    {t.firstSearchedAt?.toDate ? t.firstSearchedAt.toDate().toLocaleString() : '—'}
+                  </TD>
+                  <TD style={{ textAlign: 'right' }}>
+                    <Button variant="destructive" size="sm" onClick={() => handleDelete(t)}>
+                      Delete
+                    </Button>
+                  </TD>
+                </TR>
+              ))}
+            </TBody>
+          </Table>
+          {hasMore && (
+            <div style={{ marginTop: 12, textAlign: 'center' }}>
+              <Button variant="outline" size="sm" onClick={() => setShowAll(true)}>
+                Show all {filtered.length} terms
+              </Button>
+            </div>
+          )}
+        </>
       )}
-    </div>
+    </DashboardSection>
   );
 }

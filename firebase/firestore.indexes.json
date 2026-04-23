@@ -75,6 +75,15 @@
         { "fieldPath": "slug", "order": "ASCENDING" },
         { "fieldPath": "isActive", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "errorLogs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "origin", "order": "ASCENDING" },
+        { "fieldPath": "message", "order": "ASCENDING" },
+        { "fieldPath": "timestamp", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

@@ -366,6 +366,27 @@ export {
   deletePaymentPluginInstall,
   type PaymentPluginInstallWriteInput,
 } from './services/payment-plugin-service';
+
+// --- Email plugins (v2.14) ---
+export {
+  EMAIL_PLUGIN_IDS,
+  EMAIL_PLUGIN_CATALOG,
+  getEmailPlugin,
+  SENDGRID_PLUGIN,
+  BREVO_PLUGIN,
+  type EmailPluginId,
+  type EmailPlugin,
+  type SendGridConfig,
+  type BrevoConfig,
+} from './email';
+export {
+  listEmailPluginInstalls,
+  createEmailPluginInstall,
+  updateEmailPluginInstall,
+  deleteEmailPluginInstall,
+  type EmailPluginInstallWriteInput,
+} from './services/email-plugin-service';
+
 export { useWishlist } from './hooks/use-wishlist';
 export {
   validatePromoCode,
@@ -498,7 +519,9 @@ export {
 export {
   AdminGuard,
   AdminShell,
+  AdminSettingsShell,
   DEFAULT_ADMIN_NAV,
+  SETTINGS_SUB_NAV,
   AdminDashboard,
   AdminProductsList,
   AdminProductEditor,
@@ -509,6 +532,7 @@ export {
   AdminPagesPage,
   AdminFaqsPage,
   AdminEmailsPage,
+  AdminEmailPluginsPage,
   AdminShippingPluginsPage,
   AdminPaymentPluginsPage,
   AdminPromoCodesPage,
@@ -523,17 +547,17 @@ export {
   ISO_COUNTRIES,
   AdminAppearancePage,
   AdminAppearancePreviewPage,
-  AdminTodoPage,
   AdminOnboardingProgress,
   AdminAboutPage,
-  AdminSearchTermsPage,
   AdminNotificationsBell,
-  AdminNotificationsPage,
   AdminProfileMenu,
   DEFAULT_PAGE_KEYS,
   type AdminGuardProps,
   type AdminShellProps,
+  type AdminSettingsShellProps,
   type AdminNavItem,
+  type AdminNavLeaf,
+  type AdminNavGroup,
   type AdminDashboardProps,
   type AdminProductsListProps,
   type AdminProductEditorProps,
@@ -542,9 +566,7 @@ export {
   type AdminPagesPageProps,
   type AdminFaqsPageProps,
   type AdminAboutPageProps,
-  type AdminSearchTermsPageProps,
   type AdminNotificationsBellProps,
-  type AdminNotificationsPageProps,
   type AdminAppearancePageProps,
   type AdminAppearancePreviewPageProps,
   type CountryPickerDialogProps,
@@ -552,6 +574,7 @@ export {
   type AdminProfileMenuProps,
   type AdminOnboardingProgressProps,
   type AdminEmailsPageProps,
+  type AdminEmailPluginsPageProps,
   type AdminUsersPageProps,
   type AdminContactsListProps,
 } from './admin';
@@ -602,6 +625,7 @@ export type {
   LanguageDoc,
   AdminTodo,
   PaymentPluginInstall,
+  EmailPluginInstall,
   // v2.7 additions — admin-editable runtime behavior
   ComingSoonSettings,
   CurrencyDisplay,
@@ -639,6 +663,20 @@ export {
   type SendTestEmailInput,
 } from './services/email-service';
 export { DEFAULT_SCRIPT_SETTINGS, SOCIAL_PLATFORMS } from './types';
+
+// --- Error logging (mod1182) ---
+export { ErrorBoundary, type ErrorBoundaryProps } from './components/error-boundary';
+export {
+  logError,
+  listRecentErrors,
+  dismissError,
+  reportServiceError,
+  buildUpstreamIssueUrl,
+  UPSTREAM_ISSUE_URL_LIMIT,
+  type LogErrorInput,
+} from './services/error-log-service';
+export { redactError, redactString } from './utils/redact-error';
+export type { ErrorLog, ErrorLogSource } from './types';
 
 // --- Utilities ---
 export { cn } from './utils/cn';

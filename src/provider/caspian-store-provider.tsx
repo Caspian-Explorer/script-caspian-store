@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useMemo, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useMemo, type ReactNode } from 'react';
 import type { FirebaseOptions } from 'firebase/app';
 import { initCaspianFirebase, type CaspianFirebase } from '../firebase/client';
 import { caspianCollections, type CaspianCollections } from '../firebase/collections';
@@ -18,6 +18,8 @@ import { FontLoader } from '../context/font-loader';
 import { ToastProvider } from '../ui/toast';
 import { LocaleProvider } from '../i18n/locale-context';
 import type { MessageDict } from '../i18n/messages';
+import { ErrorBoundary } from '../components/error-boundary';
+import { logError } from '../services/error-log-service';
 
 export interface CaspianStoreProviderProps {
   /** Firebase project config (apiKey, authDomain, projectId, etc.). */
@@ -81,21 +83,60 @@ export function CaspianStoreProvider({
 
   return (
     <CaspianStoreContext.Provider value={value}>
-      <LocaleProvider locale={locale} messages={messages} messagesByLocale={messagesByLocale}>
-        <ToastProvider>
-          <AuthProvider firebase={value.firebase}>
-            <CartProvider db={value.firebase.db}>
-              <ScriptSettingsProvider collections={value.collections}>
-                <ThemeInjector />
-                <FontLoader />
-                {children}
-              </ScriptSettingsProvider>
-            </CartProvider>
-          </AuthProvider>
-        </ToastProvider>
-      </LocaleProvider>
+      <ErrorBoundary db={value.firebase.db} origin="CaspianStoreProvider">
+        <GlobalErrorCapture db={value.firebase.db} projectId={firebaseConfig.projectId} />
+        <LocaleProvider locale={locale} messages={messages} messagesByLocale={messagesByLocale}>
+          <ToastProvider>
+            <AuthProvider firebase={value.firebase}>
+              <CartProvider db={value.firebase.db}>
+                <ScriptSettingsProvider collections={value.collections}>
+                  <ThemeInjector />
+                  <FontLoader />
+                  {children}
+                </ScriptSettingsProvider>
+              </CartProvider>
+            </AuthProvider>
+          </ToastProvider>
+        </LocaleProvider>
+      </ErrorBoundary>
     </CaspianStoreContext.Provider>
   );
+}
+
+/**
+ * Subscribes to `window.onerror` and `window.onunhandledrejection` for the
+ * lifetime of the provider. Render-path errors are already covered by the
+ * `ErrorBoundary` wrapper; this picks up the things React can't catch —
+ * async throws from event handlers, timers, and unhandled promise
+ * rejections. Added for mod1182.
+ */
+function GlobalErrorCapture({ db, projectId }: { db: CaspianFirebase['db']; projectId?: string }) {
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const onError = (ev: ErrorEvent) => {
+      void logError(db, {
+        source: 'client',
+        origin: 'window.onerror',
+        error: ev.error ?? ev.message,
+        firebaseProjectId: projectId,
+      });
+    };
+    const onRejection = (ev: PromiseRejectionEvent) => {
+      void logError(db, {
+        source: 'client',
+        origin: 'window.onunhandledrejection',
+        error: ev.reason,
+        firebaseProjectId: projectId,
+      });
+    };
+    window.addEventListener('error', onError);
+    window.addEventListener('unhandledrejection', onRejection);
+    return () => {
+      window.removeEventListener('error', onError);
+      window.removeEventListener('unhandledrejection', onRejection);
+    };
+  }, [db, projectId]);
+  return null;
 }
 
 export function useCaspianStore(): CaspianStoreContextValue {

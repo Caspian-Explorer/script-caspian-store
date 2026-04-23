@@ -2,6 +2,7 @@ import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { defineSecret } from 'firebase-functions/params';
 import { getFirestore } from 'firebase-admin/firestore';
 import Stripe from 'stripe';
+import { reportFunctionError } from './error-report';
 
 const STRIPE_SECRET = defineSecret('STRIPE_SECRET_KEY');
 
@@ -39,6 +40,7 @@ export const getStripeSession = onCall(
       session = await stripe.checkout.sessions.retrieve(sessionId);
     } catch (error) {
       console.error('[caspian-store] Failed to retrieve Stripe session:', error);
+      void reportFunctionError('stripe-session.retrieve', error);
       throw new HttpsError('not-found', 'Session not found.');
     }
 

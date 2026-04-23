@@ -1,5 +1,6 @@
 /**
- * Transactional emails for contact-form submissions (v2.13).
+ * Transactional emails for contact-form submissions (v2.13; moved to
+ * functions-email in v2.14 when the email codebase was split).
  *
  * Fires on every new `contacts/{id}` doc:
  *   1. Sends the `new_contact_admin` template to the merchant. Recipients
@@ -10,17 +11,15 @@
  * Silent skip conditions match `order-email-triggers.ts`:
  *   - `emailSettings/site` missing or `enabled: false`.
  *   - The target template missing or `enabled: false`.
- *   - SENDGRID_API_KEY not bound (sender returns error; we log + move on).
+ *   - No enabled emailPluginInstalls provider (dispatcher returns error;
+ *     we log + move on).
  */
 
 import { onDocumentCreated } from 'firebase-functions/v2/firestore';
 import { logger } from 'firebase-functions';
-import { defineSecret } from 'firebase-functions/params';
 import { getFirestore } from 'firebase-admin/firestore';
 import { send } from './email-sender';
 import { renderEmail, type EmailSettingsFields, type RenderContext } from './email-renderer';
-
-const SENDGRID_API_KEY = defineSecret('SENDGRID_API_KEY');
 
 type ContactTemplateKey = 'new_contact_admin' | 'contact_autoreply';
 
@@ -42,10 +41,7 @@ interface LoadedTemplate {
 }
 
 export const runEmailOnContactCreate = onDocumentCreated(
-  {
-    document: 'contacts/{id}',
-    secrets: [SENDGRID_API_KEY],
-  },
+  { document: 'contacts/{id}' },
   async (event) => {
     const snap = event.data;
     if (!snap) return;
@@ -88,8 +84,6 @@ export const runEmailOnContactCreate = onDocumentCreated(
       contactMessage: contact.message ?? '',
     };
 
-    const apiKey = SENDGRID_API_KEY.value();
-
     // 1. Admin notify.
     const adminTpl = await loadTemplate(db, 'new_contact_admin');
     if (adminTpl && adminTpl.enabled) {
@@ -97,15 +91,12 @@ export const runEmailOnContactCreate = onDocumentCreated(
         adminTpl.recipients.length > 0 ? adminTpl.recipients : siteContact ? [siteContact] : [];
       if (recipients.length > 0) {
         const rendered = renderEmail(adminTpl, settings, ctx);
-        const result = await send(
-          {
-            to: recipients,
-            from: { email: settings.fromAddress, name: settings.fromName },
-            replyTo: contact.email || settings.replyTo || undefined,
-            ...rendered,
-          },
-          apiKey,
-        );
+        const result = await send({
+          to: recipients,
+          from: { email: settings.fromAddress, name: settings.fromName },
+          replyTo: contact.email || settings.replyTo || undefined,
+          ...rendered,
+        });
         if (!result.ok) logger.warn(`[email] Admin send failed (${contactId}): ${result.error}`);
       } else {
         logger.warn(`[email] new_contact_admin has no recipients for contact ${contactId}.`);
@@ -117,15 +108,12 @@ export const runEmailOnContactCreate = onDocumentCreated(
       const replyTpl = await loadTemplate(db, 'contact_autoreply');
       if (replyTpl && replyTpl.enabled) {
         const rendered = renderEmail(replyTpl, settings, ctx);
-        const result = await send(
-          {
-            to: contact.email,
-            from: { email: settings.fromAddress, name: settings.fromName },
-            replyTo: settings.replyTo || undefined,
-            ...rendered,
-          },
-          apiKey,
-        );
+        const result = await send({
+          to: contact.email,
+          from: { email: settings.fromAddress, name: settings.fromName },
+          replyTo: settings.replyTo || undefined,
+          ...rendered,
+        });
         if (!result.ok) {
           logger.warn(`[email] Auto-reply send failed (${contactId}): ${result.error}`);
         }

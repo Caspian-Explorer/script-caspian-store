@@ -11,6 +11,9 @@
  *                                    # for drift-free tsconfig / next.config / next-env.d.ts
  *     [--with-stripe]               # also copy firebase/functions-stripe/ (Stripe checkout
  *                                    #   + webhook) — admin codebase is always scaffolded
+ *     [--with-email]                # also copy firebase/functions-email/ (transactional
+ *                                    #   email via SendGrid/Brevo plugins — configure at
+ *                                    #   /admin/email-plugins after deploy)
  *     [--with-functions]            # deprecated alias for --with-stripe (back-compat)
  *     [--no-apphosting]             # suppress apphosting.yaml in the output (default: emit).
  *                                    #   Useful for Vercel deployments where the file would
@@ -48,6 +51,7 @@ const { positionals, values: args } = parseArgs({
     'use-create-next-app': { type: 'boolean', default: false },
     force: { type: 'boolean', default: false },
     'with-stripe': { type: 'boolean', default: false },
+    'with-email': { type: 'boolean', default: false },
     'with-functions': { type: 'boolean', default: false },
     'no-apphosting': { type: 'boolean', default: false },
   },
@@ -58,13 +62,20 @@ const { positionals, values: args } = parseArgs({
 // only affects the Stripe codebase (admin codebase is always scaffolded), so
 // treat it as an alias for --with-stripe to avoid breaking existing callers.
 const includeStripe = args['with-stripe'] || args['with-functions'];
+// --with-email opts into the caspian-email codebase. Mirrors --with-stripe's
+// pattern: the email Cloud Functions (order/contact triggers + send-test)
+// ship to a separate codebase so deploys without email don't need the
+// @sendgrid/mail + @getbrevo/brevo SDKs, and the admin codebase keeps its
+// zero-secrets invariant.
+const includeEmail = args['with-email'];
 const suppressApphosting = args['no-apphosting'];
 
 const targetDir = positionals[0];
 if (!targetDir) {
   console.error(
     'Usage: node create.mjs <project-dir> [--package-tag vX.Y.Z] [--next-version <spec>]\n' +
-    '                       [--use-create-next-app] [--with-stripe] [--no-apphosting] [--force]',
+    '                       [--use-create-next-app] [--with-stripe] [--with-email]\n' +
+    '                       [--no-apphosting] [--force]',
   );
   process.exit(1);
 }
@@ -156,6 +167,7 @@ const ourScripts = {
   'firebase:deploy': 'firebase deploy',
   'firebase:sync': 'node node_modules/@caspian-explorer/script-caspian-store/firebase/scripts/sync-rules.mjs',
   'deploy:admin': 'node node_modules/@caspian-explorer/script-caspian-store/firebase/scripts/deploy-functions.mjs --codebase caspian-admin',
+  'deploy:email': 'node node_modules/@caspian-explorer/script-caspian-store/firebase/scripts/deploy-functions.mjs --codebase caspian-email',
   'deploy:stripe': 'node node_modules/@caspian-explorer/script-caspian-store/firebase/scripts/deploy-functions.mjs --codebase caspian-stripe',
   'firebase:seed': 'node node_modules/@caspian-explorer/script-caspian-store/firebase/seed/seed.mjs',
   'grant-admin': 'node node_modules/@caspian-explorer/script-caspian-store/firebase/seed/grant-admin.mjs',
@@ -572,38 +584,51 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
 }
 `);
 
+// v3.0.0 reshuffle — the sidebar now groups under /admin/settings/* and
+// folds Todos / Notifications / Search-terms into the Dashboard. The
+// standalone routes for those pages (and the flat shipping/payment/email
+// plugin routes) are gone. See scripts/check-scaffold-routes.mjs for the
+// allowlist of sub-routes that nest under Settings.
 const adminRoutes = [
   ['', 'AdminDashboard'],
-  ['todos', 'AdminTodoPage'],
   ['products', 'AdminProductsList'],
   ['orders', 'AdminOrdersList'],
   ['reviews', 'AdminReviewsModeration'],
   ['journal', 'AdminJournalPage'],
   ['pages', 'AdminPagesPage'],
   ['faqs', 'AdminFaqsPage'],
-  ['shipping-plugins', 'AdminShippingPluginsPage'],
-  ['payment-plugins', 'AdminPaymentPluginsPage'],
   ['promo-codes', 'AdminPromoCodesPage'],
   ['subscribers', 'AdminSubscribersPage'],
   ['users', 'AdminUsersPage'],
-  ['search-terms', 'AdminSearchTermsPage'],
   ['categories', 'AdminProductCategoriesPage'],
   ['collections', 'AdminProductCollectionsPage'],
-  ['languages', 'AdminLanguagesPage'],
-  ['settings', 'AdminSiteSettingsPage'],
   ['appearance', 'AdminAppearancePage'],
   ['appearance/preview', 'AdminAppearancePreviewPage'],
   ['about', 'AdminAboutPage'],
-  ['notifications', 'AdminNotificationsPage'],
+  // Settings is a catch-all route (see below); no direct entry here.
+  ['settings', 'AdminSettingsShell'],
 ];
 
 for (const [sub, comp] of adminRoutes) {
+  // `settings` is handled specially via a [[...slug]] catch-all route so the
+  // same shell renders /admin/settings and /admin/settings/<panel>.
+  if (sub === 'settings') continue;
   const path = sub ? `src/app/admin/${sub}/page.tsx` : `src/app/admin/page.tsx`;
   write(path, `'use client';
 import { ${comp} } from '@caspian-explorer/script-caspian-store';
 export default function Page() { return <${comp} />; }
 `);
 }
+
+// ---- Settings catch-all route ----
+// AdminSettingsShell reads the pathname via useCaspianNavigation and renders
+// the matching sub-panel (General / Shipping / Payments / Email providers /
+// Emails / Languages). Using Next's optional catch-all keeps a single file
+// responsible for the whole tree.
+write('src/app/admin/settings/[[...slug]]/page.tsx', `'use client';
+import { AdminSettingsShell } from '@caspian-explorer/script-caspian-store';
+export default function Page() { return <AdminSettingsShell />; }
+`);
 
 write('src/app/admin/products/new/page.tsx', `'use client';
 import { AdminProductEditor } from '@caspian-explorer/script-caspian-store';
@@ -894,15 +919,22 @@ write('firestore.rules', readFileSync(join(sourceFirebaseDir, 'firestore.rules')
 write('firestore.indexes.json', readFileSync(join(sourceFirebaseDir, 'firestore.indexes.json'), 'utf8'));
 write('storage.rules', readFileSync(join(sourceFirebaseDir, 'storage.rules'), 'utf8'));
 
-// Functions codebase split (v1.16.0+): caspian-admin is always scaffolded —
-// it contains only the `onUserCreate` auto-promote trigger, no Stripe deps,
-// no secrets, deployable without a Stripe account. caspian-stripe ships
-// checkout + webhook + session lookup and requires STRIPE_SECRET_KEY /
-// STRIPE_WEBHOOK_SECRET; opt in with --with-stripe.
+// Functions codebase split: caspian-admin is always scaffolded — it contains
+// only the `onUserCreate` auto-promote trigger, `claimAdmin`, and the
+// scheduled retention cleanup. No provider deps, no secrets, deployable
+// without any `functions:secrets:set` step.
 //
-// Pre-split behaviour (single `caspian-store` codebase) forced every install
-// to pre-configure Stripe secrets before deploying any function, even the
-// admin trigger. Splitting lets a non-Stripe install deploy onUserCreate
+//   - caspian-stripe (v1.16.0+) — checkout + webhook + session lookup.
+//     Requires STRIPE_SECRET_KEY / STRIPE_WEBHOOK_SECRET; opt in with --with-stripe.
+//   - caspian-email (v2.14.0+) — transactional order + contact-form emails
+//     + sendTestEmail callable. Reads the configured provider (SendGrid or
+//     Brevo) from Firestore at runtime, so no secrets are declared at deploy
+//     time. Opt in with --with-email.
+//
+// Pre-split behaviour (single `caspian-store` codebase; then v2.11's
+// SENDGRID_API_KEY leak into functions-admin) forced installs to pre-configure
+// provider secrets before deploying any function, even the admin trigger.
+// Splitting lets a non-Stripe, non-email install deploy onUserCreate
 // immediately, closing the admin-bootstrap chicken-and-egg loop.
 const firebaseConfig = {
   firestore: {
@@ -919,6 +951,14 @@ const firebaseConfig = {
     },
   ],
 };
+if (includeEmail) {
+  firebaseConfig.functions.push({
+    source: 'functions-email',
+    codebase: 'caspian-email',
+    runtime: 'nodejs22',
+    predeploy: ['npm --prefix "$RESOURCE_DIR" run build'],
+  });
+}
 if (includeStripe) {
   firebaseConfig.functions.push({
     source: 'functions-stripe',
@@ -929,7 +969,7 @@ if (includeStripe) {
 }
 write('firebase.json', JSON.stringify(firebaseConfig, null, 2) + '\n');
 
-// Always copy functions-admin; copy functions-stripe only on opt-in.
+// Always copy functions-admin; copy functions-email / functions-stripe only on opt-in.
 // Per-codebase .gitignore is written inline here (not relied on from cpSync):
 // npm silently consumes `.gitignore` files in the tarball as ignore rules and
 // does NOT ship them as regular files, so the ones that live in the package's
@@ -937,6 +977,10 @@ write('firebase.json', JSON.stringify(firebaseConfig, null, 2) + '\n');
 // from the scaffolder guarantees they land in the consumer's project.
 cpSync(join(sourceFirebaseDir, 'functions-admin'), join(root, 'functions-admin'), { recursive: true });
 write('functions-admin/.gitignore', 'node_modules\nlib/\n');
+if (includeEmail) {
+  cpSync(join(sourceFirebaseDir, 'functions-email'), join(root, 'functions-email'), { recursive: true });
+  write('functions-email/.gitignore', 'node_modules\nlib/\n');
+}
 if (includeStripe) {
   cpSync(join(sourceFirebaseDir, 'functions-stripe'), join(root, 'functions-stripe'), { recursive: true });
   write('functions-stripe/.gitignore', 'node_modules\nlib/\n');
@@ -1026,6 +1070,14 @@ npm run dev                  # http://localhost:3000
    \`\`\`
 
    Then go to \`/admin/payment-plugins\`, click **Browse providers → Install** on the Stripe card, paste your publishable (\`pk_...\`) key, save, and click **Enable**. The publishable key lives in Firestore under \`paymentPluginInstalls\`; only server-side secrets live in Cloud Functions secrets.
+
+   If you also scaffolded with \`--with-email\`, deploy the email codebase. **No secrets to set** — the provider (SendGrid or Brevo) API key is stored in Firestore under \`emailPluginInstalls\` (admin-only read) and loaded by the dispatcher at runtime:
+   \`\`\`bash
+   cd functions-email && npm install && cd ..
+   npm run deploy:email
+   \`\`\`
+
+   Then go to \`/admin/email-plugins\`, click **Browse providers → Install** on SendGrid or Brevo, paste the API key, save, and click **Enable**. Order-lifecycle and contact-form emails will start firing the next time a shopper triggers one. Configure sender identity + templates at \`/admin/emails\`.
 5. **Seed Firestore:**
    \`\`\`bash
    # After downloading a service-account JSON:

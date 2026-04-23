@@ -2,9 +2,13 @@ export { AdminGuard, type AdminGuardProps } from './admin-guard';
 export {
   AdminShell,
   DEFAULT_ADMIN_NAV,
+  SETTINGS_SUB_NAV,
   type AdminShellProps,
   type AdminNavItem,
+  type AdminNavLeaf,
+  type AdminNavGroup,
 } from './admin-shell';
+export { AdminSettingsShell, type AdminSettingsShellProps } from './admin-settings-shell';
 export { AdminDashboard, type AdminDashboardProps } from './admin-dashboard';
 export {
   AdminProductsList,
@@ -25,6 +29,10 @@ export {
 } from './admin-pages-page';
 export { AdminFaqsPage, type AdminFaqsPageProps } from './admin-faqs-page';
 export { AdminEmailsPage, type AdminEmailsPageProps } from './admin-emails-page';
+export {
+  AdminEmailPluginsPage,
+  type AdminEmailPluginsPageProps,
+} from './admin-email-plugins-page';
 export { AdminShippingPluginsPage } from './admin-shipping-plugins-page';
 export { AdminPaymentPluginsPage } from './admin-payment-plugins-page';
 export { AdminPromoCodesPage } from './admin-promo-codes-page';
@@ -34,10 +42,6 @@ export {
   AdminContactsList,
   type AdminContactsListProps,
 } from './admin-contacts-list';
-export {
-  AdminSearchTermsPage,
-  type AdminSearchTermsPageProps,
-} from './admin-search-terms-page';
 export { AdminProductCategoriesPage } from './admin-product-categories-page';
 export { AdminProductCollectionsPage } from './admin-product-collections-page';
 export { AdminLanguagesPage } from './admin-languages-page';
@@ -56,7 +60,6 @@ export {
   AdminAppearancePreviewPage,
   type AdminAppearancePreviewPageProps,
 } from './admin-appearance-preview-page';
-export { AdminTodoPage } from './admin-todo-page';
 export {
   AdminOnboardingProgress,
   type AdminOnboardingProgressProps,
@@ -66,8 +69,4 @@ export {
   AdminNotificationsBell,
   type AdminNotificationsBellProps,
 } from './admin-notifications-bell';
-export {
-  AdminNotificationsPage,
-  type AdminNotificationsPageProps,
-} from './admin-notifications-page';
 export { AdminProfileMenu, type AdminProfileMenuProps } from './admin-profile-menu';

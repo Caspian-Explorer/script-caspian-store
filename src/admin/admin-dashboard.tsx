@@ -10,6 +10,10 @@ import {
   countNewContacts,
   listRecentContacts,
 } from '../services/contact-service';
+import { reportServiceError } from '../services/error-log-service';
+import { DashboardTodoSection } from './dashboard-sections/dashboard-todo-section';
+import { DashboardNotificationsSection } from './dashboard-sections/dashboard-notifications-section';
+import { DashboardSearchTermsSection } from './dashboard-sections/dashboard-search-terms-section';
 
 interface Counts {
   products: number;
@@ -72,7 +76,7 @@ export function AdminDashboard({
         setRecentContacts(contacts);
         setNewContactCount(newContacts);
       } catch (error) {
-        console.error('[caspian-store] Failed to load dashboard:', error);
+        reportServiceError(db, 'admin-dashboard.load', error);
       }
     })();
     return () => {
@@ -164,6 +168,10 @@ export function AdminDashboard({
           </ul>
         )}
       </section>
+
+      <DashboardTodoSection />
+      <DashboardNotificationsSection />
+      <DashboardSearchTermsSection />
     </div>
   );
 }

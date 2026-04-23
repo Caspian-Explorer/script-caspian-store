@@ -1267,6 +1267,11 @@ function AccountsAndPrivacySection({
           'retainCompletedOrdersDays',
           "Delete orders in status 'delivered' older than this.",
         )}
+        {retentionField(
+          'Error logs (days)',
+          'retainErrorLogsDays',
+          'Delete error logs older than this. Surfaced on the About page.',
+        )}
       </div>
     </div>
   );

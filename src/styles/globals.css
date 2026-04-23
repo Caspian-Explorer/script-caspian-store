@@ -19,3 +19,20 @@
 .caspian-root {
   font-family: var(--caspian-font-family);
 }
+
+.caspian-root a {
+  color: var(--caspian-primary);
+  text-decoration: none;
+  transition: color 0.15s ease, text-decoration-color 0.15s ease;
+}
+.caspian-root a:hover {
+  text-decoration: underline;
+  text-decoration-color: currentColor;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+}
+.caspian-root a:focus-visible {
+  outline: 2px solid var(--caspian-primary);
+  outline-offset: 2px;
+  border-radius: 2px;
+}

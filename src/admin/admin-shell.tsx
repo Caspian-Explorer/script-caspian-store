@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react';
 import { useCaspianLink, useCaspianNavigation } from '../provider/caspian-store-provider';
 import {
   DEFAULT_REPO_NAME,
@@ -8,43 +8,129 @@ import {
   fetchRecentReleases,
   isUpdateAvailable,
 } from '../services/github-updates-service';
-import { MenuIcon } from '../ui/icons';
+import {
+  AtSignIcon,
+  BookOpenIcon,
+  ChevronDownIcon,
+  CreditCardIcon,
+  DashboardIcon,
+  FileIcon,
+  FileTextIcon,
+  FolderIcon,
+  GlobeIcon,
+  HelpIcon,
+  InboxIcon,
+  InfoIcon,
+  LayersIcon,
+  MailIcon,
+  MenuIcon,
+  PackageIcon,
+  PaletteIcon,
+  ReceiptIcon,
+  SettingsIcon,
+  ShoppingCartIcon,
+  SlidersIcon,
+  StarIcon,
+  TagIcon,
+  TicketIcon,
+  TruckIcon,
+  UserIcon,
+  UsersIcon,
+} from '../ui/icons';
 import { Badge } from '../ui/misc';
 import { cn } from '../utils/cn';
 import { CASPIAN_STORE_VERSION } from '../version';
 import { AdminNotificationsBell } from './admin-notifications-bell';
 import { AdminOnboardingProgress } from './admin-onboarding-progress';
 
-export interface AdminNavItem {
+export interface AdminNavLeaf {
+  kind?: 'leaf';
   href: string;
   label: string;
-  /** Optional icon — any renderable node. Skip to keep it text-only. */
+  /** Optional icon — any renderable node. Defaults from the catalog below. */
   icon?: ReactNode;
 }
 
+export interface AdminNavGroup {
+  kind: 'group';
+  /** Stable key used to persist expand/collapse state in localStorage. */
+  id: string;
+  label: string;
+  icon?: ReactNode;
+  children: AdminNavLeaf[];
+}
+
+export type AdminNavItem = AdminNavLeaf | AdminNavGroup;
+
+function isGroup(item: AdminNavItem): item is AdminNavGroup {
+  return (item as AdminNavGroup).kind === 'group';
+}
+
+const ICON_SIZE = 16;
+
 export const DEFAULT_ADMIN_NAV: AdminNavItem[] = [
-  { href: '/admin', label: 'Dashboard' },
-  { href: '/admin/todos', label: 'Todo list' },
-  { href: '/admin/notifications', label: 'Notifications' },
-  { href: '/admin/users', label: 'Users' },
-  { href: '/admin/products', label: 'Products' },
-  { href: '/admin/categories', label: 'Categories' },
-  { href: '/admin/collections', label: 'Collections' },
-  { href: '/admin/orders', label: 'Orders' },
-  { href: '/admin/reviews', label: 'Reviews' },
-  { href: '/admin/pages', label: 'Pages' },
-  { href: '/admin/faqs', label: 'FAQs' },
-  { href: '/admin/journal', label: 'Journal' },
-  { href: '/admin/promo-codes', label: 'Promo codes' },
-  { href: '/admin/subscribers', label: 'Subscribers' },
-  { href: '/admin/search-terms', label: 'Search terms' },
-  { href: '/admin/shipping-plugins', label: 'Shipping' },
-  { href: '/admin/payment-plugins', label: 'Payments' },
-  { href: '/admin/emails', label: 'Emails' },
-  { href: '/admin/languages', label: 'Languages' },
-  { href: '/admin/appearance', label: 'Appearance' },
-  { href: '/admin/settings', label: 'Settings' },
-  { href: '/admin/about', label: 'About' },
+  { href: '/admin', label: 'Dashboard', icon: <DashboardIcon size={ICON_SIZE} /> },
+  {
+    kind: 'group',
+    id: 'catalog',
+    label: 'Catalog',
+    icon: <PackageIcon size={ICON_SIZE} />,
+    children: [
+      { href: '/admin/products', label: 'Products', icon: <TagIcon size={ICON_SIZE} /> },
+      { href: '/admin/categories', label: 'Categories', icon: <FolderIcon size={ICON_SIZE} /> },
+      { href: '/admin/collections', label: 'Collections', icon: <LayersIcon size={ICON_SIZE} /> },
+      { href: '/admin/promo-codes', label: 'Promo codes', icon: <TicketIcon size={ICON_SIZE} /> },
+    ],
+  },
+  {
+    kind: 'group',
+    id: 'people',
+    label: 'People',
+    icon: <UsersIcon size={ICON_SIZE} />,
+    children: [
+      { href: '/admin/users', label: 'Users', icon: <UserIcon size={ICON_SIZE} /> },
+      { href: '/admin/subscribers', label: 'Subscribers', icon: <MailIcon size={ICON_SIZE} /> },
+    ],
+  },
+  {
+    kind: 'group',
+    id: 'sales',
+    label: 'Sales',
+    icon: <ShoppingCartIcon size={ICON_SIZE} />,
+    children: [
+      { href: '/admin/orders', label: 'Orders', icon: <ReceiptIcon size={ICON_SIZE} /> },
+      { href: '/admin/reviews', label: 'Reviews', icon: <StarIcon size={ICON_SIZE} /> },
+    ],
+  },
+  {
+    kind: 'group',
+    id: 'content',
+    label: 'Content',
+    icon: <FileTextIcon size={ICON_SIZE} />,
+    children: [
+      { href: '/admin/pages', label: 'Pages', icon: <FileIcon size={ICON_SIZE} /> },
+      { href: '/admin/faqs', label: 'FAQs', icon: <HelpIcon size={ICON_SIZE} /> },
+      { href: '/admin/journal', label: 'Journal', icon: <BookOpenIcon size={ICON_SIZE} /> },
+    ],
+  },
+  { href: '/admin/appearance', label: 'Appearance', icon: <PaletteIcon size={ICON_SIZE} /> },
+  { href: '/admin/settings', label: 'Settings', icon: <SettingsIcon size={ICON_SIZE} /> },
+  { href: '/admin/about', label: 'About', icon: <InfoIcon size={ICON_SIZE} /> },
+];
+
+// Settings sub-sidebar items. Exported for use by AdminSettingsShell so both
+// surfaces share the same ordering and icon set.
+export const SETTINGS_SUB_NAV: AdminNavLeaf[] = [
+  { href: '/admin/settings/general', label: 'General', icon: <SlidersIcon size={ICON_SIZE} /> },
+  { href: '/admin/settings/shipping', label: 'Shipping', icon: <TruckIcon size={ICON_SIZE} /> },
+  { href: '/admin/settings/payments', label: 'Payments', icon: <CreditCardIcon size={ICON_SIZE} /> },
+  {
+    href: '/admin/settings/email-providers',
+    label: 'Email providers',
+    icon: <AtSignIcon size={ICON_SIZE} />,
+  },
+  { href: '/admin/settings/emails', label: 'Emails', icon: <InboxIcon size={ICON_SIZE} /> },
+  { href: '/admin/settings/languages', label: 'Languages', icon: <GlobeIcon size={ICON_SIZE} /> },
 ];
 
 export interface AdminShellProps {
@@ -67,7 +153,7 @@ export interface AdminShellProps {
    * consumer wants a custom bell in `headerRight`.
    */
   showNotificationsBell?: boolean;
-  /** Where the bell's "View all" link points. Default `/admin/notifications`. */
+  /** Where the bell's "View all" link points. Default `/admin`. */
   notificationsHref?: string;
   /**
    * Show the onboarding progress ring (seeded first-run todos) in the header.
@@ -87,6 +173,10 @@ export interface AdminShellProps {
 }
 
 const SIDEBAR_STATE_KEY = 'caspian:admin:sidebarOpen';
+const GROUPS_STATE_KEY = 'caspian:admin:nav:groups';
+
+const EXPANDED_SIDEBAR_WIDTH = 240;
+const COLLAPSED_SIDEBAR_WIDTH = 56;
 
 export function AdminShell({
   title = 'Admin',
@@ -96,7 +186,7 @@ export function AdminShell({
   updateCheckOwner = DEFAULT_REPO_OWNER,
   updateCheckRepo = DEFAULT_REPO_NAME,
   showNotificationsBell = true,
-  notificationsHref = '/admin/notifications',
+  notificationsHref = '/admin',
   showOnboardingProgress = true,
   headerHelp,
   defaultSidebarOpen = true,
@@ -106,7 +196,14 @@ export function AdminShell({
   const Link = useCaspianLink();
   const nav = useCaspianNavigation();
   const [sidebarOpen, setSidebarOpen] = useState(defaultSidebarOpen);
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
 
+  const isActive = (href: string) =>
+    nav.pathname === href || (href !== '/admin' && nav.pathname.startsWith(href));
+
+  // Seed sidebar open/closed and per-group expanded state from localStorage.
+  // Auto-expand the group containing the active route so a hard refresh on
+  // `/admin/orders` lands with Sales already open.
   useEffect(() => {
     try {
       const saved = window.localStorage.getItem(SIDEBAR_STATE_KEY);
@@ -115,6 +212,22 @@ export function AdminShell({
     } catch {
       /* no-op */
     }
+    try {
+      const raw = window.localStorage.getItem(GROUPS_STATE_KEY);
+      const parsed = raw ? (JSON.parse(raw) as Record<string, boolean>) : {};
+      const seeded: Record<string, boolean> = { ...parsed };
+      for (const item of navItems) {
+        if (isGroup(item)) {
+          const containsActive = item.children.some((c) => isActive(c.href));
+          if (containsActive) seeded[item.id] = true;
+          else if (!(item.id in seeded)) seeded[item.id] = false;
+        }
+      }
+      setExpandedGroups(seeded);
+    } catch {
+      /* no-op */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const toggleSidebar = () => {
@@ -129,8 +242,39 @@ export function AdminShell({
     });
   };
 
-  const isActive = (href: string) =>
-    nav.pathname === href || (href !== '/admin' && nav.pathname.startsWith(href));
+  const toggleGroup = (id: string) => {
+    setExpandedGroups((prev) => {
+      const next = { ...prev, [id]: !prev[id] };
+      try {
+        window.localStorage.setItem(GROUPS_STATE_KEY, JSON.stringify(next));
+      } catch {
+        /* no-op */
+      }
+      return next;
+    });
+  };
+
+  // Flatten leaves for the collapsed-mode icon rail, preserving group order
+  // with divider markers between groups.
+  const railItems = useMemo<Array<AdminNavLeaf | { kind: 'divider'; id: string }>>(() => {
+    const out: Array<AdminNavLeaf | { kind: 'divider'; id: string }> = [];
+    let prevWasGroup = false;
+    for (let i = 0; i < navItems.length; i++) {
+      const item = navItems[i];
+      if (isGroup(item)) {
+        if (i > 0) out.push({ kind: 'divider', id: `div-before-${item.id}` });
+        for (const c of item.children) out.push(c);
+        prevWasGroup = true;
+      } else {
+        if (prevWasGroup) out.push({ kind: 'divider', id: `div-after-${item.href}` });
+        out.push(item);
+        prevWasGroup = false;
+      }
+    }
+    return out;
+  }, [navItems]);
+
+  const sidebarWidth = sidebarOpen ? EXPANDED_SIDEBAR_WIDTH : COLLAPSED_SIDEBAR_WIDTH;
 
   return (
     <div
@@ -141,27 +285,32 @@ export function AdminShell({
         background: '#fafafa',
       }}
     >
-      {sidebarOpen && (
-        <aside
+      <aside
+        style={{
+          width: sidebarWidth,
+          flexShrink: 0,
+          borderRight: '1px solid #eee',
+          background: '#fff',
+          display: 'flex',
+          flexDirection: 'column',
+          position: 'sticky',
+          top: 0,
+          height: '100vh',
+          overflowY: 'auto',
+          transition: 'width 0.15s ease',
+        }}
+      >
+        <div
           style={{
-            width: 220,
-            flexShrink: 0,
-            borderRight: '1px solid #eee',
-            background: '#fff',
+            padding: sidebarOpen ? '14px 16px' : '14px 0',
+            borderBottom: '1px solid #eee',
             display: 'flex',
-            flexDirection: 'column',
-            position: 'sticky',
-            top: 0,
-            height: '100vh',
-            overflowY: 'auto',
+            alignItems: 'center',
+            justifyContent: 'center',
+            minHeight: 49,
           }}
         >
-          <div
-            style={{
-              padding: '14px 16px',
-              borderBottom: '1px solid #eee',
-            }}
-          >
+          {sidebarOpen ? (
             <Link href="/admin">
               <span
                 style={{
@@ -174,7 +323,24 @@ export function AdminShell({
                 {title}
               </span>
             </Link>
-          </div>
+          ) : (
+            <Link href="/admin" aria-label={title}>
+              <span
+                style={{
+                  fontWeight: 700,
+                  fontSize: 14,
+                  letterSpacing: '0.04em',
+                  color: '#111',
+                }}
+                title={title}
+              >
+                {title.slice(0, 1).toUpperCase()}
+              </span>
+            </Link>
+          )}
+        </div>
+
+        {sidebarOpen ? (
           <nav
             style={{
               display: 'flex',
@@ -184,37 +350,50 @@ export function AdminShell({
               flex: 1,
             }}
           >
-            {navItems.map((item) => {
-              const active = isActive(item.href);
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={cn('caspian-admin-nav-item', active && 'is-active')}
-                >
-                  <span
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 10,
-                      padding: '8px 12px',
-                      borderRadius: 'var(--caspian-radius, 6px)',
-                      background: active ? 'var(--caspian-primary, #111)' : 'transparent',
-                      color: active ? 'var(--caspian-primary-foreground, #fff)' : '#444',
-                      fontSize: 14,
-                      fontWeight: active ? 600 : 400,
-                      textDecoration: 'none',
-                    }}
-                  >
-                    {item.icon && <span style={{ display: 'inline-flex' }}>{item.icon}</span>}
-                    {item.label}
-                  </span>
-                </Link>
-              );
-            })}
+            {navItems.map((item) =>
+              isGroup(item) ? (
+                <GroupNode
+                  key={item.id}
+                  group={item}
+                  expanded={!!expandedGroups[item.id]}
+                  onToggle={() => toggleGroup(item.id)}
+                  isActive={isActive}
+                  Link={Link}
+                />
+              ) : (
+                <LeafLink key={item.href} leaf={item} active={isActive(item.href)} Link={Link} />
+              ),
+            )}
           </nav>
-        </aside>
-      )}
+        ) : (
+          <nav
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 2,
+              padding: '8px 0',
+              flex: 1,
+              alignItems: 'center',
+            }}
+          >
+            {railItems.map((item) =>
+              'kind' in item && item.kind === 'divider' ? (
+                <hr
+                  key={item.id}
+                  style={{
+                    width: '70%',
+                    border: 0,
+                    borderTop: '1px solid rgba(0,0,0,0.08)',
+                    margin: '6px 0',
+                  }}
+                />
+              ) : (
+                <RailLink key={(item as AdminNavLeaf).href} leaf={item as AdminNavLeaf} active={isActive((item as AdminNavLeaf).href)} Link={Link} />
+              ),
+            )}
+          </nav>
+        )}
+      </aside>
 
       <div
         style={{
@@ -242,7 +421,7 @@ export function AdminShell({
             <button
               type="button"
               onClick={toggleSidebar}
-              aria-label={sidebarOpen ? 'Hide sidebar' : 'Show sidebar'}
+              aria-label={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
               aria-pressed={sidebarOpen}
               style={{
                 width: 36,
@@ -260,21 +439,6 @@ export function AdminShell({
             >
               <MenuIcon size={18} />
             </button>
-            {!sidebarOpen && (
-              <Link href="/admin">
-                <span
-                  style={{
-                    fontWeight: 700,
-                    fontSize: 14,
-                    letterSpacing: '0.08em',
-                    textTransform: 'uppercase',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  {title}
-                </span>
-              </Link>
-            )}
             {checkForUpdates && (
               <AdminUpdateBadge owner={updateCheckOwner} repo={updateCheckRepo} />
             )}
@@ -296,6 +460,157 @@ export function AdminShell({
 
         <main style={{ flex: 1, minWidth: 0, padding: 24 }}>{children}</main>
       </div>
+    </div>
+  );
+}
+
+const leafRowStyle = (active: boolean, indent: number): CSSProperties => ({
+  display: 'flex',
+  alignItems: 'center',
+  gap: 10,
+  padding: `8px 12px 8px ${indent}px`,
+  borderRadius: 'var(--caspian-radius, 6px)',
+  background: active ? 'var(--caspian-primary, #111)' : 'transparent',
+  color: active ? 'var(--caspian-primary-foreground, #fff)' : '#444',
+  fontSize: 14,
+  fontWeight: active ? 600 : 400,
+  textDecoration: 'none',
+  whiteSpace: 'nowrap',
+});
+
+function LeafLink({
+  leaf,
+  active,
+  Link,
+  indent = 12,
+}: {
+  leaf: AdminNavLeaf;
+  active: boolean;
+  Link: ReturnType<typeof useCaspianLink>;
+  indent?: number;
+}) {
+  return (
+    <Link
+      href={leaf.href}
+      className={cn('caspian-admin-nav-item', active && 'is-active')}
+    >
+      <span style={leafRowStyle(active, indent)}>
+        {leaf.icon && <span style={{ display: 'inline-flex', flexShrink: 0 }}>{leaf.icon}</span>}
+        {leaf.label}
+      </span>
+    </Link>
+  );
+}
+
+function RailLink({
+  leaf,
+  active,
+  Link,
+}: {
+  leaf: AdminNavLeaf;
+  active: boolean;
+  Link: ReturnType<typeof useCaspianLink>;
+}) {
+  return (
+    <Link
+      href={leaf.href}
+      aria-label={leaf.label}
+      className={cn('caspian-admin-nav-item', active && 'is-active')}
+    >
+      <span
+        title={leaf.label}
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          width: 36,
+          height: 36,
+          borderRadius: 'var(--caspian-radius, 6px)',
+          background: active ? 'var(--caspian-primary, #111)' : 'transparent',
+          color: active ? 'var(--caspian-primary-foreground, #fff)' : '#444',
+          textDecoration: 'none',
+        }}
+      >
+        {leaf.icon ?? leaf.label.slice(0, 1).toUpperCase()}
+      </span>
+    </Link>
+  );
+}
+
+function GroupNode({
+  group,
+  expanded,
+  onToggle,
+  isActive,
+  Link,
+}: {
+  group: AdminNavGroup;
+  expanded: boolean;
+  onToggle: () => void;
+  isActive: (href: string) => boolean;
+  Link: ReturnType<typeof useCaspianLink>;
+}) {
+  const groupActive = group.children.some((c) => isActive(c.href));
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={expanded}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
+          padding: '8px 12px',
+          width: '100%',
+          border: 0,
+          borderRadius: 'var(--caspian-radius, 6px)',
+          background: 'transparent',
+          color: groupActive ? '#111' : '#444',
+          fontSize: 14,
+          fontWeight: groupActive ? 600 : 500,
+          cursor: 'pointer',
+          textAlign: 'left',
+        }}
+      >
+        {group.icon && <span style={{ display: 'inline-flex', flexShrink: 0 }}>{group.icon}</span>}
+        <span style={{ flex: 1 }}>{group.label}</span>
+        <span
+          aria-hidden
+          style={{
+            display: 'inline-flex',
+            transform: expanded ? 'rotate(0deg)' : 'rotate(-90deg)',
+            transition: 'transform 0.15s ease',
+            color: '#999',
+          }}
+        >
+          <ChevronDownIcon size={14} />
+        </span>
+      </button>
+
+      {expanded && (
+        <div
+          style={{
+            marginLeft: 16,
+            paddingLeft: 12,
+            borderLeft: '1px solid rgba(0,0,0,0.08)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 2,
+            marginTop: 2,
+          }}
+        >
+          {group.children.map((child) => (
+            <LeafLink
+              key={child.href}
+              leaf={child}
+              active={isActive(child.href)}
+              Link={Link}
+              indent={12}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

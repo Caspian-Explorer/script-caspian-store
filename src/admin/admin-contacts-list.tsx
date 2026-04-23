@@ -7,6 +7,7 @@ import {
   listAllContacts,
   setContactStatus,
 } from '../services/contact-service';
+import { reportServiceError } from '../services/error-log-service';
 import { useCaspianFirebase } from '../provider/caspian-store-provider';
 import { useT } from '../i18n/locale-context';
 import { Badge, Skeleton } from '../ui/misc';
@@ -57,7 +58,7 @@ export function AdminContactsList({ className, refreshKey, onMutated }: AdminCon
         if (alive) setContacts(list);
       })
       .catch((error) => {
-        console.error('[caspian-store] Failed to list contacts:', error);
+        reportServiceError(db, 'admin-contacts-list.load', error);
         if (alive) setContacts([]);
       });
     return () => {
@@ -86,7 +87,7 @@ export function AdminContactsList({ className, refreshKey, onMutated }: AdminCon
       onMutated?.();
       toast({ title: t(`admin.contacts.status.${status}`) });
     } catch (error) {
-      console.error('[caspian-store] Contact update failed:', error);
+      reportServiceError(db, 'admin-contacts-list.setStatus', error);
       toast({ title: 'Action failed', variant: 'destructive' });
     } finally {
       setBusy(null);
@@ -102,7 +103,7 @@ export function AdminContactsList({ className, refreshKey, onMutated }: AdminCon
       onMutated?.();
       toast({ title: 'Deleted' });
     } catch (error) {
-      console.error('[caspian-store] Contact delete failed:', error);
+      reportServiceError(db, 'admin-contacts-list.delete', error);
       toast({ title: 'Delete failed', variant: 'destructive' });
     } finally {
       setBusy(null);

@@ -5,12 +5,9 @@
  */
 
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
-import { defineSecret } from 'firebase-functions/params';
 import { getFirestore } from 'firebase-admin/firestore';
 import { send } from './email-sender';
 import { renderEmail, type EmailSettingsFields, type RenderContext } from './email-renderer';
-
-const SENDGRID_API_KEY = defineSecret('SENDGRID_API_KEY');
 
 interface Payload {
   key?: string;
@@ -18,7 +15,7 @@ interface Payload {
 }
 
 export const sendTestEmail = onCall(
-  { secrets: [SENDGRID_API_KEY] },
+  {},
   async (req) => {
     const uid = req.auth?.uid;
     if (!uid) throw new HttpsError('unauthenticated', 'Sign in required.');
@@ -72,17 +69,14 @@ export const sendTestEmail = onCall(
     };
 
     const rendered = renderEmail(template, settings, ctx);
-    const result = await send(
-      {
-        to,
-        from: { email: settings.fromAddress, name: settings.fromName },
-        replyTo: settings.replyTo || undefined,
-        subject: `[TEST] ${rendered.subject}`,
-        html: rendered.html,
-        text: rendered.text,
-      },
-      SENDGRID_API_KEY.value(),
-    );
+    const result = await send({
+      to,
+      from: { email: settings.fromAddress, name: settings.fromName },
+      replyTo: settings.replyTo || undefined,
+      subject: `[TEST] ${rendered.subject}`,
+      html: rendered.html,
+      text: rendered.text,
+    });
 
     return result.ok
       ? ({ ok: true as const })
