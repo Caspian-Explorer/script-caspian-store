@@ -1,0 +1,57 @@
+name: Exports — consumer-tarball smoke
+
+# Catches the v2.3.0 class of bug: an admin page re-exported from
+# src/admin/index.ts but forgotten in the main barrel src/index.ts. The
+# CHANGELOG told consumers to import it — builds crashed with "Export ...
+# doesn't exist in target module". This workflow packs the lib, installs the
+# tarball into a scratch dir (exactly as a consumer would), imports both
+# public entries, and diffs Object.keys against a committed snapshot.
+#
+# If a PR intentionally changes the public API, the developer updates the
+# snapshot with `node scripts/check-exports.mjs --write` and commits the
+# JSON diff — which is visible in code review.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'tsup.config.ts'
+      - 'tsconfig.json'
+      - 'package.json'
+      - 'scripts/check-exports.mjs'
+      - '.github/exports-snapshot.json'
+      - '.github/workflows/exports-smoke.yml'
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'tsup.config.ts'
+      - 'tsconfig.json'
+      - 'package.json'
+      - 'scripts/check-exports.mjs'
+      - '.github/exports-snapshot.json'
+      - '.github/workflows/exports-smoke.yml'
+  workflow_dispatch:
+
+jobs:
+  exports:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          # No cache — this repo doesn't commit package-lock.json by policy.
+
+      - name: Install deps
+        # Skip `prepare` so we control when the build runs. `prepare` would
+        # fire a full tsup build mid-install, which is fine but doubles the
+        # work and hides build errors behind npm's own output.
+        run: npm install --ignore-scripts --no-audit --no-fund
+
+      - name: Build
+        run: npm run build
+
+      - name: Check exports against snapshot
+        run: node scripts/check-exports.mjs
