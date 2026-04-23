@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import type { ShippingPluginInstall, SiteSettings } from '../types';
+import type { ShippingOptions, ShippingPluginInstall, SiteSettings } from '../types';
 import {
   createShippingPluginInstall,
   deleteShippingPluginInstall,
@@ -9,7 +9,7 @@ import {
   updateShippingPluginInstall,
   type ShippingPluginInstallWriteInput,
 } from '../services/shipping-plugin-service';
-import { getSiteSettings } from '../services/site-settings-service';
+import { getSiteSettings, saveSiteSettings } from '../services/site-settings-service';
 import { SHIPPING_PLUGIN_CATALOG, getShippingPlugin } from '../shipping/catalog';
 import { SHIPPING_PLUGIN_IDS, type ShippingPluginId } from '../shipping/types';
 import { useCaspianFirebase } from '../provider/caspian-store-provider';
@@ -20,7 +20,14 @@ import { Input, Label } from '../ui/input';
 import { Badge, Skeleton } from '../ui/misc';
 import { Table, TBody, TD, TH, THead, TR } from '../ui/table';
 import { useToast } from '../ui/toast';
+import { FieldDescription } from '../ui/field-description';
+import { FieldHelp } from '../ui/field-help';
 import { CountryPickerDialog, ISO_COUNTRIES, type IsoCountry } from './country-picker-dialog';
+
+const DEFAULT_SHIPPING_OPTIONS: ShippingOptions = {
+  hideRatesUntilAddressEntered: false,
+  hideRatesWhenFreeAvailable: false,
+};
 
 type DraftConfig = Record<string, string>;
 
@@ -91,6 +98,9 @@ export function AdminShippingPluginsPage({ className }: { className?: string }) 
   const [saving, setSaving] = useState(false);
   const [site, setSite] = useState<SiteSettings | null>(null);
   const [countryPickerOpen, setCountryPickerOpen] = useState(false);
+  const [shippingOptions, setShippingOptions] = useState<ShippingOptions>(DEFAULT_SHIPPING_OPTIONS);
+  const [shippingOptionsDirty, setShippingOptionsDirty] = useState(false);
+  const [savingShippingOptions, setSavingShippingOptions] = useState(false);
 
   const load = async () => {
     try {
@@ -113,7 +123,10 @@ export function AdminShippingPluginsPage({ className }: { className?: string }) 
     let alive = true;
     getSiteSettings(db)
       .then((s) => {
-        if (alive) setSite(s ?? null);
+        if (!alive) return;
+        setSite(s ?? null);
+        setShippingOptions(s?.shippingOptions ?? DEFAULT_SHIPPING_OPTIONS);
+        setShippingOptionsDirty(false);
       })
       .catch(() => {
         if (alive) setSite(null);
@@ -122,6 +135,28 @@ export function AdminShippingPluginsPage({ className }: { className?: string }) 
       alive = false;
     };
   }, [db]);
+
+  const updateShippingOption = (patch: Partial<ShippingOptions>) => {
+    setShippingOptions((prev) => ({ ...prev, ...patch }));
+    setShippingOptionsDirty(true);
+  };
+
+  const handleSaveShippingOptions = async () => {
+    if (!site) return;
+    setSavingShippingOptions(true);
+    try {
+      const next: SiteSettings = { ...site, shippingOptions };
+      await saveSiteSettings(db, next);
+      setSite(next);
+      setShippingOptionsDirty(false);
+      toast({ title: 'Shipping options saved' });
+    } catch (error) {
+      console.error('[caspian-store] Failed to save shipping options:', error);
+      toast({ title: 'Save failed', variant: 'destructive' });
+    } finally {
+      setSavingShippingOptions(false);
+    }
+  };
 
   const eligibleSource = useMemo<readonly IsoCountry[]>(() => {
     if (site?.supportedCountries && site.supportedCountries.length > 0) {
@@ -257,6 +292,70 @@ export function AdminShippingPluginsPage({ className }: { className?: string }) 
         </div>
         <Button onClick={openBrowse}>{t('admin.shippingPlugins.browse')}</Button>
       </header>
+
+      <section
+        style={{
+          border: '1px solid #eee',
+          borderRadius: 'var(--caspian-radius, 8px)',
+          padding: 16,
+          marginBottom: 24,
+          background: '#fff',
+        }}
+      >
+        <h2 style={{ fontSize: 15, fontWeight: 600, margin: 0, marginBottom: 8 }}>
+          Shipping options
+          <FieldHelp>
+            Controls when shipping rates appear at checkout. These toggles apply to every
+            shipping install — they don't replace per-install eligibility.
+          </FieldHelp>
+        </h2>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 14 }}>
+            <input
+              type="checkbox"
+              style={{ marginTop: 3 }}
+              checked={shippingOptions.hideRatesUntilAddressEntered}
+              onChange={(e) =>
+                updateShippingOption({ hideRatesUntilAddressEntered: e.target.checked })
+              }
+            />
+            <span>
+              Hide rates until the shopper has entered a country and postcode
+              <FieldDescription style={{ marginTop: 2 }}>
+                Useful when rates vary by region and a pre-address estimate would mislead the
+                shopper.
+              </FieldDescription>
+            </span>
+          </label>
+          <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 14 }}>
+            <input
+              type="checkbox"
+              style={{ marginTop: 3 }}
+              checked={shippingOptions.hideRatesWhenFreeAvailable}
+              onChange={(e) =>
+                updateShippingOption({ hideRatesWhenFreeAvailable: e.target.checked })
+              }
+            />
+            <span>
+              Hide paid options when free shipping is available
+              <FieldDescription style={{ marginTop: 2 }}>
+                When any rate resolves to 0, every paid option is suppressed so the shopper
+                auto-lands on the free rate.
+              </FieldDescription>
+            </span>
+          </label>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 4 }}>
+            <Button
+              size="sm"
+              onClick={handleSaveShippingOptions}
+              disabled={!shippingOptionsDirty || !site}
+              loading={savingShippingOptions}
+            >
+              Save shipping options
+            </Button>
+          </div>
+        </div>
+      </section>
 
       {installs === null ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>

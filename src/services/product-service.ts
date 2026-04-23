@@ -16,7 +16,8 @@ import {
   type QueryDocumentSnapshot,
   type DocumentSnapshot,
 } from 'firebase/firestore';
-import type { Product } from '../types';
+import type { InventorySettings, Product } from '../types';
+import { isProductOutOfStock } from '../utils/inventory';
 import { stripUndefined } from '../utils/strip-undefined';
 
 export interface ProductFilters {
@@ -26,6 +27,13 @@ export interface ProductFilters {
   sizes?: string[];
   isNew?: boolean;
   limited?: boolean;
+  /**
+   * When set, products that are entirely out of stock (every size at or below
+   * `outOfStockThreshold`) are filtered out client-side before being returned.
+   * Wire from `SiteSettings.inventory` upstream when its `outOfStockVisibility`
+   * is `'hide'`. Added in v2.9.
+   */
+  hideOutOfStock?: Pick<InventorySettings, 'outOfStockThreshold'>;
 }
 
 function docToProduct(docSnap: QueryDocumentSnapshot | DocumentSnapshot): Product {
@@ -70,6 +78,9 @@ export async function getProducts(
   if (filters?.maxPrice !== undefined) list = list.filter((p) => p.price <= filters.maxPrice!);
   if (filters?.sizes?.length) {
     list = list.filter((p) => p.sizes?.some((s) => filters.sizes!.includes(s)));
+  }
+  if (filters?.hideOutOfStock) {
+    list = list.filter((p) => !isProductOutOfStock(p, filters.hideOutOfStock!));
   }
   return list;
 }

@@ -16,6 +16,31 @@ Do not omit the heading, rename it, or fold it into `### Notes`. This is how
 customers tell at a glance whether an upgrade needs attention.
 -->
 
+## v2.9.0 — Inventory tracking + checkout shipping-display toggles
+
+First half of Release B — inventory (B1) and the shipping checkout-behavior toggles (B2). Stores that don't opt in see identical pre-upgrade behavior; merchants who turn on `SiteSettings.inventory.trackStock` get per-size stock fields in the product editor, auto low/out-of-stock badges on product cards, an optional hide-out-of-stock PLP filter, disabled sizes on PDP, and an Add-to-cart guard for out-of-stock sizes.
+
+### Added
+
+- **Inventory settings** — new `SiteSettings.inventory: { trackStock, lowStockThreshold, outOfStockThreshold, outOfStockVisibility, stockDisplay }`. Admin surface lives in the existing `/admin/settings` page as a new "Inventory" section between Cart behavior and Tax. Defaults to off (`trackStock: false`) — no storefront-visible change until opted in.
+- **Per-size stock editing** — `<AdminProductEditor>` gains a "Stock per size" grid that renders one numeric input per size, keyed off the comma-separated sizes field. Empty values stay untracked (treated as always-available). Values are saved to `Product.stock: Record<size, number>` — the existing field that has been unused by the admin until now.
+- **`<ProductCard>` stock badges** — cards render "Out of stock", "Low stock", or "In stock" based on `SiteSettings.inventory` (forwarded via a new optional `inventory` prop; `<ProductGrid>` and `<ProductListPage>` thread it through automatically). The badge kind respects `stockDisplay` (`always` / `low` / `never`).
+- **PLP hide-out-of-stock filter** — `ProductFilters.hideOutOfStock` (new optional field) filters products whose every size is at/below the out-of-stock threshold. `<ProductListPage>` fetches `SiteSettings.inventory` and applies the filter automatically when `outOfStockVisibility === 'hide'`.
+- **PDP out-of-stock handling** — `<ProductDetailPage>` fetches inventory settings, disables per-size buttons for out-of-stock sizes (via a new `outOfStock?: string[]` prop on `<SizeSelector>`), renders a red "Out of stock" banner when every size is empty, and blocks the Add-to-cart button with a toast when an out-of-stock size is selected.
+- **Inventory utilities** — new [src/utils/inventory.ts](src/utils/inventory.ts) exports `DEFAULT_INVENTORY_SETTINGS`, `totalStock`, `isProductOutOfStock`, `isSizeOutOfStock`, and `resolveStockBadge` (returns `'out-of-stock' | 'low-stock' | 'in-stock' | null`). Consumers who bypass the built-in storefront components can reuse these directly.
+- **Shipping options** — new `SiteSettings.shippingOptions: { hideRatesUntilAddressEntered, hideRatesWhenFreeAvailable }`. A new section at the top of `/admin/shipping-plugins` edits these two checkboxes and persists via `saveSiteSettings` (no new Firestore collection).
+- **Checkout rate gating** — `<CheckoutPage>` now skips shipping rate calculation when `hideRatesUntilAddressEntered` is true and the shopper hasn't entered a country + postcode, and suppresses paid options when `hideRatesWhenFreeAvailable` is true and any rate resolves to 0.
+
+### Exports added
+
+`InventorySettings`, `ShippingOptions` types; `DEFAULT_INVENTORY_SETTINGS`, `totalStock`, `isProductOutOfStock`, `isSizeOutOfStock`, `resolveStockBadge`, `StockBadgeKind` from `./utils/inventory`; `SizeSelectorProps` from `./components/product-selectors`; new `inventory` props on `<ProductCard>`, `<ProductGrid>`, `<ProductListPage>`, `<ProductDetailPage>`, and `<ProductFilters.hideOutOfStock>`.
+
+### No consumer action required
+
+Pure additive release — no new Firestore collections, no rules changes, no migrations. Stores that don't set `SiteSettings.inventory` or `SiteSettings.shippingOptions` get identical pre-upgrade behavior. Product docs with no `stock` map continue to work (treated as untracked / always-available). Shipping rate calculation short-circuits only when a merchant explicitly opts in to the toggles.
+
+---
+
 ## v2.8.0 — Manual payment methods (BACS, cheque, COD) + payment-row polish
 
 Second WooCommerce-parity ship. The Stripe-only payments catalog grows three offline gateways — bank transfer, cheque, cash on delivery — that create orders client-side with `status: 'on-hold'` for manual fulfillment. Plus payment-row polish in admin: editable per-install description and a Set up / Manage button that flips state based on whether `validateConfig` passes.

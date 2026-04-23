@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import type {
   CurrencyDisplay,
+  InventorySettings,
   SiteSettings,
   SocialLink,
   SocialPlatform,
@@ -10,6 +11,7 @@ import type {
   SupportedCountry,
 } from '../types';
 import { SOCIAL_PLATFORMS } from '../types';
+import { DEFAULT_INVENTORY_SETTINGS } from '../utils/inventory';
 import { getSiteSettings, saveSiteSettings } from '../services/site-settings-service';
 import { useCaspianFirebase } from '../provider/caspian-store-provider';
 import { SocialIcon } from '../components/social-icon';
@@ -770,6 +772,11 @@ export function AdminSiteSettingsPage({ className }: { className?: string }) {
           </div>
         </div>
 
+        <InventorySection
+          value={draft.inventory}
+          onChange={(next) => patch({ inventory: next })}
+        />
+
         <div>
           <h2 style={{ fontSize: 16, fontWeight: 600, marginBottom: 12 }}>Tax & supported countries</h2>
           <p style={{ fontSize: 13, color: '#666', margin: '0 0 12px' }}>
@@ -1079,6 +1086,111 @@ function StoreAddressSection({
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function InventorySection({
+  value,
+  onChange,
+}: {
+  value: InventorySettings | undefined;
+  onChange: (next: InventorySettings | undefined) => void;
+}) {
+  const enabled = value?.trackStock ?? false;
+  const settings: InventorySettings = value ?? DEFAULT_INVENTORY_SETTINGS;
+  const update = (patchFields: Partial<InventorySettings>) =>
+    onChange({ ...settings, ...patchFields });
+
+  return (
+    <div>
+      <h2 style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
+        Inventory
+        <FieldHelp>
+          Track per-size stock counts on each product (in the product editor) and surface
+          low / out-of-stock badges on the storefront. Off by default — opt-in per store.
+        </FieldHelp>
+      </h2>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14 }}>
+          <input
+            type="checkbox"
+            checked={enabled}
+            onChange={(e) =>
+              onChange(e.target.checked ? { ...settings, trackStock: true } : undefined)
+            }
+          />
+          <span>Manage stock</span>
+        </label>
+        {enabled && (
+          <>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div>
+                <Label>Low-stock threshold</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  value={settings.lowStockThreshold}
+                  onChange={(e) =>
+                    update({ lowStockThreshold: Math.max(0, Number(e.target.value) || 0) })
+                  }
+                />
+                <FieldDescription>
+                  When a product's total units across all sizes is at or below this, the storefront
+                  shows a "Low stock" badge.
+                </FieldDescription>
+              </div>
+              <div>
+                <Label>Out-of-stock threshold</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  value={settings.outOfStockThreshold}
+                  onChange={(e) =>
+                    update({ outOfStockThreshold: Math.max(0, Number(e.target.value) || 0) })
+                  }
+                />
+                <FieldDescription>
+                  Per-size unit count at or below this is considered out of stock. Usually 0.
+                </FieldDescription>
+              </div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div>
+                <Label>Out-of-stock visibility</Label>
+                <Select
+                  value={settings.outOfStockVisibility}
+                  onChange={(e) =>
+                    update({
+                      outOfStockVisibility: e.target.value as InventorySettings['outOfStockVisibility'],
+                    })
+                  }
+                  options={[
+                    { value: 'show', label: 'Show in catalog with badge' },
+                    { value: 'hide', label: 'Hide from catalog entirely' },
+                  ]}
+                  style={{ width: '100%' }}
+                />
+              </div>
+              <div>
+                <Label>Stock badge display</Label>
+                <Select
+                  value={settings.stockDisplay}
+                  onChange={(e) =>
+                    update({ stockDisplay: e.target.value as InventorySettings['stockDisplay'] })
+                  }
+                  options={[
+                    { value: 'always', label: 'Always show in-stock / low-stock badges' },
+                    { value: 'low', label: 'Only when low or out of stock' },
+                    { value: 'never', label: 'Never show stock badges' },
+                  ]}
+                  style={{ width: '100%' }}
+                />
+              </div>
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 }

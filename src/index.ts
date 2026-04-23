@@ -40,7 +40,11 @@ export { ProductGrid, type ProductGridProps } from './components/product-grid';
 export { ProductListPage, type ProductListPageProps } from './components/product-list-page';
 export { SearchResultsPage, type SearchResultsPageProps } from './components/search-results-page';
 export { ProductGallery } from './components/product-gallery';
-export { SizeSelector, QuantitySelector } from './components/product-selectors';
+export {
+  SizeSelector,
+  QuantitySelector,
+  type SizeSelectorProps,
+} from './components/product-selectors';
 export { ProductDetailPage, type ProductDetailPageProps } from './components/product-detail-page';
 export { CartSheet, type CartSheetProps } from './components/cart-sheet';
 export { CartPage, type CartPageProps } from './components/cart-page';
@@ -580,6 +584,9 @@ export type {
   StoreAddress,
   ReviewPolicy,
   CartBehavior,
+  // v2.9 additions — inventory + shipping display
+  InventorySettings,
+  ShippingOptions,
 } from './types';
 export { DEFAULT_SCRIPT_SETTINGS, SOCIAL_PLATFORMS } from './types';
 
@@ -596,6 +603,14 @@ export {
   SUBDIVISION_LIBRARY,
   type Subdivision,
 } from './data/subdivisions';
+export {
+  DEFAULT_INVENTORY_SETTINGS,
+  totalStock,
+  isProductOutOfStock,
+  isSizeOutOfStock,
+  resolveStockBadge,
+  type StockBadgeKind,
+} from './utils/inventory';
 
 // --- Library metadata ---
 export { CASPIAN_STORE_VERSION } from './version';

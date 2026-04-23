@@ -338,6 +338,49 @@ export interface CartBehavior {
   ajaxOnArchives: boolean;
 }
 
+/**
+ * Global inventory settings consumed by storefront badging, PLP filtering,
+ * and the per-product stock fields in the admin product editor. Per-size
+ * stock counts live on `Product.stock`. Added in v2.9.
+ */
+export interface InventorySettings {
+  /** Master toggle. When false, all of the toggles below are inert and stock is not displayed. */
+  trackStock: boolean;
+  /** Total units across all sizes at or below this number trigger the "low stock" badge. */
+  lowStockThreshold: number;
+  /** Per-size unit count at or below this number is considered out of stock. Defaults to 0. */
+  outOfStockThreshold: number;
+  /**
+   * Catalog visibility for products that are entirely out of stock (every size at or below
+   * `outOfStockThreshold`). `'show'` keeps them visible (with badge); `'hide'` filters them
+   * out of `getProducts` results.
+   */
+  outOfStockVisibility: 'show' | 'hide';
+  /**
+   * When badges render. `'always'` shows in-stock count on every card; `'low'` only shows
+   * a badge when stock is at or below `lowStockThreshold`; `'never'` suppresses badges.
+   */
+  stockDisplay: 'always' | 'low' | 'never';
+}
+
+/**
+ * Global shipping checkout-behavior toggles consumed by `<CheckoutPage>` when
+ * computing which rates to render. Added in v2.9.
+ */
+export interface ShippingOptions {
+  /**
+   * When true, the checkout shipping picker stays empty until the shopper
+   * has entered a country *and* a postal code. Useful when zone-derived
+   * rates would otherwise mislead the customer pre-address.
+   */
+  hideRatesUntilAddressEntered: boolean;
+  /**
+   * When true and any visible rate resolves to `0` (free), the picker hides
+   * every paid option so the shopper is automatically given the free rate.
+   */
+  hideRatesWhenFreeAvailable: boolean;
+}
+
 export interface SiteSettings {
   logoUrl: string;
   faviconUrl?: string;
@@ -383,6 +426,10 @@ export interface SiteSettings {
   reviewPolicy?: ReviewPolicy;
   /** Add-to-cart behavior. Added in v2.7. */
   cartBehavior?: CartBehavior;
+  /** Inventory tracking + display config. Added in v2.9. */
+  inventory?: InventorySettings;
+  /** Checkout shipping rate display rules. Added in v2.9. */
+  shippingOptions?: ShippingOptions;
   socialLinks: SocialLink[];
 }
 

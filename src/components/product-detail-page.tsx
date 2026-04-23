@@ -1,9 +1,10 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import type { CartBehavior, Product } from '../types';
+import type { CartBehavior, InventorySettings, Product } from '../types';
 import { getProductById } from '../services/product-service';
 import { getSiteSettings } from '../services/site-settings-service';
+import { isProductOutOfStock, isSizeOutOfStock } from '../utils/inventory';
 import { useCaspianFirebase, useCaspianNavigation } from '../provider/caspian-store-provider';
 import { useCart } from '../context/cart-context';
 import { useT } from '../i18n/locale-context';
@@ -33,6 +34,11 @@ export interface ProductDetailPageProps {
    * Default `/cart`. Added in v2.7.
    */
   cartHref?: string;
+  /**
+   * Override inventory settings (otherwise fetched from `SiteSettings.inventory`).
+   * Drives per-size disabled state and the global out-of-stock banner. Added in v2.9.
+   */
+  inventory?: InventorySettings;
   onNotFound?: () => void;
   className?: string;
 }
@@ -59,6 +65,7 @@ export function ProductDetailPage({
   hideReviews,
   cartBehavior: cartBehaviorOverride,
   cartHref = '/cart',
+  inventory: inventoryOverride,
   onNotFound,
   className,
 }: ProductDetailPageProps) {
@@ -75,16 +82,20 @@ export function ProductDetailPage({
   const [totalReviews, setTotalReviews] = useState(0);
   const [activeTab, setActiveTab] = useState<TabKey>('details');
   const [cartBehavior, setCartBehavior] = useState<CartBehavior | undefined>(cartBehaviorOverride);
+  const [inventory, setInventory] = useState<InventorySettings | undefined>(inventoryOverride);
 
   useEffect(() => {
-    if (cartBehaviorOverride !== undefined) {
+    if (cartBehaviorOverride !== undefined && inventoryOverride !== undefined) {
       setCartBehavior(cartBehaviorOverride);
+      setInventory(inventoryOverride);
       return undefined;
     }
     let alive = true;
     getSiteSettings(db)
       .then((s) => {
-        if (alive) setCartBehavior(s?.cartBehavior);
+        if (!alive) return;
+        if (cartBehaviorOverride === undefined) setCartBehavior(s?.cartBehavior);
+        if (inventoryOverride === undefined) setInventory(s?.inventory);
       })
       .catch(() => {
         /* fall through to defaults */
@@ -92,7 +103,7 @@ export function ProductDetailPage({
     return () => {
       alive = false;
     };
-  }, [db, cartBehaviorOverride]);
+  }, [db, cartBehaviorOverride, inventoryOverride]);
 
   useEffect(() => {
     if (externalProduct) {
@@ -152,10 +163,28 @@ export function ProductDetailPage({
     product.description && product.description.trim() && product.description.trim() !== blurb,
   );
   const detailsTabHasContent = hasDetails || hasLongDescription;
+  const inventoryActive = inventory?.trackStock === true;
+  const outOfStockSizes =
+    inventoryActive && product.sizes
+      ? product.sizes.filter((s) => isSizeOutOfStock(product.stock, s, inventory))
+      : [];
+  const allOut = inventoryActive && isProductOutOfStock(product, inventory);
 
   const handleAddToCart = () => {
+    if (allOut) {
+      toast({ title: 'Out of stock', variant: 'destructive' });
+      return;
+    }
     if (hasSizes && !selectedSize) {
       toast({ title: t('product.selectSize'), variant: 'destructive' });
+      return;
+    }
+    if (
+      inventoryActive &&
+      selectedSize &&
+      isSizeOutOfStock(product.stock, selectedSize, inventory)
+    ) {
+      toast({ title: 'This size is out of stock', variant: 'destructive' });
       return;
     }
     addToCart(product, quantity, selectedSize);
@@ -194,10 +223,31 @@ export function ProductDetailPage({
             <p style={{ color: '#555', lineHeight: 1.6, margin: '16px 0' }}>{blurb}</p>
           )}
 
+          {inventoryActive && allOut && (
+            <div
+              style={{
+                marginBottom: 16,
+                padding: '10px 12px',
+                background: '#fee2e2',
+                color: '#991b1b',
+                borderRadius: 'var(--caspian-radius, 6px)',
+                fontSize: 14,
+                fontWeight: 600,
+              }}
+            >
+              Out of stock
+            </div>
+          )}
+
           {hasSizes && (
             <div style={{ marginBottom: 16 }}>
               <p style={{ fontSize: 13, fontWeight: 500, marginBottom: 8 }}>{t('product.size')}</p>
-              <SizeSelector sizes={product.sizes!} value={selectedSize} onChange={setSelectedSize} />
+              <SizeSelector
+                sizes={product.sizes!}
+                value={selectedSize}
+                onChange={setSelectedSize}
+                outOfStock={outOfStockSizes}
+              />
             </div>
           )}
 

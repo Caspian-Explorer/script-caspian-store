@@ -194,6 +194,15 @@ export function CheckoutPage({
       setSelectedRate(null);
       return;
     }
+    // Honor the site-wide `hideRatesUntilAddressEntered` toggle before we even
+    // run the query — keeps the picker blank while the shopper is still filling
+    // in their address, which is the point of the setting.
+    const hideUntilAddress = site?.shippingOptions?.hideRatesUntilAddressEntered ?? false;
+    if (hideUntilAddress && (!form.countryCode || !form.postalCode.trim())) {
+      setRates(null);
+      setSelectedRate(null);
+      return;
+    }
     calculateShippingRates({
       db,
       items,
@@ -204,12 +213,18 @@ export function CheckoutPage({
       .then((list) => {
         if (!alive) return;
         // Client-side filter by eligibleCountries.
-        const filtered = form.countryCode
+        let filtered = form.countryCode
           ? list.filter((r) => {
               const eligible = r.eligibleCountries;
               return !eligible || eligible.length === 0 || eligible.includes(form.countryCode);
             })
           : list;
+        // When the merchant enables `hideRatesWhenFreeAvailable` and any rate
+        // is 0, suppress the paid options so the shopper auto-lands on free.
+        if (site?.shippingOptions?.hideRatesWhenFreeAvailable) {
+          const hasFree = filtered.some((r) => r.price === 0);
+          if (hasFree) filtered = filtered.filter((r) => r.price === 0);
+        }
         setRates(filtered);
         setSelectedRate((prev) => {
           if (prev && filtered.some((r) => r.installId === prev.installId)) return prev;
@@ -223,7 +238,17 @@ export function CheckoutPage({
     return () => {
       alive = false;
     };
-  }, [db, items, subtotal, count, currency, form.countryCode]);
+  }, [
+    db,
+    items,
+    subtotal,
+    count,
+    currency,
+    form.countryCode,
+    form.postalCode,
+    site?.shippingOptions?.hideRatesUntilAddressEntered,
+    site?.shippingOptions?.hideRatesWhenFreeAvailable,
+  ]);
 
   // Tax estimate.
   const taxAmount = useMemo(() => {

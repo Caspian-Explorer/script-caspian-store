@@ -2,36 +2,54 @@
 
 import { cn } from '../utils/cn';
 
+export interface SizeSelectorProps {
+  sizes: string[];
+  value?: string;
+  onChange: (size: string) => void;
+  className?: string;
+  /**
+   * Optional set of size strings that should render disabled (struck-through),
+   * e.g. those at or below the merchant's out-of-stock threshold. Added in v2.9.
+   */
+  outOfStock?: string[];
+}
+
 export function SizeSelector({
   sizes,
   value,
   onChange,
   className,
-}: {
-  sizes: string[];
-  value?: string;
-  onChange: (size: string) => void;
-  className?: string;
-}) {
+  outOfStock,
+}: SizeSelectorProps) {
+  const disabledSet = new Set(outOfStock ?? []);
   return (
     <div className={cn('caspian-size-selector', className)} style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
       {sizes.map((s) => {
         const active = s === value;
+        const disabled = disabledSet.has(s);
         return (
           <button
             key={s}
             type="button"
+            disabled={disabled}
             onClick={() => onChange(s)}
+            title={disabled ? 'Out of stock' : undefined}
             style={{
               minWidth: 48,
               padding: '8px 12px',
               border: `1px solid ${active ? 'var(--caspian-primary, #111)' : 'rgba(0,0,0,0.15)'}`,
               background: active ? 'var(--caspian-primary, #111)' : 'transparent',
-              color: active ? 'var(--caspian-primary-foreground, #fff)' : 'inherit',
+              color: disabled
+                ? '#aaa'
+                : active
+                  ? 'var(--caspian-primary-foreground, #fff)'
+                  : 'inherit',
               borderRadius: 'var(--caspian-radius, 6px)',
-              cursor: 'pointer',
+              cursor: disabled ? 'not-allowed' : 'pointer',
               fontSize: 14,
               fontWeight: 500,
+              textDecoration: disabled ? 'line-through' : undefined,
+              opacity: disabled ? 0.6 : 1,
             }}
           >
             {s}

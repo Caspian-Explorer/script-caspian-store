@@ -37,6 +37,11 @@ interface FormState {
   /** Category document id (not the display name). */
   category: string;
   sizes: string; // comma-separated
+  /**
+   * Per-size stock counts as input strings (so the field can render an empty value).
+   * Coerced to integers on save and persisted to `Product.stock`. Added in v2.9.
+   */
+  sizeStock: Record<string, string>;
   color: string;
   /** Weight in kg as a string so the input can render an empty field; coerced on save. */
   weightKg: string;
@@ -55,6 +60,7 @@ const empty: FormState = {
   price: '0',
   category: '',
   sizes: '',
+  sizeStock: {},
   color: '',
   weightKg: '',
   isNew: false,
@@ -62,6 +68,13 @@ const empty: FormState = {
   isActive: true,
   images: [],
 };
+
+function parseSizeList(raw: string): string[] {
+  return raw
+    .split(',')
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+}
 
 /**
  * Fixed palette of named product colors. Keep in sync with the storefront
@@ -178,6 +191,12 @@ export function AdminProductEditor({
         }
         const normalizedColor = normalizeLegacyColor(p.color ?? '');
         if (!normalizedColor && p.color) setLegacyColor(p.color);
+        const sizeList = p.sizes ?? [];
+        const sizeStock: Record<string, string> = {};
+        for (const size of sizeList) {
+          const qty = p.stock?.[size];
+          sizeStock[size] = qty === undefined ? '' : String(qty);
+        }
         setForm({
           name: p.name,
           brand: p.brand,
@@ -186,7 +205,8 @@ export function AdminProductEditor({
           details: p.details ?? '',
           price: String(p.price),
           category: p.category,
-          sizes: (p.sizes ?? []).join(', '),
+          sizes: sizeList.join(', '),
+          sizeStock,
           color: normalizedColor,
           weightKg: p.weightKg !== undefined ? String(p.weightKg) : '',
           isNew: Boolean(p.isNew),
@@ -260,6 +280,20 @@ export function AdminProductEditor({
       }
       const shortDescTrimmed = form.shortDescription.trim();
       const detailsTrimmed = form.details.trim();
+      const cleanSizes = parseSizeList(form.sizes);
+      // Persist stock entries only for sizes that actually exist on the product,
+      // so stale rows can't pile up after sizes are renamed/removed.
+      const stockMap: Record<string, number> = {};
+      let hasAnyStock = false;
+      for (const size of cleanSizes) {
+        const raw = (form.sizeStock[size] ?? '').trim();
+        if (raw === '') continue;
+        const qty = Math.max(0, Math.floor(Number(raw)));
+        if (Number.isFinite(qty)) {
+          stockMap[size] = qty;
+          hasAnyStock = true;
+        }
+      }
       const payload: ProductWriteInput = {
         name: form.name.trim(),
         brand: form.brand.trim(),
@@ -268,10 +302,8 @@ export function AdminProductEditor({
         details: detailsTrimmed || undefined,
         price: priceNum,
         category: form.category,
-        sizes: form.sizes
-          .split(',')
-          .map((s) => s.trim())
-          .filter(Boolean),
+        sizes: cleanSizes,
+        stock: hasAnyStock ? stockMap : undefined,
         color: form.color,
         weightKg,
         isNew: form.isNew,
@@ -411,6 +443,13 @@ export function AdminProductEditor({
             )}
           </Field>
         </div>
+        <ProductStockGrid
+          sizes={parseSizeList(form.sizes)}
+          values={form.sizeStock}
+          onChange={(size, value) =>
+            setForm((s) => ({ ...s, sizeStock: { ...s.sizeStock, [size]: value } }))
+          }
+        />
         <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
           <Check label="New arrival" checked={form.isNew} onChange={(v) => setForm((s) => ({ ...s, isNew: v }))} />
           <Check label="Limited edition" checked={form.limited} onChange={(v) => setForm((s) => ({ ...s, limited: v }))} />
@@ -542,6 +581,77 @@ function Check({
       <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} />
       {label}
     </label>
+  );
+}
+
+function ProductStockGrid({
+  sizes,
+  values,
+  onChange,
+}: {
+  sizes: string[];
+  values: Record<string, string>;
+  onChange: (size: string, value: string) => void;
+}) {
+  if (sizes.length === 0) {
+    return (
+      <Field label="Stock per size">
+        <p style={{ fontSize: 13, color: '#888', margin: '4px 0 0' }}>
+          Add at least one size above to track stock per size.
+        </p>
+      </Field>
+    );
+  }
+  return (
+    <Field label="Stock per size">
+      <p style={{ fontSize: 13, color: '#666', margin: '0 0 8px' }}>
+        Number of units available for each size. Leave blank to mark a size as untracked
+        (always available).
+      </p>
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
+          gap: 8,
+        }}
+      >
+        {sizes.map((size) => (
+          <label
+            key={size}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              border: '1px solid rgba(0,0,0,0.1)',
+              borderRadius: 'var(--caspian-radius, 6px)',
+              padding: '6px 10px',
+              background: '#fff',
+            }}
+          >
+            <span
+              style={{
+                fontSize: 12,
+                fontWeight: 600,
+                letterSpacing: '0.06em',
+                textTransform: 'uppercase',
+                color: '#444',
+                minWidth: 32,
+              }}
+            >
+              {size}
+            </span>
+            <Input
+              type="number"
+              min={0}
+              value={values[size] ?? ''}
+              placeholder="—"
+              onChange={(e) => onChange(size, e.target.value)}
+              style={{ flex: 1 }}
+            />
+          </label>
+        ))}
+      </div>
+    </Field>
   );
 }
 

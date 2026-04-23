@@ -1,6 +1,6 @@
 'use client';
 
-import type { Product } from '../types';
+import type { InventorySettings, Product } from '../types';
 import { ProductCard } from './product-card';
 import { Skeleton } from '../ui/misc';
 import { useT } from '../i18n/locale-context';
@@ -14,6 +14,11 @@ export interface ProductGridProps {
   minCardWidth?: number;
   emptyMessage?: string;
   className?: string;
+  /**
+   * Forwarded to every `<ProductCard>` so stock badges render. When omitted,
+   * cards skip stock badging — preserving pre-v2.9 behavior. Added in v2.9.
+   */
+  inventory?: InventorySettings;
 }
 
 export function ProductGrid({
@@ -24,6 +29,7 @@ export function ProductGrid({
   minCardWidth = 220,
   emptyMessage,
   className,
+  inventory,
 }: ProductGridProps) {
   const t = useT();
   const empty = emptyMessage ?? t('storefront.empty');
@@ -54,7 +60,13 @@ export function ProductGrid({
   return (
     <div className={cn('caspian-product-grid', className)} style={gridStyle}>
       {products.map((p) => (
-        <ProductCard key={p.id} product={p} getProductHref={getProductHref} formatPrice={formatPrice} />
+        <ProductCard
+          key={p.id}
+          product={p}
+          getProductHref={getProductHref}
+          formatPrice={formatPrice}
+          inventory={inventory}
+        />
       ))}
     </div>
   );
