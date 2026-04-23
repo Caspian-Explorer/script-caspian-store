@@ -16,6 +16,74 @@ Do not omit the heading, rename it, or fold it into `### Notes`. This is how
 customers tell at a glance whether an upgrade needs attention.
 -->
 
+## v3.1.0 — Fix search results stuck on previous query (#43 / mod1183)
+
+When a visitor was already on `/search?q=foo` and submitted a new term from the
+header, the URL updated to `/search?q=bar` but the results panel kept showing
+`foo`. Root cause: `<SearchResultsPage>` read `window.location.search` inside
+a `useEffect` that only depended on the optional `query` prop, so after the
+initial mount it had no way to notice client-side navigation in a Next.js
+App Router. `router.push()` is a soft navigation; `window.location` is not
+a reactive source.
+
+Fix: extend the `CaspianNavigation` adapter contract with an optional
+**reactive** `searchParams: URLSearchParams` field. In the Next.js adapter it's
+populated from `useSearchParams()`, so every URL change re-renders subscribing
+components. `<SearchResultsPage>` now reads the query from the adapter and
+derives it during render — no more stale effect.
+
+### Consumer action required on upgrade
+
+**Only Next.js (or other SPA-router) consumers who maintain a custom
+`useNavigation` adapter.** Default-adapter consumers and scaffolder users are
+unaffected (the scaffolder generates the updated adapter automatically).
+
+Add a single line to your `useNavigation` adapter, e.g. in
+`src/lib/caspian-adapters.tsx`:
+
+```diff
+- import { useRouter, usePathname } from 'next/navigation';
++ import { useRouter, usePathname, useSearchParams } from 'next/navigation';
+
+  export function useCaspianNextNavigation() {
+    const router = useRouter();
+    const pathname = usePathname();
++   const searchParams = useSearchParams();
+    return {
+      pathname: pathname ?? '/',
++     searchParams: new URLSearchParams(searchParams?.toString() ?? ''),
+      push: (href) => router.push(href),
+      replace: (href) => router.replace(href),
+      back: () => router.back(),
+    };
+  }
+```
+
+Skip this step and the library still compiles and runs — but `/search` will
+retain the v3.0.x bug.
+
+Next.js may warn that `useSearchParams()` forces the closest `<Suspense>`
+boundary (deopt-to-client-rendering). If you hit a build warning, wrap
+`<Providers>` or the consuming page tree in `<Suspense fallback={null}>`.
+This does not happen on `"use client"` pages, which is the scaffold's
+default.
+
+### Fixed
+
+- `<SearchResultsPage>` ([src/components/search-results-page.tsx](src/components/search-results-page.tsx)) now re-runs the filter whenever the URL's `?q=` changes, not just on first mount. Closes [#43](https://github.com/Caspian-Explorer/script-caspian-store/issues/43).
+
+### Added
+
+- `CaspianNavigation.searchParams?: URLSearchParams` on the adapter contract ([src/primitives/types.ts](src/primitives/types.ts)). Optional for backwards compatibility; real framework adapters must populate it from a reactive source (e.g. `useSearchParams()` in Next.js) for URL-driven components to react to client-side navigation.
+- Default navigation adapter ([src/primitives/navigation.tsx](src/primitives/navigation.tsx)) now populates `searchParams` from `window.location.search`.
+
+### Changed
+
+- Scaffolder ([scaffold/create.mjs](scaffold/create.mjs)) generates the updated `useCaspianNextNavigation()` — new sites pick up the fix automatically.
+- Next.js example app ([examples/nextjs/app/providers.tsx](examples/nextjs/app/providers.tsx)) updated to match.
+
+---
+
 ## v3.0.0 — Admin sidebar redesign · Self-healing error logging · Email plugin catalog
 
 Three features ship as one breaking release:

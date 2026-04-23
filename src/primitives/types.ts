@@ -38,6 +38,14 @@ export type CaspianImageComponent = ComponentType<CaspianImageProps>;
 export interface CaspianNavigation {
   /** Full pathname of the current route, e.g. `/product/abc`. */
   pathname: string;
+  /**
+   * Current URL query string as a `URLSearchParams` — must be a *reactive*
+   * source in real framework adapters so URL-driven components re-render on
+   * client-side navigation. Populate from `useSearchParams()` in Next.js.
+   * Components that read this must tolerate it being `undefined` (older
+   * consumer adapters may not supply it) and fall back gracefully.
+   */
+  searchParams?: URLSearchParams;
   /** Push a new route. */
   push: (href: string) => void;
   /** Replace the current route. */

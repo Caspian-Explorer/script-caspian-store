@@ -3,12 +3,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { Product } from '../types';
 import { getProducts } from '../services/product-service';
-import { useCaspianFirebase } from '../provider/caspian-store-provider';
+import { useCaspianFirebase, useCaspianNavigation } from '../provider/caspian-store-provider';
 import { useT } from '../i18n/locale-context';
 import { ProductGrid } from './product-grid';
 
 export interface SearchResultsPageProps {
-  /** Query string. If omitted, read `?q=` from `window.location.search`. */
+  /** Query string. If omitted, read `?q=` from the navigation adapter's
+   * reactive `searchParams` (falling back to `window.location.search`). */
   query?: string;
   /** Max products to load into the client-side filter. Default 500. */
   max?: number;
@@ -32,20 +33,17 @@ export function SearchResultsPage({
 }: SearchResultsPageProps) {
   const { db } = useCaspianFirebase();
   const t = useT();
+  const navigation = useCaspianNavigation();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
-  const [queryState, setQueryState] = useState<string>('');
 
-  useEffect(() => {
-    if (typeof queryProp === 'string') {
-      setQueryState(queryProp);
-      return;
-    }
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search);
-      setQueryState(params.get('q') ?? '');
-    }
-  }, [queryProp]);
+  const queryState =
+    typeof queryProp === 'string'
+      ? queryProp
+      : navigation.searchParams?.get('q') ??
+        (typeof window !== 'undefined'
+          ? new URLSearchParams(window.location.search).get('q') ?? ''
+          : '');
 
   useEffect(() => {
     let alive = true;

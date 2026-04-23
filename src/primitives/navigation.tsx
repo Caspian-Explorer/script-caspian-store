@@ -8,6 +8,10 @@ import type { CaspianNavigation, UseCaspianNavigation } from './types';
 export const useDefaultCaspianNavigation: UseCaspianNavigation = (): CaspianNavigation => {
   return {
     pathname: typeof window === 'undefined' ? '/' : window.location.pathname,
+    searchParams:
+      typeof window === 'undefined'
+        ? new URLSearchParams()
+        : new URLSearchParams(window.location.search),
     push: (href: string) => {
       if (typeof window !== 'undefined') window.location.href = href;
     },

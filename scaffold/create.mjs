@@ -326,7 +326,7 @@ write('src/lib/caspian-adapters.tsx', `'use client';
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { useRouter, usePathname } from 'next/navigation';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import type {
   CaspianLinkProps,
   CaspianImageProps,
@@ -369,8 +369,10 @@ export function CaspianNextImage({ src, alt, width, height, fill, priority, clas
 export function useCaspianNextNavigation() {
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   return {
     pathname: pathname ?? '/',
+    searchParams: new URLSearchParams(searchParams?.toString() ?? ''),
     push: (href: string) => router.push(href as any),
     replace: (href: string) => router.replace(href as any),
     back: () => router.back(),

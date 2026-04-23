@@ -3,7 +3,7 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useRouter, usePathname } from 'next/navigation';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import {
   CaspianStoreProvider,
   type CaspianLinkProps,
@@ -41,8 +41,10 @@ function CaspianNextImage({ src, alt, width, height, fill, priority, className, 
 function useCaspianNextNavigation() {
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   return {
     pathname: pathname ?? '/',
+    searchParams: new URLSearchParams(searchParams?.toString() ?? ''),
     push: (href: string) => router.push(href),
     replace: (href: string) => router.replace(href),
     back: () => router.back(),
