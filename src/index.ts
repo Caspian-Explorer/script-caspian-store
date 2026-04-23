@@ -67,6 +67,10 @@ export {
   type SiteFooterLink,
 } from './components/site-footer';
 export { LayoutShell, type LayoutShellProps } from './components/layout-shell';
+export {
+  ComingSoonSplash,
+  type ComingSoonSplashProps,
+} from './components/coming-soon-splash';
 export { DynamicFavicon } from './components/dynamic-favicon';
 export { SocialIcon } from './components/social-icon';
 
@@ -113,8 +117,8 @@ export {
 // Reviews & Questions
 export { ProductReviews, type ReviewSummaryData } from './components/reviews/product-reviews';
 export { ReviewSummary } from './components/reviews/review-summary';
-export { ReviewList } from './components/reviews/review-list';
-export { ReviewItem } from './components/reviews/review-item';
+export { ReviewList, type ReviewListProps } from './components/reviews/review-list';
+export { ReviewItem, type ReviewItemProps } from './components/reviews/review-item';
 export { QuestionList } from './components/reviews/question-list';
 export { QuestionItem } from './components/reviews/question-item';
 export { WriteReviewDialog } from './components/reviews/write-review-dialog';
@@ -244,6 +248,16 @@ export {
   EditIcon,
   TrashIcon,
   ExternalLinkIcon,
+  HelpIcon,
+  SearchIcon,
+  ChevronDownIcon,
+  FieldHelp,
+  type FieldHelpProps,
+  FieldDescription,
+  type FieldDescriptionProps,
+  SearchableSelect,
+  type SearchableSelectProps,
+  type SearchableSelectOption,
   RichTextEditor,
   sanitizeRichHtml,
   HtmlContent,
@@ -478,6 +492,7 @@ export {
   AdminAppearancePage,
   AdminAppearancePreviewPage,
   AdminTodoPage,
+  AdminOnboardingProgress,
   AdminAboutPage,
   AdminSearchTermsPage,
   AdminNotificationsBell,
@@ -503,6 +518,7 @@ export {
   type CountryPickerDialogProps,
   type IsoCountry,
   type AdminProfileMenuProps,
+  type AdminOnboardingProgressProps,
 } from './admin';
 
 // --- Types ---
@@ -551,11 +567,28 @@ export type {
   LanguageDoc,
   AdminTodo,
   PaymentPluginInstall,
+  // v2.7 additions — admin-editable runtime behavior
+  ComingSoonSettings,
+  CurrencyDisplay,
+  StoreAddress,
+  ReviewPolicy,
+  CartBehavior,
 } from './types';
 export { DEFAULT_SCRIPT_SETTINGS, SOCIAL_PLATFORMS } from './types';
 
 // --- Utilities ---
 export { cn } from './utils/cn';
+export {
+  formatCurrency,
+  currencySymbol,
+  defaultCurrencyDisplay,
+  type FormatCurrencyOptions,
+} from './utils/format-currency';
+export {
+  getSubdivisions,
+  SUBDIVISION_LIBRARY,
+  type Subdivision,
+} from './data/subdivisions';
 
 // --- Library metadata ---
 export { CASPIAN_STORE_VERSION } from './version';

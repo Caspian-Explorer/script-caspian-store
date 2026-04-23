@@ -12,7 +12,7 @@ import {
   type Firestore,
   type QueryDocumentSnapshot,
 } from 'firebase/firestore';
-import type { FirestoreReview, ModerationStatus } from '../types';
+import type { FirestoreReview, ModerationStatus, ReviewPolicy } from '../types';
 import { hasUserPurchasedProduct } from './order-service';
 
 export type ReviewSortBy = 'recent' | 'highest' | 'lowest';
@@ -80,10 +80,17 @@ export async function createReview(
   db: Firestore,
   input: CreateReviewInput,
   author: CreateReviewAuthor,
+  policy?: ReviewPolicy,
 ): Promise<string> {
+  if (policy?.requireStarRating && (!Number.isFinite(input.rating) || input.rating < 1)) {
+    throw new Error('A star rating is required.');
+  }
   if (input.rating < 1 || input.rating > 5) throw new Error('Rating must be 1–5.');
   if (!input.text.trim()) throw new Error('Review text is required.');
   const isVerifiedPurchase = await hasUserPurchasedProduct(db, author.uid, input.productId);
+  if (policy?.restrictToVerifiedBuyers && !isVerifiedPurchase) {
+    throw new Error('Only verified buyers can leave a review for this product.');
+  }
   const payload = {
     productId: input.productId,
     userId: author.uid,

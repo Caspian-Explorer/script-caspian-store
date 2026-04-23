@@ -5,7 +5,17 @@ import { Avatar, Badge } from '../../ui/misc';
 import { StarIcon } from '../star-icon';
 import { useT } from '../../i18n/locale-context';
 
-export function ReviewItem({ review }: { review: FirestoreReview }) {
+export interface ReviewItemProps {
+  review: FirestoreReview;
+  /**
+   * When false, the "verified purchase" badge is hidden even on verified reviews.
+   * Consumers wire this to `SiteSettings.reviewPolicy.showVerifiedBadge`. Default true.
+   * Added in v2.7.
+   */
+  showVerifiedBadge?: boolean;
+}
+
+export function ReviewItem({ review, showVerifiedBadge = true }: ReviewItemProps) {
   const date = review.createdAt?.toDate ? review.createdAt.toDate() : new Date();
   const t = useT();
   return (
@@ -14,7 +24,9 @@ export function ReviewItem({ review }: { review: FirestoreReview }) {
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           <p style={{ fontWeight: 600, margin: 0 }}>{review.author}</p>
-          {review.isVerifiedPurchase && <Badge variant="secondary">{t('reviews.verifiedPurchase')}</Badge>}
+          {showVerifiedBadge && review.isVerifiedPurchase && (
+            <Badge variant="secondary">{t('reviews.verifiedPurchase')}</Badge>
+          )}
           <p style={{ marginLeft: 'auto', fontSize: 13, color: '#888' }}>{date.toLocaleDateString()}</p>
         </div>
         <div style={{ display: 'flex', gap: 2, margin: '6px 0' }}>

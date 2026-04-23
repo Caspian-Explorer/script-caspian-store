@@ -1,9 +1,10 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import type { Product } from '../types';
+import type { CartBehavior, Product } from '../types';
 import { getProductById } from '../services/product-service';
-import { useCaspianFirebase } from '../provider/caspian-store-provider';
+import { getSiteSettings } from '../services/site-settings-service';
+import { useCaspianFirebase, useCaspianNavigation } from '../provider/caspian-store-provider';
 import { useCart } from '../context/cart-context';
 import { useT } from '../i18n/locale-context';
 import { useToast } from '../ui/toast';
@@ -22,6 +23,16 @@ export interface ProductDetailPageProps {
   formatPrice?: (price: number) => string;
   /** Hide the Reviews & Questions tabs. */
   hideReviews?: boolean;
+  /**
+   * Override the cart-behavior read from `SiteSettings.cartBehavior`. Useful
+   * for tests or bespoke layouts. Added in v2.7.
+   */
+  cartBehavior?: CartBehavior;
+  /**
+   * Path to navigate to when `cartBehavior.redirectToCartAfterAdd` is true.
+   * Default `/cart`. Added in v2.7.
+   */
+  cartHref?: string;
   onNotFound?: () => void;
   className?: string;
 }
@@ -46,10 +57,13 @@ export function ProductDetailPage({
   product: externalProduct,
   formatPrice = (p) => `$${p.toFixed(2)}`,
   hideReviews,
+  cartBehavior: cartBehaviorOverride,
+  cartHref = '/cart',
   onNotFound,
   className,
 }: ProductDetailPageProps) {
   const { db } = useCaspianFirebase();
+  const nav = useCaspianNavigation();
   const { addToCart } = useCart();
   const { toast } = useToast();
   const t = useT();
@@ -60,6 +74,25 @@ export function ProductDetailPage({
   const [avg, setAvg] = useState(0);
   const [totalReviews, setTotalReviews] = useState(0);
   const [activeTab, setActiveTab] = useState<TabKey>('details');
+  const [cartBehavior, setCartBehavior] = useState<CartBehavior | undefined>(cartBehaviorOverride);
+
+  useEffect(() => {
+    if (cartBehaviorOverride !== undefined) {
+      setCartBehavior(cartBehaviorOverride);
+      return undefined;
+    }
+    let alive = true;
+    getSiteSettings(db)
+      .then((s) => {
+        if (alive) setCartBehavior(s?.cartBehavior);
+      })
+      .catch(() => {
+        /* fall through to defaults */
+      });
+    return () => {
+      alive = false;
+    };
+  }, [db, cartBehaviorOverride]);
 
   useEffect(() => {
     if (externalProduct) {
@@ -128,6 +161,9 @@ export function ProductDetailPage({
     addToCart(product, quantity, selectedSize);
     toast({ title: t('product.addedToCart'), description: product.name });
     setQuantity(1);
+    if (cartBehavior?.redirectToCartAfterAdd) {
+      nav.push(cartHref);
+    }
   };
 
   return (

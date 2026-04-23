@@ -51,6 +51,10 @@ export {
   type AdminAppearancePreviewPageProps,
 } from './admin-appearance-preview-page';
 export { AdminTodoPage } from './admin-todo-page';
+export {
+  AdminOnboardingProgress,
+  type AdminOnboardingProgressProps,
+} from './admin-onboarding-progress';
 export { AdminAboutPage, type AdminAboutPageProps } from './admin-about-page';
 export {
   AdminNotificationsBell,

@@ -16,6 +16,36 @@ Do not omit the heading, rename it, or fold it into `### Notes`. This is how
 customers tell at a glance whether an upgrade needs attention.
 -->
 
+## v2.7.0 — Coming Soon mode, currency formatting, store address, reviews/cart policies, admin header polish
+
+First release of the WooCommerce-parity roadmap (Release A). Adds admin surfaces and storefront wiring for five merchant-facing knobs — Coming Soon mode, currency display formatting, a structured store address, review-submission policy, and cart behavior — plus the shared UI primitives (tooltip, field description, searchable select) that every downstream section consumes, and an onboarding progress ring in the admin header.
+
+### Added
+
+- **Coming Soon mode** — new `SiteSettings.comingSoon: { enabled, message?, allowAdminPreview }`. When enabled, `<LayoutShell>` replaces non-admin routes with a branded `<ComingSoonSplash>`. Admins (or merchants sharing a preview link) bypass the splash by loading any page with `?caspian-preview=1`; the grant persists to `sessionStorage` so SPA navigation keeps the bypass. When `allowAdminPreview` is false, the query-key trick is ignored. Admin UI lives at the top of `/admin/settings` under "Coming Soon mode".
+- **Currency display formatting** — new `SiteSettings.currencyDisplay: { position, thousandSep, decimalSep, decimals }` + new util `formatCurrency(amount, currency, { display?, locale? })` at [src/utils/format-currency.ts](src/utils/format-currency.ts). When `display` is absent, the util falls back to `Intl.NumberFormat` defaults — no behavior change for stores that don't set it. Admin UI exposes a live preview ("Preview: $1,234.50"). Also exports `currencySymbol(currency, locale)` and `defaultCurrencyDisplay(currency)`.
+- **Structured store address** — new `SiteSettings.storeAddress: { line1, line2?, city, stateOrRegion, country, postcode }`. Country uses a new `<SearchableSelect>` over the full `ISO_COUNTRIES` list; state/region uses the same component when the country has a subdivision table (US, CA, GB, AU) and falls back to a free-text input otherwise. Subdivision data lives at [src/data/subdivisions.ts](src/data/subdivisions.ts) and is exported via `getSubdivisions(countryCode)` and `SUBDIVISION_LIBRARY`. The existing free-text `contactAddress` field is kept untouched for backward compat.
+- **Reviews policy** — new `SiteSettings.reviewPolicy: { restrictToVerifiedBuyers, requireStarRating, showVerifiedBadge }`. `createReview` service in [src/services/review-service.ts](src/services/review-service.ts) now accepts an optional `policy` argument and rejects submissions that violate it. `<ReviewItem>` and `<ReviewList>` accept a new `showVerifiedBadge` prop so consumers can wire the toggle through without fetching settings at every render.
+- **Cart behavior** — new `SiteSettings.cartBehavior: { redirectToCartAfterAdd, ajaxOnArchives }`. `<ProductDetailPage>` reads it from site settings on mount (overridable via the new `cartBehavior` / `cartHref` props) and navigates to `/cart` when the flag is on. The `ajaxOnArchives` toggle is reserved for a future release — the admin UI marks it as upcoming.
+- **Admin header polish** — `<AdminShell>` grows two opt-in slots: a circular onboarding progress ring (new `<AdminOnboardingProgress>` component) that shows `% of AdminTodo completed where isDefault=true`, hidden at 100%; and a `headerHelp?: ReactNode` slot consumers can fill with docs/support links. Enabled by default via `showOnboardingProgress: true`.
+- **Shared admin UI primitives** — three reusable components under [src/ui/](src/ui/): `<FieldHelp>` (`?` tooltip icon + hover popover), `<FieldDescription>` (muted sub-text that matches the established 13px / #666 / 4px-top-margin convention), and `<SearchableSelect>` (keyboard-navigable type-to-filter dropdown, used by the new store-address country/state pickers).
+- **New icons** — `HelpIcon`, `SearchIcon`, `ChevronDownIcon` in [src/ui/icons.tsx](src/ui/icons.tsx), consumed by the primitives above.
+
+### Changed
+
+- **`OrderStatus`** gains `'on-hold'` — marks orders awaiting manual payment confirmation (bank transfer, cheque, cash-on-delivery). Backward compatible: stores that don't use manual payment methods never see this status.
+- **`<ReviewItem>` / `<ReviewList>`** default `showVerifiedBadge` to `true`, matching current behavior. Consumers who want to hide the badge site-wide now pass `false` instead of forking the component.
+
+### Exports added
+
+`ComingSoonSettings`, `CurrencyDisplay`, `StoreAddress`, `ReviewPolicy`, `CartBehavior` types; `formatCurrency`, `currencySymbol`, `defaultCurrencyDisplay`, `FormatCurrencyOptions`; `getSubdivisions`, `SUBDIVISION_LIBRARY`, `Subdivision`; `FieldHelp`, `FieldDescription`, `SearchableSelect` and their prop types; `HelpIcon`, `SearchIcon`, `ChevronDownIcon`; `ComingSoonSplash`, `ComingSoonSplashProps`; `AdminOnboardingProgress`, `AdminOnboardingProgressProps`; `ReviewItemProps`, `ReviewListProps`.
+
+### No consumer action required
+
+Pure additive release — no new Firestore collections, no rules changes, no migrations. Stores on v2.6.x that don't set any of the new optional fields get identical pre-upgrade behavior. Coming Soon mode is off by default; currency formatting falls back to `Intl.NumberFormat`; review policy and cart behavior read as "no policy" when unset.
+
+---
+
 ## v2.6.0 — Country picker dialog + per-country tax table + per-method shipping eligibility
 
 v2.5 shipped the tax + supported-countries schema but with a minimal MVP admin UI — a comma-separated textarea. v2.6 lands the proper admin surfaces I deferred: a check-many-at-once **Country Picker dialog** over a curated ISO 3166 list, a per-row **tax-rate table** that appears when tax mode is `per-country`, and an **Eligible countries** picker on each shipping-plugin install so "Standard Shipping" can be US-only while "International" covers everywhere else. No schema change — these surfaces populate the same `SiteSettings.supportedCountries` and `ShippingPluginInstall.eligibleCountries` fields that already exist.

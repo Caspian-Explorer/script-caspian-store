@@ -25,7 +25,17 @@ export {
   RefreshIcon,
   BellIcon,
   MenuIcon,
+  HelpIcon,
+  SearchIcon,
+  ChevronDownIcon,
 } from './icons';
+export { FieldHelp, type FieldHelpProps } from './field-help';
+export { FieldDescription, type FieldDescriptionProps } from './field-description';
+export {
+  SearchableSelect,
+  type SearchableSelectProps,
+  type SearchableSelectOption,
+} from './searchable-select';
 export {
   RichTextEditor,
   sanitizeRichHtml,

@@ -1,7 +1,14 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import type { SiteSettings, SocialLink, SocialPlatform, SupportedCountry } from '../types';
+import type {
+  CurrencyDisplay,
+  SiteSettings,
+  SocialLink,
+  SocialPlatform,
+  StoreAddress,
+  SupportedCountry,
+} from '../types';
 import { SOCIAL_PLATFORMS } from '../types';
 import { getSiteSettings, saveSiteSettings } from '../services/site-settings-service';
 import { useCaspianFirebase } from '../provider/caspian-store-provider';
@@ -12,6 +19,11 @@ import { Input, Label, Textarea } from '../ui/input';
 import { Skeleton } from '../ui/misc';
 import { Select } from '../ui/select';
 import { useToast } from '../ui/toast';
+import { FieldHelp } from '../ui/field-help';
+import { FieldDescription } from '../ui/field-description';
+import { SearchableSelect, type SearchableSelectOption } from '../ui/searchable-select';
+import { defaultCurrencyDisplay, formatCurrency } from '../utils/format-currency';
+import { getSubdivisions } from '../data/subdivisions';
 import { CountryPickerDialog, ISO_COUNTRIES } from './country-picker-dialog';
 
 const emptySettings: SiteSettings = {
@@ -252,7 +264,8 @@ export function AdminSiteSettingsPage({ className }: { className?: string }) {
       <header style={{ marginBottom: 16 }}>
         <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0 }}>Site settings</h1>
         <p style={{ color: '#666', marginTop: 4 }}>
-          Brand, contact, localization, and social links. Rendered by the header and footer.
+          Brand, contact, localization, store behavior, and tax. Rendered by the header, footer,
+          and checkout.
         </p>
       </header>
 
@@ -299,6 +312,74 @@ export function AdminSiteSettingsPage({ className }: { className?: string }) {
         </div>
 
         <div>
+          <h2 style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
+            Coming Soon mode
+            <FieldHelp>
+              When enabled, non-admin visitors see a "launching soon" splash instead of the
+              storefront. Admin routes (`/admin/**`) are never blocked.
+            </FieldHelp>
+          </h2>
+          <FieldDescription style={{ margin: '0 0 12px' }}>
+            Useful while you're still setting the store up but the domain is already live.
+          </FieldDescription>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14 }}>
+              <input
+                type="checkbox"
+                checked={draft.comingSoon?.enabled ?? false}
+                onChange={(e) =>
+                  patch({
+                    comingSoon: {
+                      enabled: e.target.checked,
+                      message: draft.comingSoon?.message ?? '',
+                      allowAdminPreview: draft.comingSoon?.allowAdminPreview ?? true,
+                    },
+                  })
+                }
+              />
+              <span>Enable Coming Soon mode</span>
+            </label>
+            {draft.comingSoon?.enabled && (
+              <>
+                <div>
+                  <Label>Splash message</Label>
+                  <Textarea
+                    rows={2}
+                    value={draft.comingSoon?.message ?? ''}
+                    placeholder="We're launching soon."
+                    onChange={(e) =>
+                      patch({
+                        comingSoon: {
+                          enabled: draft.comingSoon?.enabled ?? false,
+                          message: e.target.value,
+                          allowAdminPreview: draft.comingSoon?.allowAdminPreview ?? true,
+                        },
+                      })
+                    }
+                  />
+                </div>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14 }}>
+                  <input
+                    type="checkbox"
+                    checked={draft.comingSoon?.allowAdminPreview ?? true}
+                    onChange={(e) =>
+                      patch({
+                        comingSoon: {
+                          enabled: draft.comingSoon?.enabled ?? false,
+                          message: draft.comingSoon?.message ?? '',
+                          allowAdminPreview: e.target.checked,
+                        },
+                      })
+                    }
+                  />
+                  <span>Let signed-in admins preview the live storefront</span>
+                </label>
+              </>
+            )}
+          </div>
+        </div>
+
+        <div>
           <h2 style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>Localization</h2>
           <p style={{ color: '#666', fontSize: 13, marginTop: 0, marginBottom: 12 }}>
             Used by the storefront for price formatting and checkout defaults. Safe to change
@@ -332,6 +413,107 @@ export function AdminSiteSettingsPage({ className }: { className?: string }) {
                 style={{ width: '100%' }}
               />
             </div>
+          </div>
+        </div>
+
+        <div>
+          <h2 style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
+            Currency display
+            <FieldHelp>
+              Override how prices render across the storefront. When unset, Caspian uses your
+              browser's locale-default format for the currency selected above.
+            </FieldHelp>
+          </h2>
+          <FieldDescription style={{ margin: '0 0 12px' }}>
+            Preview: <strong>{formatCurrency(1234.5, draft.currency || 'USD', { display: draft.currencyDisplay })}</strong>
+          </FieldDescription>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14 }}>
+              <input
+                type="checkbox"
+                checked={!!draft.currencyDisplay}
+                onChange={(e) =>
+                  patch({
+                    currencyDisplay: e.target.checked
+                      ? defaultCurrencyDisplay(draft.currency || 'USD')
+                      : undefined,
+                  })
+                }
+              />
+              <span>Override automatic formatting</span>
+            </label>
+            {draft.currencyDisplay && (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 12 }}>
+                <div>
+                  <Label>Symbol position</Label>
+                  <Select
+                    value={draft.currencyDisplay.position}
+                    onChange={(e) =>
+                      patch({
+                        currencyDisplay: {
+                          ...(draft.currencyDisplay as CurrencyDisplay),
+                          position: e.target.value as CurrencyDisplay['position'],
+                        },
+                      })
+                    }
+                    options={[
+                      { value: 'left', label: 'Left ($99)' },
+                      { value: 'right', label: 'Right (99$)' },
+                      { value: 'left_space', label: 'Left with space ($ 99)' },
+                      { value: 'right_space', label: 'Right with space (99 $)' },
+                    ]}
+                    style={{ width: '100%' }}
+                  />
+                </div>
+                <div>
+                  <Label>Thousand separator</Label>
+                  <Input
+                    value={draft.currencyDisplay.thousandSep}
+                    maxLength={1}
+                    onChange={(e) =>
+                      patch({
+                        currencyDisplay: {
+                          ...(draft.currencyDisplay as CurrencyDisplay),
+                          thousandSep: e.target.value,
+                        },
+                      })
+                    }
+                  />
+                </div>
+                <div>
+                  <Label>Decimal separator</Label>
+                  <Input
+                    value={draft.currencyDisplay.decimalSep}
+                    maxLength={1}
+                    onChange={(e) =>
+                      patch({
+                        currencyDisplay: {
+                          ...(draft.currencyDisplay as CurrencyDisplay),
+                          decimalSep: e.target.value,
+                        },
+                      })
+                    }
+                  />
+                </div>
+                <div>
+                  <Label>Decimals</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    max={6}
+                    value={draft.currencyDisplay.decimals}
+                    onChange={(e) =>
+                      patch({
+                        currencyDisplay: {
+                          ...(draft.currencyDisplay as CurrencyDisplay),
+                          decimals: Math.max(0, Math.min(6, Number(e.target.value) || 0)),
+                        },
+                      })
+                    }
+                  />
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -373,6 +555,12 @@ export function AdminSiteSettingsPage({ className }: { className?: string }) {
             </div>
           </div>
         </div>
+
+        <StoreAddressSection
+          value={draft.storeAddress}
+          legacy={draft.contactAddress}
+          onChange={(next) => patch({ storeAddress: next })}
+        />
 
         <div>
           <div
@@ -441,6 +629,145 @@ export function AdminSiteSettingsPage({ className }: { className?: string }) {
               })}
             </div>
           )}
+        </div>
+
+        <div>
+          <h2 style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
+            Reviews policy
+            <FieldHelp>
+              Governs who can leave reviews and how the "verified purchase" badge renders.
+            </FieldHelp>
+          </h2>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 14 }}>
+              <input
+                type="checkbox"
+                style={{ marginTop: 3 }}
+                checked={draft.reviewPolicy?.restrictToVerifiedBuyers ?? false}
+                onChange={(e) =>
+                  patch({
+                    reviewPolicy: {
+                      restrictToVerifiedBuyers: e.target.checked,
+                      requireStarRating: draft.reviewPolicy?.requireStarRating ?? false,
+                      showVerifiedBadge: draft.reviewPolicy?.showVerifiedBadge ?? true,
+                    },
+                  })
+                }
+              />
+              <span>
+                Only verified buyers can leave reviews
+                <FieldDescription style={{ marginTop: 2 }}>
+                  Non-buyers see a disabled form with an explanatory message.
+                </FieldDescription>
+              </span>
+            </label>
+            <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 14 }}>
+              <input
+                type="checkbox"
+                style={{ marginTop: 3 }}
+                checked={draft.reviewPolicy?.requireStarRating ?? false}
+                onChange={(e) =>
+                  patch({
+                    reviewPolicy: {
+                      restrictToVerifiedBuyers: draft.reviewPolicy?.restrictToVerifiedBuyers ?? false,
+                      requireStarRating: e.target.checked,
+                      showVerifiedBadge: draft.reviewPolicy?.showVerifiedBadge ?? true,
+                    },
+                  })
+                }
+              />
+              <span>
+                Require a star rating
+                <FieldDescription style={{ marginTop: 2 }}>
+                  Submissions without a rating are rejected.
+                </FieldDescription>
+              </span>
+            </label>
+            <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 14 }}>
+              <input
+                type="checkbox"
+                style={{ marginTop: 3 }}
+                checked={draft.reviewPolicy?.showVerifiedBadge ?? true}
+                onChange={(e) =>
+                  patch({
+                    reviewPolicy: {
+                      restrictToVerifiedBuyers: draft.reviewPolicy?.restrictToVerifiedBuyers ?? false,
+                      requireStarRating: draft.reviewPolicy?.requireStarRating ?? false,
+                      showVerifiedBadge: e.target.checked,
+                    },
+                  })
+                }
+              />
+              <span>
+                Show "verified purchase" badge on qualifying reviews
+                <FieldDescription style={{ marginTop: 2 }}>
+                  Turn off to hide the badge everywhere — verification is still tracked under the
+                  hood.
+                </FieldDescription>
+              </span>
+            </label>
+          </div>
+        </div>
+
+        <div>
+          <h2 style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
+            Cart behavior
+            <FieldHelp>
+              Controls what happens immediately after a shopper clicks "Add to cart".
+            </FieldHelp>
+          </h2>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 14 }}>
+              <input
+                type="checkbox"
+                style={{ marginTop: 3 }}
+                checked={draft.cartBehavior?.redirectToCartAfterAdd ?? false}
+                onChange={(e) =>
+                  patch({
+                    cartBehavior: {
+                      redirectToCartAfterAdd: e.target.checked,
+                      ajaxOnArchives: draft.cartBehavior?.ajaxOnArchives ?? true,
+                    },
+                  })
+                }
+              />
+              <span>
+                Navigate to /cart after adding to cart
+                <FieldDescription style={{ marginTop: 2 }}>
+                  Off by default — shoppers stay on the product page and see a toast instead.
+                </FieldDescription>
+              </span>
+            </label>
+            <label
+              style={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: 8,
+                fontSize: 14,
+                opacity: 0.6,
+              }}
+            >
+              <input
+                type="checkbox"
+                style={{ marginTop: 3 }}
+                checked={draft.cartBehavior?.ajaxOnArchives ?? true}
+                onChange={(e) =>
+                  patch({
+                    cartBehavior: {
+                      redirectToCartAfterAdd: draft.cartBehavior?.redirectToCartAfterAdd ?? false,
+                      ajaxOnArchives: e.target.checked,
+                    },
+                  })
+                }
+              />
+              <span>
+                Async add-to-cart on product list pages
+                <FieldDescription style={{ marginTop: 2 }}>
+                  Reserved for a future release — toggle has no storefront effect yet.
+                </FieldDescription>
+              </span>
+            </label>
+          </div>
         </div>
 
         <div>
@@ -625,6 +952,133 @@ export function AdminSiteSettingsPage({ className }: { className?: string }) {
           patch({ supportedCountries: next });
         }}
       />
+    </div>
+  );
+}
+
+function StoreAddressSection({
+  value,
+  legacy,
+  onChange,
+}: {
+  value: StoreAddress | undefined;
+  legacy: string;
+  onChange: (next: StoreAddress | undefined) => void;
+}) {
+  const enabled = !!value;
+  const address: StoreAddress = value ?? {
+    line1: legacy?.trim() || '',
+    line2: '',
+    city: '',
+    stateOrRegion: '',
+    country: '',
+    postcode: '',
+  };
+
+  const countryOptions: SearchableSelectOption[] = useMemo(
+    () => ISO_COUNTRIES.map((c) => ({ value: c.code, label: c.name, hint: c.code })),
+    [],
+  );
+
+  const subdivisions = getSubdivisions(address.country);
+  const stateOptions: SearchableSelectOption[] | null = subdivisions
+    ? subdivisions.map((s) => ({ value: s.code, label: s.name, hint: s.code }))
+    : null;
+
+  return (
+    <div>
+      <h2 style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
+        Store address
+        <FieldHelp>
+          The physical address your business operates from. Used as the default basis for tax and
+          shipping calculations, and printed on emails and invoices.
+        </FieldHelp>
+      </h2>
+      <FieldDescription style={{ margin: '0 0 12px' }}>
+        The single-line "Address" field above is kept for backward compatibility. Fill out the
+        structured fields to override it.
+      </FieldDescription>
+      <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, marginBottom: 10 }}>
+        <input
+          type="checkbox"
+          checked={enabled}
+          onChange={(e) => onChange(e.target.checked ? address : undefined)}
+        />
+        <span>Use structured store address</span>
+      </label>
+      {enabled && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div>
+            <Label>Address line 1</Label>
+            <Input
+              value={address.line1}
+              onChange={(e) => onChange({ ...address, line1: e.target.value })}
+            />
+          </div>
+          <div>
+            <Label>Address line 2 (optional)</Label>
+            <Input
+              value={address.line2 ?? ''}
+              onChange={(e) => onChange({ ...address, line2: e.target.value })}
+            />
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div>
+              <Label>City</Label>
+              <Input
+                value={address.city}
+                onChange={(e) => onChange({ ...address, city: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label>Postcode / ZIP</Label>
+              <Input
+                value={address.postcode}
+                onChange={(e) => onChange({ ...address, postcode: e.target.value })}
+              />
+            </div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div>
+              <Label>Country</Label>
+              <SearchableSelect
+                value={address.country}
+                onChange={(v) =>
+                  onChange({
+                    ...address,
+                    country: v,
+                    // Reset state when country changes so stale codes don't linger.
+                    stateOrRegion: '',
+                  })
+                }
+                options={countryOptions}
+                placeholder="— Select country —"
+              />
+            </div>
+            <div>
+              <Label>State / region</Label>
+              {stateOptions ? (
+                <SearchableSelect
+                  value={address.stateOrRegion}
+                  onChange={(v) => onChange({ ...address, stateOrRegion: v })}
+                  options={stateOptions}
+                  placeholder="— Select state —"
+                />
+              ) : (
+                <Input
+                  value={address.stateOrRegion}
+                  placeholder={
+                    address.country
+                      ? 'State / region / province'
+                      : 'Select a country to pick a subdivision'
+                  }
+                  onChange={(e) => onChange({ ...address, stateOrRegion: e.target.value })}
+                />
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

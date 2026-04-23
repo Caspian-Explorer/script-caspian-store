@@ -121,3 +121,30 @@ export function RefreshIcon(props: IconProps) {
     </svg>
   );
 }
+
+export function HelpIcon(props: IconProps) {
+  return (
+    <svg {...svgDefaults(props)}>
+      <circle cx="12" cy="12" r="10" />
+      <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+      <line x1="12" y1="17" x2="12.01" y2="17" />
+    </svg>
+  );
+}
+
+export function SearchIcon(props: IconProps) {
+  return (
+    <svg {...svgDefaults(props)}>
+      <circle cx="11" cy="11" r="8" />
+      <line x1="21" y1="21" x2="16.65" y2="16.65" />
+    </svg>
+  );
+}
+
+export function ChevronDownIcon(props: IconProps) {
+  return (
+    <svg {...svgDefaults(props)}>
+      <polyline points="6 9 12 15 18 9" />
+    </svg>
+  );
+}

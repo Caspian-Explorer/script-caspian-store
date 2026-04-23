@@ -144,7 +144,13 @@ export type OrderStatus =
   | 'processing'
   | 'shipped'
   | 'delivered'
-  | 'cancelled';
+  | 'cancelled'
+  /**
+   * Order is awaiting manual payment confirmation (bank transfer, cheque, COD).
+   * The shopper has checked out but payment has not yet cleared; the admin
+   * marks the order `paid` (or `cancelled`) once the funds arrive. Added in v2.8.
+   */
+  | 'on-hold';
 
 export type ModerationStatus = 'pending' | 'approved' | 'rejected';
 
@@ -256,6 +262,75 @@ export interface SupportedCountry {
   taxRate?: number;
 }
 
+/**
+ * Coming Soon / Maintenance mode config. When `enabled: true`, the storefront
+ * short-circuits to a branded splash for non-admin visitors. Admin routes and
+ * (optionally) admin-authenticated viewers continue to see the real site.
+ * Added in v2.7.
+ */
+export interface ComingSoonSettings {
+  enabled: boolean;
+  /** Optional override of the splash body copy. Defaults to "We're launching soon." */
+  message?: string;
+  /** When true, admin-authenticated viewers bypass the splash and see the real site. Default true. */
+  allowAdminPreview: boolean;
+}
+
+/**
+ * How prices render across the storefront (symbol position, separators,
+ * decimals). Consumed by `formatCurrency`. When omitted, the library falls
+ * back to `Intl.NumberFormat` defaults for the active locale. Added in v2.7.
+ */
+export interface CurrencyDisplay {
+  /** Where the currency symbol sits relative to the number. */
+  position: 'left' | 'right' | 'left_space' | 'right_space';
+  /** Thousands separator. Typical values: `,`, `.`, ` `, `'`. */
+  thousandSep: string;
+  /** Decimal separator. Typical values: `.`, `,`. */
+  decimalSep: string;
+  /** Number of decimal places. Set to 0 for zero-decimal currencies (JPY, KRW). */
+  decimals: number;
+}
+
+/**
+ * Structured store address (WooCommerce-style). Replaces the single free-text
+ * `contactAddress` field — that one stays for backward compat and is
+ * best-effort-migrated into `line1` when this object is absent. Added in v2.7.
+ */
+export interface StoreAddress {
+  line1: string;
+  line2?: string;
+  city: string;
+  /** State / region / province / county — freeform if the country has no subdivisions. */
+  stateOrRegion: string;
+  /** ISO 3166-1 alpha-2 country code (e.g. `US`, `GB`). */
+  country: string;
+  postcode: string;
+}
+
+/**
+ * Review-submission policy toggles. Enforced by the `createReview` service;
+ * `showVerifiedBadge` is read by the review card. Added in v2.7.
+ */
+export interface ReviewPolicy {
+  /** When true, non-verified buyers are rejected at `createReview`. */
+  restrictToVerifiedBuyers: boolean;
+  /** When true, `createReview` rejects submissions without a star rating. */
+  requireStarRating: boolean;
+  /** When false, the "verified purchase" badge is hidden even on verified reviews. Default true. */
+  showVerifiedBadge: boolean;
+}
+
+/**
+ * Cart / add-to-cart behavior toggles read by PLP and PDP handlers. Added in v2.7.
+ */
+export interface CartBehavior {
+  /** When true, clicking add-to-cart navigates the shopper to `/cart`. Default false. */
+  redirectToCartAfterAdd: boolean;
+  /** Reserved for future: async add-to-cart from product list pages without a full-page round trip. */
+  ajaxOnArchives: boolean;
+}
+
 export interface SiteSettings {
   logoUrl: string;
   faviconUrl?: string;
@@ -288,6 +363,19 @@ export interface SiteSettings {
    * falls back to the global ISO 3166 list. Added in v2.5.
    */
   supportedCountries?: SupportedCountry[];
+  /** Maintenance / pre-launch splash. Added in v2.7. */
+  comingSoon?: ComingSoonSettings;
+  /** Price formatting overrides. Added in v2.7. */
+  currencyDisplay?: CurrencyDisplay;
+  /**
+   * Structured physical store address. When set, overrides `contactAddress`
+   * everywhere it's rendered. Added in v2.7.
+   */
+  storeAddress?: StoreAddress;
+  /** Review submission policy. Added in v2.7. */
+  reviewPolicy?: ReviewPolicy;
+  /** Add-to-cart behavior. Added in v2.7. */
+  cartBehavior?: CartBehavior;
   socialLinks: SocialLink[];
 }
 
@@ -344,6 +432,12 @@ export interface PaymentPluginInstall {
   pluginId: string;
   /** Merchant-authored display label shown in admin (e.g. "Stripe — Production"). */
   name: string;
+  /**
+   * Optional merchant-authored blurb shown to shoppers at checkout under the
+   * gateway name (e.g. "Pay securely with Stripe"). When absent, checkout
+   * falls back to the plugin's catalog description. Added in v2.8.
+   */
+  description?: string;
   /** When false, `useCheckout` skips this install. */
   enabled: boolean;
   order: number;

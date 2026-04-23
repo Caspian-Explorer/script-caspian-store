@@ -13,6 +13,7 @@ import { Badge } from '../ui/misc';
 import { cn } from '../utils/cn';
 import { CASPIAN_STORE_VERSION } from '../version';
 import { AdminNotificationsBell } from './admin-notifications-bell';
+import { AdminOnboardingProgress } from './admin-onboarding-progress';
 
 export interface AdminNavItem {
   href: string;
@@ -66,6 +67,17 @@ export interface AdminShellProps {
   showNotificationsBell?: boolean;
   /** Where the bell's "View all" link points. Default `/admin/notifications`. */
   notificationsHref?: string;
+  /**
+   * Show the onboarding progress ring (seeded first-run todos) in the header.
+   * Auto-hides at 100% completion. Default true. Added in v2.7.
+   */
+  showOnboardingProgress?: boolean;
+  /**
+   * Optional content slot rendered in the header between the onboarding ring
+   * and the notifications bell — typically a help dropdown with docs/support
+   * links. Added in v2.7.
+   */
+  headerHelp?: ReactNode;
   /** Initial sidebar state when no saved preference exists. Default true (open). */
   defaultSidebarOpen?: boolean;
   children: ReactNode;
@@ -83,6 +95,8 @@ export function AdminShell({
   updateCheckRepo = DEFAULT_REPO_NAME,
   showNotificationsBell = true,
   notificationsHref = '/admin/notifications',
+  showOnboardingProgress = true,
+  headerHelp,
   defaultSidebarOpen = true,
   children,
   className,
@@ -264,6 +278,8 @@ export function AdminShell({
             )}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {showOnboardingProgress && <AdminOnboardingProgress />}
+            {headerHelp}
             {showNotificationsBell && (
               <AdminNotificationsBell
                 viewAllHref={notificationsHref}
