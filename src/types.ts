@@ -87,6 +87,13 @@ export interface OrderPayment {
   last4: string;
   brand: string;
   amount: number;
+  /**
+   * Payment method identifier. Stripe orders omit this (current default) or
+   * set `'stripe'`; manual-payment orders (BACS / cheque / cash on delivery)
+   * set it to the matching plugin id so admins can filter + display the
+   * right "awaiting payment" instructions. Added in v2.8.
+   */
+  method?: 'stripe' | 'bacs' | 'cheque' | 'cod';
 }
 
 export interface ShippingInfo {

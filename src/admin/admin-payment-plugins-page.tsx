@@ -15,17 +15,19 @@ import { useCaspianFirebase } from '../provider/caspian-store-provider';
 import { useT } from '../i18n/locale-context';
 import { Button } from '../ui/button';
 import { Dialog } from '../ui/dialog';
-import { Input, Label } from '../ui/input';
+import { Input, Label, Textarea } from '../ui/input';
 import { Select } from '../ui/select';
 import { Badge, Skeleton } from '../ui/misc';
 import { Table, TBody, TD, TH, THead, TR } from '../ui/table';
 import { useToast } from '../ui/toast';
+import { FieldDescription } from '../ui/field-description';
 
 type DraftConfig = Record<string, string>;
 
 interface DraftState {
   pluginId: PaymentPluginId;
   name: string;
+  description: string;
   order: number;
   config: DraftConfig;
 }
@@ -43,6 +45,7 @@ function draftFromPlugin(pluginId: PaymentPluginId, name: string, order: number)
   return {
     pluginId,
     name,
+    description: '',
     order,
     config: stringifyDefaults((plugin?.defaultConfig ?? {}) as Record<string, unknown>),
   };
@@ -64,9 +67,26 @@ function draftFromInstall(install: PaymentPluginInstall): DraftState {
   return {
     pluginId: install.pluginId as PaymentPluginId,
     name: install.name,
+    description: install.description ?? '',
     order: install.order,
     config,
   };
+}
+
+/**
+ * Returns `true` when the install's config passes `validateConfig` — used to
+ * flip the row's action button between "Set up" (invalid / empty) and
+ * "Manage" (ready for checkout). Added in v2.8.
+ */
+function isInstallConfigured(install: PaymentPluginInstall): boolean {
+  const plugin = getPaymentPlugin(install.pluginId);
+  if (!plugin) return false;
+  try {
+    plugin.validateConfig(install.config);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function coerceConfig(raw: DraftConfig): Record<string, unknown> {
@@ -151,9 +171,11 @@ export function AdminPaymentPluginsPage({ className }: { className?: string }) {
     // New installs start disabled — force the admin to explicitly enable after
     // configuring. Preserves the existing enabled state on edit.
     const editingInstall = editingId ? installs?.find((i) => i.id === editingId) : null;
+    const trimmedDescription = draft.description.trim();
     const payload: PaymentPluginInstallWriteInput = {
       pluginId: draft.pluginId,
       name: draft.name.trim(),
+      description: trimmedDescription || undefined,
       enabled: editingInstall?.enabled ?? false,
       order: draft.order,
       config: coerced,
@@ -262,10 +284,19 @@ export function AdminPaymentPluginsPage({ className }: { className?: string }) {
           <TBody>
             {installs.map((install) => {
               const plugin = getPaymentPlugin(install.pluginId);
+              const configured = isInstallConfigured(install);
+              const description = install.description ?? plugin?.description ?? '';
               return (
                 <TR key={install.id}>
                   <TD style={{ fontFamily: 'monospace', fontSize: 13 }}>{install.order}</TD>
-                  <TD style={{ fontWeight: 500 }}>{install.name}</TD>
+                  <TD style={{ fontWeight: 500 }}>
+                    <div>{install.name}</div>
+                    {description && (
+                      <div style={{ fontSize: 12, color: '#777', fontWeight: 400, marginTop: 2, maxWidth: 420 }}>
+                        {description}
+                      </div>
+                    )}
+                  </TD>
                   <TD style={{ color: '#666' }}>{plugin?.name ?? install.pluginId}</TD>
                   <TD>
                     <Badge variant={install.enabled ? 'default' : 'secondary'}>
@@ -281,8 +312,12 @@ export function AdminPaymentPluginsPage({ className }: { className?: string }) {
                           ? t('admin.paymentPlugins.action.disable')
                           : t('admin.paymentPlugins.action.enable')}
                       </Button>
-                      <Button variant="outline" size="sm" onClick={() => openConfigure(install)}>
-                        {t('admin.paymentPlugins.action.configure')}
+                      <Button
+                        variant={configured ? 'outline' : 'primary'}
+                        size="sm"
+                        onClick={() => openConfigure(install)}
+                      >
+                        {configured ? 'Manage' : 'Set up'}
                       </Button>
                       <Button
                         variant="destructive"
@@ -380,6 +415,19 @@ export function AdminPaymentPluginsPage({ className }: { className?: string }) {
               </p>
             </div>
             <div>
+              <Label>Checkout description (optional)</Label>
+              <Textarea
+                rows={2}
+                value={draft.description}
+                placeholder={activePlugin?.description ?? 'Shown to shoppers at checkout.'}
+                onChange={(e) => setDraft((d) => (d ? { ...d, description: e.target.value } : d))}
+              />
+              <FieldDescription>
+                Appears under the gateway name at checkout. Leave blank to use the plugin's catalog
+                description.
+              </FieldDescription>
+            </div>
+            <div>
               <Label>{t('admin.paymentPlugins.field.order')}</Label>
               <Input
                 type="number"
@@ -464,6 +512,124 @@ function ConfigFields({
         </>
       );
     }
+    case 'bacs':
+      return (
+        <>
+          <div>
+            <Label>Instructions shown to shoppers</Label>
+            <Textarea
+              rows={3}
+              value={draft.config.instructions ?? ''}
+              onChange={(e) => setConfigValue('instructions', e.target.value)}
+              placeholder="Please transfer the total amount to the account below. We'll ship once payment clears."
+            />
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div>
+              <Label>Account name *</Label>
+              <Input
+                value={draft.config.accountName ?? ''}
+                onChange={(e) => setConfigValue('accountName', e.target.value)}
+                placeholder="Acme Trading Co."
+              />
+            </div>
+            <div>
+              <Label>Account number</Label>
+              <Input
+                value={draft.config.accountNumber ?? ''}
+                onChange={(e) => setConfigValue('accountNumber', e.target.value)}
+                placeholder="12345678"
+              />
+            </div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+            <div>
+              <Label>Sort code</Label>
+              <Input
+                value={draft.config.sortCode ?? ''}
+                onChange={(e) => setConfigValue('sortCode', e.target.value)}
+                placeholder="12-34-56"
+              />
+            </div>
+            <div>
+              <Label>IBAN</Label>
+              <Input
+                value={draft.config.iban ?? ''}
+                onChange={(e) => setConfigValue('iban', e.target.value)}
+                placeholder="GB82 WEST …"
+              />
+            </div>
+            <div>
+              <Label>SWIFT/BIC</Label>
+              <Input
+                value={draft.config.swift ?? ''}
+                onChange={(e) => setConfigValue('swift', e.target.value)}
+                placeholder="ABCDEF2L"
+              />
+            </div>
+          </div>
+          <FieldDescription>
+            Either an account number or an IBAN is required. Sort code and SWIFT are optional.
+          </FieldDescription>
+        </>
+      );
+    case 'cheque':
+      return (
+        <>
+          <div>
+            <Label>Instructions shown to shoppers</Label>
+            <Textarea
+              rows={3}
+              value={draft.config.instructions ?? ''}
+              onChange={(e) => setConfigValue('instructions', e.target.value)}
+              placeholder="Please mail your cheque to the address below. We'll ship once it clears."
+            />
+          </div>
+          <div>
+            <Label>Make cheques payable to</Label>
+            <Input
+              value={draft.config.payableTo ?? ''}
+              onChange={(e) => setConfigValue('payableTo', e.target.value)}
+              placeholder="Acme Trading Co."
+            />
+          </div>
+          <div>
+            <Label>Postal address</Label>
+            <Textarea
+              rows={3}
+              value={draft.config.postalAddress ?? ''}
+              onChange={(e) => setConfigValue('postalAddress', e.target.value)}
+              placeholder="123 High Street\nLondon\nN1 1AA"
+            />
+          </div>
+        </>
+      );
+    case 'cod':
+      return (
+        <>
+          <div>
+            <Label>Instructions shown to shoppers</Label>
+            <Textarea
+              rows={3}
+              value={draft.config.instructions ?? ''}
+              onChange={(e) => setConfigValue('instructions', e.target.value)}
+              placeholder="Pay with cash when you receive your order."
+            />
+          </div>
+          <div>
+            <Label>Eligible shipping methods (comma-separated)</Label>
+            <Input
+              value={draft.config.enabledForShippingMethods ?? ''}
+              onChange={(e) => setConfigValue('enabledForShippingMethods', e.target.value)}
+              placeholder="Local delivery, Courier"
+            />
+            <FieldDescription>
+              Leave blank to offer COD on every shipping method. Enter the display names of the
+              shipping-plugin installs you want to allow.
+            </FieldDescription>
+          </div>
+        </>
+      );
     default:
       return null;
   }

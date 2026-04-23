@@ -332,6 +332,9 @@ export {
   PAYMENT_PLUGIN_CATALOG,
   getPaymentPlugin,
   STRIPE_PLUGIN,
+  BACS_PLUGIN,
+  CHEQUE_PLUGIN,
+  COD_PLUGIN,
   type PaymentPluginId,
   type PaymentPlugin,
   type PaymentPluginCheckoutCtx,
@@ -339,6 +342,10 @@ export {
   type StartCheckoutOptions,
   type CheckoutShippingInfoInput,
   type StripeConfig,
+  type ManualPaymentBaseConfig,
+  type BacsConfig,
+  type ChequeConfig,
+  type CodConfig,
 } from './payments';
 export {
   listPaymentPluginInstalls,

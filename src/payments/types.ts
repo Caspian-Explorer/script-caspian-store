@@ -2,9 +2,45 @@ import type { Auth, User } from 'firebase/auth';
 import type { Functions } from 'firebase/functions';
 import type { CartItem } from '../types';
 
-export type PaymentPluginId = 'stripe';
+export type PaymentPluginId = 'stripe' | 'bacs' | 'cheque' | 'cod';
 
-export const PAYMENT_PLUGIN_IDS: readonly PaymentPluginId[] = ['stripe'] as const;
+export const PAYMENT_PLUGIN_IDS: readonly PaymentPluginId[] = [
+  'stripe',
+  'bacs',
+  'cheque',
+  'cod',
+] as const;
+
+/**
+ * Shared config shape for manual-payment plugins (BACS / cheque / cash on
+ * delivery). Every manual plugin renders the `instructions` block to the
+ * shopper on the order-confirmation screen. Individual plugins may extend
+ * this with extra fields (e.g. BACS account numbers). Added in v2.8.
+ */
+export interface ManualPaymentBaseConfig {
+  /** Customer-facing instructions displayed after checkout. Supports line breaks. */
+  instructions: string;
+}
+
+export interface BacsConfig extends ManualPaymentBaseConfig {
+  accountName: string;
+  accountNumber: string;
+  sortCode?: string;
+  iban?: string;
+  swift?: string;
+}
+
+export interface ChequeConfig extends ManualPaymentBaseConfig {
+  /** Payee name that cheques should be made out to. */
+  payableTo?: string;
+  /** Postal address to send cheques to. */
+  postalAddress?: string;
+}
+
+export interface CodConfig extends ManualPaymentBaseConfig {
+  /** Optional allowlist of shipping method names (plugin install `name`) for which COD is permitted. Empty/undefined = all. */
+  enabledForShippingMethods?: string[];
+}
 
 export interface CheckoutShippingInfoInput {
   name: string;

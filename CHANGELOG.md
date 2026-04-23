@@ -16,6 +16,36 @@ Do not omit the heading, rename it, or fold it into `### Notes`. This is how
 customers tell at a glance whether an upgrade needs attention.
 -->
 
+## v2.8.0 — Manual payment methods (BACS, cheque, COD) + payment-row polish
+
+Second WooCommerce-parity ship. The Stripe-only payments catalog grows three offline gateways — bank transfer, cheque, cash on delivery — that create orders client-side with `status: 'on-hold'` for manual fulfillment. Plus payment-row polish in admin: editable per-install description and a Set up / Manage button that flips state based on whether `validateConfig` passes.
+
+### Added
+
+- **`bacs` payment plugin** ([src/payments/plugins/bacs.ts](src/payments/plugins/bacs.ts)) — direct bank transfer. Config: `instructions` (shopper-facing), `accountName`, `accountNumber`, optional `sortCode`, `iban`, `swift`. Validates that either an account number or an IBAN is set.
+- **`cheque` payment plugin** ([src/payments/plugins/cheque.ts](src/payments/plugins/cheque.ts)) — cheque payments. Config: `instructions`, optional `payableTo`, `postalAddress`.
+- **`cod` payment plugin** ([src/payments/plugins/cod.ts](src/payments/plugins/cod.ts)) — cash on delivery. Config: `instructions`, optional `enabledForShippingMethods` (allowlist of shipping-install names; comma-separated in the admin UI, `string[]` in Firestore).
+- **`startManualCheckout` shared helper** ([src/payments/plugins/manual-base.ts](src/payments/plugins/manual-base.ts)) — common path the three plugins call to create an `orders/{id}` doc client-side with `status: 'on-hold'` and `payment.method` stamped to the matching plugin id, then redirect to the consumer's success URL (`{CHECKOUT_SESSION_ID}` placeholder is substituted with the new order id, mirroring Stripe).
+- **Payment-install description field** — `<AdminPaymentPluginsPage>` install dialog grows a "Checkout description" textarea. Stored as `PaymentPluginInstall.description` on Firestore; rendered inline in the install list under the install name; falls back to the plugin's catalog description when blank.
+- **Set up / Manage button** — the per-install action flips between **Set up** (primary variant) when `plugin.validateConfig(install.config)` throws and **Manage** (outline variant) once it passes, matching WooCommerce's payments table ergonomics.
+- **`OrderPayment.method`** — optional `'stripe' | 'bacs' | 'cheque' | 'cod'` field on the order's payment block. Lets admins filter / display the right "awaiting payment" instructions per order. Stripe orders that don't set it continue to work; new manual orders set it explicitly.
+
+### Changed
+
+- **`PaymentPluginId`** union expands from `'stripe'` to `'stripe' | 'bacs' | 'cheque' | 'cod'`. Existing installs keyed on `'stripe'` are unaffected.
+- **`PAYMENT_PLUGIN_CATALOG`** registers BACS, cheque, COD alongside Stripe.
+- **`docToInstall`** in [src/services/payment-plugin-service.ts](src/services/payment-plugin-service.ts) reads the new `description` field from Firestore so saved values hydrate back into the edit form.
+
+### Exports added
+
+`BACS_PLUGIN`, `CHEQUE_PLUGIN`, `COD_PLUGIN`; `ManualPaymentBaseConfig`, `BacsConfig`, `ChequeConfig`, `CodConfig` types.
+
+### No consumer action required
+
+Pure additive release — no rules changes, no migrations. The `orders/{id}` create rule has allowed authenticated users to create their own orders since v1.0, so manual-payment plugins work with the existing rules out of the box. Stores that don't install BACS / cheque / COD see no change. Existing Stripe installs continue to work without setting `payment.method`.
+
+---
+
 ## v2.7.0 — Coming Soon mode, currency formatting, store address, reviews/cart policies, admin header polish
 
 First release of the WooCommerce-parity roadmap (Release A). Adds admin surfaces and storefront wiring for five merchant-facing knobs — Coming Soon mode, currency display formatting, a structured store address, review-submission policy, and cart behavior — plus the shared UI primitives (tooltip, field description, searchable select) that every downstream section consumes, and an onboarding progress ring in the admin header.

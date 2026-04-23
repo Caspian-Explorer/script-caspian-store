@@ -22,6 +22,7 @@ function docToInstall(snap: QueryDocumentSnapshot): PaymentPluginInstall {
     id: snap.id,
     pluginId: data.pluginId ?? '',
     name: data.name ?? '',
+    description: typeof data.description === 'string' ? data.description : undefined,
     enabled: data.enabled ?? false,
     order: data.order ?? 0,
     config: (data.config ?? {}) as Record<string, unknown>,
