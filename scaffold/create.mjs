@@ -499,7 +499,6 @@ export default function Page() { return <AccountPage />; }
 // ---- Content pages ----
 for (const [route, comp, key, fallback] of [
   ['about', 'PageContentView', 'about', 'About us'],
-  ['contact', 'PageContentView', 'contact', 'Contact'],
   ['privacy', 'PageContentView', 'privacy', 'Privacy'],
   ['terms', 'PageContentView', 'terms', 'Terms'],
   ['sustainability', 'PageContentView', 'sustainability', 'Sustainability'],
@@ -529,6 +528,11 @@ export default function Page() {
 write('src/app/faqs/page.tsx', `'use client';
 import { FaqsPage } from '@caspian-explorer/script-caspian-store';
 export default function Page() { return <FaqsPage />; }
+`);
+
+write('src/app/contact/page.tsx', `'use client';
+import { ContactPage } from '@caspian-explorer/script-caspian-store';
+export default function Page() { return <ContactPage />; }
 `);
 
 write('src/app/shipping-returns/page.tsx', `'use client';
@@ -567,6 +571,7 @@ const adminRoutes = [
   ['payment-plugins', 'AdminPaymentPluginsPage'],
   ['promo-codes', 'AdminPromoCodesPage'],
   ['subscribers', 'AdminSubscribersPage'],
+  ['users', 'AdminUsersPage'],
   ['search-terms', 'AdminSearchTermsPage'],
   ['categories', 'AdminProductCategoriesPage'],
   ['collections', 'AdminProductCollectionsPage'],
@@ -1048,7 +1053,8 @@ npm run dev                  # http://localhost:3000
 - \`/checkout\`, \`/orders/success\` — Stripe Checkout flow
 - \`/account\` — profile, addresses, orders, password, photo, danger zone
 - \`/auth/login\`, \`/auth/register\`, \`/auth/forgot-password\`
-- \`/about\`, \`/contact\`, \`/privacy\`, \`/terms\`, \`/sustainability\` — editable content pages
+- \`/about\`, \`/privacy\`, \`/terms\`, \`/sustainability\` — editable content pages
+- \`/contact\` — public contact form; submissions land in \`/admin/users\`
 - \`/journal\`, \`/journal/[id]\` — editorial
 - \`/faqs\`, \`/shipping-returns\`, \`/size-guide\`
 
@@ -1059,7 +1065,7 @@ npm run dev                  # http://localhost:3000
 - \`/admin/journal\`, \`/admin/pages\`, \`/admin/faqs\`
 - \`/admin/shipping-plugins\` — install / configure shipping providers
 - \`/admin/payment-plugins\` — install / configure payment providers (Stripe, …)
-- \`/admin/promo-codes\`, \`/admin/subscribers\`
+- \`/admin/promo-codes\`, \`/admin/subscribers\`, \`/admin/users\`
 - \`/admin/categories\`, \`/admin/collections\`, \`/admin/languages\`
 - \`/admin/settings\` — brand / logo / favicon / social
 - \`/admin/appearance\` — theme catalog grid (preview + activate)

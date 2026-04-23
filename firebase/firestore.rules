@@ -125,6 +125,28 @@ service cloud.firestore {
       allow read, delete: if isAdmin();
     }
 
+    // Contact-form submissions (v2.13). Public create so unauthenticated
+    // visitors can send a message; shape + length clamps blunt spam/abuse.
+    // Admin-only read/update/delete — submissions are never shown publicly.
+    // `status` is pinned to 'new' on create so the bell badge counts
+    // everything that comes in; admins flip to 'read'/'archived'.
+    match /contacts/{id} {
+      allow create: if request.resource.data.status == 'new'
+                    && request.resource.data.name is string
+                    && request.resource.data.name.size() > 0
+                    && request.resource.data.name.size() <= 120
+                    && request.resource.data.email is string
+                    && request.resource.data.email.size() > 0
+                    && request.resource.data.email.size() <= 200
+                    && request.resource.data.message is string
+                    && request.resource.data.message.size() > 0
+                    && request.resource.data.message.size() <= 5000
+                    && (!('subject' in request.resource.data)
+                        || (request.resource.data.subject is string
+                            && request.resource.data.subject.size() <= 200));
+      allow read, update, delete: if isAdmin();
+    }
+
     // Search-term analytics — storefront visitors upsert a doc per
     // normalized query (count + timestamps). Admin-only read/delete.
     // Shape is validated but writes are public: the data is analytics,

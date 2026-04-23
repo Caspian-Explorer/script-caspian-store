@@ -89,6 +89,7 @@ See [INSTALL.md](./INSTALL.md) for the **one-command scaffolder**, **Vite** / **
 | **Theming:** 10-theme `THEME_CATALOG` + Avada-style `<AdminAppearancePage>` grid + popup `<AdminAppearancePreviewPage>` with dummy-data storefront | ✅ |
 | **Profile photo:** `<ProfilePhotoCard />` (Firebase Storage, JPEG/PNG/WebP ≤5 MB) | ✅ |
 | **Delete account:** `<DeleteAccountCard />` with reauth + typed confirmation | ✅ |
+| **Contact page + admin inbox:** `<ContactPage />` public form; `<AdminUsersPage />` tabbed inbox; bell badge, dashboard "Recent contacts" card; Cloud Function fires admin-notify + auto-reply emails | ✅ |
 
 ## Package surface
 
@@ -105,7 +106,7 @@ ProductDetailPage, ProductGallery, SizeSelector, QuantitySelector,
 ProductReviews, ReviewSummary, ReviewList, ReviewItem,
 QuestionList, QuestionItem, WriteReviewDialog, AskQuestionDialog,
 CartSheet, CheckoutPage, OrderConfirmationPage, OrderHistoryList,
-WishlistButton, ScriptSettingsPage,
+WishlistButton, ScriptSettingsPage, ContactPage,
 StarIcon, StarRatingInput
 
 // Client hooks
@@ -116,6 +117,7 @@ AdminGuard, AdminShell, DEFAULT_ADMIN_NAV, AdminDashboard,
 AdminProductsList, AdminProductEditor,
 AdminOrdersList, AdminOrderDetail,
 AdminReviewsModeration, AdminSiteSettingsPage,
+AdminUsersPage, AdminContactsList,
 AdminAppearancePage, AdminAppearancePreviewPage,
 AdminAboutPage
 

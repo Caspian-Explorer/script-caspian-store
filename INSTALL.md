@@ -436,11 +436,15 @@ import { ProfileCard, AddressBook, ChangePasswordCard, OrderHistoryList, Profile
 // journal + detail
 import { JournalListPage, JournalDetailPage } from '@caspian-explorer/script-caspian-store';
 
-// any /about, /contact, /privacy, /terms, /sustainability, etc.
+// any /about, /privacy, /terms, /sustainability, etc.
 import { PageContentView } from '@caspian-explorer/script-caspian-store';
 export default function About() {
   return <PageContentView pageKey="about" fallback={{ title: 'About', content: 'Edit in /admin/pages.' }} />;
 }
+
+// /contact — public contact form (v2.13). Submissions land in /admin/users.
+import { ContactPage } from '@caspian-explorer/script-caspian-store';
+export default function Contact() { return <ContactPage />; }
 
 // FAQ + shipping + size
 import { FaqsPage, ShippingReturnsPage, SizeGuidePage } from '@caspian-explorer/script-caspian-store';
@@ -468,6 +472,7 @@ import {
   AdminShippingPage,
   AdminPromoCodesPage,
   AdminSubscribersPage,
+  AdminUsersPage,              // v2.13+ — tabbed inbox; contacts today, more tabs later
   AdminProductCategoriesPage,
   AdminProductCollectionsPage,
   AdminLanguagesPage,

@@ -108,6 +108,9 @@ export {
 
 // FAQs + shipping + size guide (v1.4)
 export { FaqsPage, type FaqsPageProps } from './components/faqs';
+
+// Contact page (v2.13)
+export { ContactPage, type ContactPageProps } from './components/contact';
 export {
   ShippingReturnsPage,
   type ShippingReturnsPageProps,
@@ -384,6 +387,15 @@ export {
   type SubscribeResult,
 } from './services/subscriber-service';
 export {
+  createContact,
+  listAllContacts,
+  listRecentContacts,
+  countNewContacts,
+  setContactStatus,
+  deleteContact,
+  type CreateContactInput,
+} from './services/contact-service';
+export {
   logSearchTerm,
   listSearchTerms,
   deleteSearchTerm,
@@ -495,6 +507,8 @@ export {
   AdminPaymentPluginsPage,
   AdminPromoCodesPage,
   AdminSubscribersPage,
+  AdminUsersPage,
+  AdminContactsList,
   AdminProductCategoriesPage,
   AdminProductCollectionsPage,
   AdminLanguagesPage,
@@ -532,6 +546,8 @@ export {
   type AdminProfileMenuProps,
   type AdminOnboardingProgressProps,
   type AdminEmailsPageProps,
+  type AdminUsersPageProps,
+  type AdminContactsListProps,
 } from './admin';
 
 // --- Types ---
@@ -599,6 +615,9 @@ export type {
   EmailAudience,
   // v2.12 additions — tax display/calc options
   TaxConfig,
+  // v2.13 additions — contact submissions
+  ContactSubmission,
+  ContactStatus,
 } from './types';
 export { EMAIL_TEMPLATE_KEYS } from './types';
 export {

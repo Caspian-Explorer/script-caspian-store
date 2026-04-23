@@ -655,6 +655,58 @@ export const DEFAULT_MESSAGES: MessageDict = {
   'setup.init.errorGeneric': 'Could not write .env.local. Check the dev server logs.',
   'setup.init.successTitle': 'Saved to .env.local',
   'setup.init.successBody': 'Stop the dev server (Ctrl+C), run npm run dev again, then go to /auth/register to create the first admin account.',
+
+  // Public contact page (v2.13)
+  'contact.page.title': 'Contact us',
+  'contact.page.description': 'Questions, feedback, or a quick hello — drop us a line and we’ll get back to you.',
+  'contact.form.name': 'Name',
+  'contact.form.email': 'Email',
+  'contact.form.subject': 'Subject',
+  'contact.form.subjectOptional': 'Subject (optional)',
+  'contact.form.message': 'Message',
+  'contact.form.submit': 'Send message',
+  'contact.form.submitting': 'Sending…',
+  'contact.form.sent': 'Message received',
+  'contact.form.sentDesc': 'Thanks for reaching out — we’ll reply as soon as we can.',
+  'contact.form.errorGeneric': 'Could not send your message. Please try again.',
+  'contact.form.errorRequired': 'Name, email, and message are required.',
+
+  // Admin > Users (v2.13)
+  'admin.users.title': 'Users',
+  'admin.users.subtitle': 'Customer-facing records: contact submissions and related inbox items.',
+  'admin.users.tabs.contacts': 'Contacts',
+
+  // Admin > Users > Contacts (v2.13)
+  'admin.contacts.empty': 'No contact submissions yet.',
+  'admin.contacts.filterAll': 'All',
+  'admin.contacts.filterNew': 'New',
+  'admin.contacts.filterRead': 'Read',
+  'admin.contacts.filterArchived': 'Archived',
+  'admin.contacts.col.name': 'Name',
+  'admin.contacts.col.email': 'Email',
+  'admin.contacts.col.subject': 'Subject',
+  'admin.contacts.col.message': 'Message',
+  'admin.contacts.col.received': 'Received',
+  'admin.contacts.col.status': 'Status',
+  'admin.contacts.col.actions': 'Actions',
+  'admin.contacts.markRead': 'Mark read',
+  'admin.contacts.markNew': 'Mark unread',
+  'admin.contacts.archive': 'Archive',
+  'admin.contacts.unarchive': 'Unarchive',
+  'admin.contacts.delete': 'Delete',
+  'admin.contacts.deleteConfirm': 'Delete this contact submission? This cannot be undone.',
+  'admin.contacts.copyEmail': 'Copy email',
+  'admin.contacts.emailCopied': 'Email copied',
+  'admin.contacts.status.new': 'New',
+  'admin.contacts.status.read': 'Read',
+  'admin.contacts.status.archived': 'Archived',
+  'admin.contacts.detail.title': 'Contact submission',
+
+  // Admin dashboard — recent contacts card (v2.13)
+  'admin.dashboard.recentContacts': 'Recent contacts',
+  'admin.dashboard.recentContactsEmpty': 'No contact submissions yet.',
+  'admin.dashboard.recentContactsNewPill': '{count, plural, =0 {no new} one {# new} other {# new}}',
+  'admin.dashboard.viewAll': 'View all →',
 };
 
 /**

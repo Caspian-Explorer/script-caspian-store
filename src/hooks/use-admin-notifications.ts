@@ -14,7 +14,8 @@ import { CASPIAN_STORE_VERSION } from '../version';
 export type AdminNotificationKind =
   | 'update-available'
   | 'pending-reviews'
-  | 'pending-questions';
+  | 'pending-questions'
+  | 'new-contacts';
 
 export interface AdminNotification {
   id: string;
@@ -129,6 +130,24 @@ export function useAdminNotifications(
           })
           .catch(() => {
             // Silent for the same reason.
+          }),
+      );
+      tasks.push(
+        getCountFromServer(query(collection(db, 'contacts'), where('status', '==', 'new')))
+          .then((snap) => {
+            const count = snap.data().count;
+            if (count > 0) {
+              out.push({
+                id: 'new-contacts',
+                kind: 'new-contacts',
+                title: `${count} new contact${count === 1 ? '' : 's'}`,
+                description: 'Review incoming contact-form submissions',
+                href: '/admin/users',
+              });
+            }
+          })
+          .catch(() => {
+            // Silent — pre-v2.13 stores won't have the contacts collection yet.
           }),
       );
     }

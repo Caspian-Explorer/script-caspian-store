@@ -16,6 +16,58 @@ Do not omit the heading, rename it, or fold it into `### Notes`. This is how
 customers tell at a glance whether an upgrade needs attention.
 -->
 
+## v2.13.0 — Public contact page + admin inbox
+
+Adds a built-in `/contact` page so visitors can reach the store owner. Submissions land in a new Firestore `contacts` collection, surface as a tabbed **Admin > Users > Contacts** inbox, light up the admin notifications bell, and fire a Cloud Function that sends an admin-notify email and an auto-reply to the submitter via the existing v2.11 SendGrid pipeline. A **Recent contacts** section on the admin dashboard lists the latest submissions with snippets and relative timestamps.
+
+### Added
+
+- **`<ContactPage>`** ([src/components/contact/contact-page.tsx](src/components/contact/contact-page.tsx)) — public submission form (name, email, optional subject, message). Unauthenticated visitors can submit; signed-in users get name/email pre-filled. Ships an off-screen honeypot field for basic spam protection and hard caps message length at 5000 chars. The form writes `contacts/{id}` via `createContact()` and shows a success panel in place of the form on submit.
+- **Firestore `contacts` collection** — new domain type [`ContactSubmission`](src/types.ts) with CRM-style `ContactStatus = 'new' | 'read' | 'archived'` (distinct from the `pending|approved|rejected` moderation triad, since contacts are never shown publicly). Collection ref added to [src/firebase/collections.ts](src/firebase/collections.ts:28).
+- **Contact service** ([src/services/contact-service.ts](src/services/contact-service.ts)) — `createContact`, `listAllContacts`, `listRecentContacts`, `countNewContacts` (uses `getCountFromServer`), `setContactStatus`, `deleteContact`. Follows the existing service signature: `db: Firestore` first, returns plain domain types.
+- **`<AdminUsersPage>`** ([src/admin/admin-users-page.tsx](src/admin/admin-users-page.tsx)) — new admin parent at `/admin/users` with a `Tabs` scaffold. First tab is **Contacts**; additional tabs can slot in without a nav re-org. Registered in `DEFAULT_ADMIN_NAV` between Notifications and Products.
+- **`<AdminContactsList>`** ([src/admin/admin-contacts-list.tsx](src/admin/admin-contacts-list.tsx)) — the inbox UI: table with status filter (all / new / read / archived), row actions (Mark read, Mark unread, Archive, Unarchive, Delete), and a detail dialog that shows the full message plus a copy-email button. Opening the dialog auto-promotes `new → read`.
+- **Dashboard "Recent contacts" section** — new section below the existing count-card grid. Shows the last 5 submissions with name + email, 1-line snippet, relative timestamp, and a "new" status pill. Empty state and `View all →` deep-link to `/admin/users` included.
+- **Admin notifications bell** — new `'new-contacts'` notification kind in [src/hooks/use-admin-notifications.ts](src/hooks/use-admin-notifications.ts). The bell badge now rolls up the count of `status == 'new'` contact submissions alongside pending reviews/questions. A matching `KIND_LABEL` entry (`Inbox`) is added in [src/admin/admin-notifications-page.tsx](src/admin/admin-notifications-page.tsx).
+- **Transactional emails** — two new `EmailTemplateKey` entries: `new_contact_admin` (admin audience) and `contact_autoreply` (customer audience). Default subject/heading/body are registered in [src/services/email-service.ts](src/services/email-service.ts); `EMAIL_TEMPLATE_AUDIENCE` and `EMAIL_TEMPLATE_LABELS` are extended. The email renderer gains four new optional placeholders — `{contact_name}`, `{contact_email}`, `{contact_subject}`, `{contact_message}` — substituted by the new trigger.
+- **`runEmailOnContactCreate` Cloud Function** ([firebase/functions-admin/src/contact-email-triggers.ts](firebase/functions-admin/src/contact-email-triggers.ts)) — Firestore `onDocumentCreated` trigger on `contacts/{id}`. Sends `new_contact_admin` to the template's `recipients[]` (falling back to `SiteSettings.contactEmail`, same chain as the order-admin emails) with `replyTo` set to the submitter for one-click replies; then sends `contact_autoreply` to the submitter's own email. Registered from [firebase/functions-admin/src/index.ts](firebase/functions-admin/src/index.ts) as `caspian-admin:runEmailOnContactCreate`. `firebase/functions-admin/package.json` bumped `0.2.0 → 0.3.0`.
+- **Firestore rule for `contacts/{id}`** — `allow create: if` length + shape clamps (`name` ≤ 120, `email` ≤ 200, `subject` ≤ 200, `message` ≤ 5000, `status == 'new'`); admin-only read/update/delete. Composite index on `(status asc, createdAt desc)` added to [firebase/firestore.indexes.json](firebase/firestore.indexes.json).
+- **Rules-behavior tests** — 7 new cases in [firebase/rules.test.mjs](firebase/rules.test.mjs) exercising public-create, oversize/empty-name rejection, non-admin read denial, admin read/update success.
+- **i18n keys** — `contact.*`, `admin.users.*`, `admin.contacts.*`, `admin.dashboard.recentContacts*` (~30 new keys) in [src/i18n/messages.ts](src/i18n/messages.ts).
+- **Scaffolder** ([scaffold/create.mjs](scaffold/create.mjs)) — new `/contact` one-liner using `<ContactPage>`; new `/admin/users` admin route mounting `<AdminUsersPage>`. The legacy `PageContentView`-backed `/contact` entry is removed so the scaffolder no longer overwrites the new form.
+
+### Consumer action required on upgrade
+
+Existing consumer sites need to (a) deploy the new Firestore rule + index, (b) mount the two new routes, and (c) redeploy the admin Cloud Functions so `runEmailOnContactCreate` goes live:
+
+```bash
+# 1. Pull updated rules + indexes from the package and deploy them.
+cp node_modules/@caspian-explorer/script-caspian-store/firebase/firestore.rules .
+cp node_modules/@caspian-explorer/script-caspian-store/firebase/firestore.indexes.json .
+firebase deploy --only firestore:rules,firestore:indexes
+
+# 2. Redeploy the admin functions group so the new contact-email trigger ships.
+firebase deploy --only functions:caspian-admin
+```
+
+Then add the two pages to your app (Next.js App Router shown; other routers mount equivalently):
+
+```tsx
+// src/app/contact/page.tsx
+'use client';
+import { ContactPage } from '@caspian-explorer/script-caspian-store';
+export default function Page() { return <ContactPage />; }
+
+// src/app/admin/users/page.tsx
+'use client';
+import { AdminUsersPage } from '@caspian-explorer/script-caspian-store';
+export default function Page() { return <AdminUsersPage />; }
+```
+
+Optional: open **Admin > Emails** to customize the default `new_contact_admin` and `contact_autoreply` template copy — the trigger ships with sensible defaults so no action is required for emails to work out of the box.
+
+---
+
 ## v2.12.1 — Self-update project-id remediation
 
 Fixes a confusing failure mode in the `/admin/about` "Update to vX.Y.Z" button. When the scaffolded API route at `src/app/api/caspian-store/update/route.ts` runs on a host whose runtime `process.env` exposes none of `GOOGLE_CLOUD_PROJECT`, `GCLOUD_PROJECT`, `FIREBASE_PROJECT_ID`, `NEXT_PUBLIC_FIREBASE_PROJECT_ID`, or `CASPIAN_FIREBASE_PROJECT_ID`, `firebase-admin` cannot resolve a project ID and throws `Unable to detect a Project Id in the current environment`. The error previously surfaced verbatim with no remediation guidance.

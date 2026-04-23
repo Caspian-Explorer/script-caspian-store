@@ -33,6 +33,8 @@ export const EMAIL_TEMPLATE_AUDIENCE: Record<EmailTemplateKey, EmailAudience> = 
   refunded_order: 'customer',
   customer_note: 'customer',
   new_account: 'customer',
+  new_contact_admin: 'admin',
+  contact_autoreply: 'customer',
 };
 
 /**
@@ -49,6 +51,8 @@ export const EMAIL_TEMPLATE_LABELS: Record<EmailTemplateKey, string> = {
   refunded_order: 'Refunded order (customer)',
   customer_note: 'Customer note (customer)',
   new_account: 'New account (customer)',
+  new_contact_admin: 'New contact submission (admin)',
+  contact_autoreply: 'Contact auto-reply (customer)',
 };
 
 const DEFAULT_TEMPLATES: Record<
@@ -101,6 +105,18 @@ const DEFAULT_TEMPLATES: Record<
     heading: 'Thanks for joining {site_title}, {customer_name}',
     additionalContent:
       'You can now track orders, save addresses, and collect loyalty rewards from your account.',
+  },
+  new_contact_admin: {
+    subject: 'New contact message on {site_title}',
+    heading: 'Someone just reached out',
+    additionalContent:
+      '{contact_name} <{contact_email}> sent a message via the contact form.\n\nSubject: {contact_subject}\n\n{contact_message}',
+  },
+  contact_autoreply: {
+    subject: "We got your message — thanks!",
+    heading: 'Thanks for reaching out, {contact_name}',
+    additionalContent:
+      "We received your message and will get back to you as soon as we can. Here's a copy for your records:\n\nSubject: {contact_subject}\n\n{contact_message}",
   },
 };
 

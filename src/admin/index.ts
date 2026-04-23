@@ -29,6 +29,11 @@ export { AdminShippingPluginsPage } from './admin-shipping-plugins-page';
 export { AdminPaymentPluginsPage } from './admin-payment-plugins-page';
 export { AdminPromoCodesPage } from './admin-promo-codes-page';
 export { AdminSubscribersPage } from './admin-subscribers-page';
+export { AdminUsersPage, type AdminUsersPageProps } from './admin-users-page';
+export {
+  AdminContactsList,
+  type AdminContactsListProps,
+} from './admin-contacts-list';
 export {
   AdminSearchTermsPage,
   type AdminSearchTermsPageProps,

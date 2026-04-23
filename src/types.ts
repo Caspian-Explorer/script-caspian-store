@@ -195,6 +195,31 @@ export interface FirestoreQuestion {
   status: ModerationStatus;
 }
 
+/**
+ * CRM-style inbox state for a contact-page submission. Contacts are never
+ * shown publicly, so the triad is `new | read | archived` rather than the
+ * moderation triad used by reviews/questions. Added in v2.13.
+ */
+export type ContactStatus = 'new' | 'read' | 'archived';
+
+/**
+ * A single "Contact us" form submission, created by any visitor (auth not
+ * required). Admin-only read/update/delete. Drives the admin notifications
+ * bell (`status == 'new'` count) and the dashboard's Recent contacts card.
+ */
+export interface ContactSubmission {
+  id: string;
+  name: string;
+  email: string;
+  subject?: string;
+  message: string;
+  status: ContactStatus;
+  createdAt: Timestamp;
+  readAt?: Timestamp;
+  /** Present only if the submitter happened to be signed in at submit time. */
+  userId?: string;
+}
+
 // --- Admin-managed content types (v1.1+) ---
 
 export interface FaqItem {
@@ -504,7 +529,9 @@ export type EmailTemplateKey =
   | 'completed_order'
   | 'refunded_order'
   | 'customer_note'
-  | 'new_account';
+  | 'new_account'
+  | 'new_contact_admin'
+  | 'contact_autoreply';
 
 export const EMAIL_TEMPLATE_KEYS: readonly EmailTemplateKey[] = [
   'new_order_admin',
@@ -515,6 +542,8 @@ export const EMAIL_TEMPLATE_KEYS: readonly EmailTemplateKey[] = [
   'refunded_order',
   'customer_note',
   'new_account',
+  'new_contact_admin',
+  'contact_autoreply',
 ] as const;
 
 /** Whether a template's primary recipient is the merchant (`admin`) or the shopper (`customer`). */

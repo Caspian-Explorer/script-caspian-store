@@ -305,6 +305,111 @@ test('adminTodos/{id}: admin write allowed', async () => {
   await assertSucceeds(setDoc(doc(db, 'adminTodos', 't1'), { title: 'New', done: false }));
 });
 
+// ---- contacts/{id} ----------------------------------------------------
+// Public contact-form submissions (v2.13). Create is open to unauthenticated
+// visitors (subscribers-style); read/update/delete are admin-only.
+
+test('contacts/{id}: unauthenticated create allowed with valid shape', async () => {
+  await env.clearFirestore();
+  const db = unauthed();
+  await assertSucceeds(
+    addDoc(collection(db, 'contacts'), {
+      name: 'Jane',
+      email: 'jane@example.com',
+      subject: 'Hello',
+      message: 'Quick question about shipping.',
+      status: 'new',
+      createdAt: serverTimestamp(),
+    }),
+  );
+});
+
+test('contacts/{id}: create rejected when status != new', async () => {
+  await env.clearFirestore();
+  const db = unauthed();
+  await assertFails(
+    addDoc(collection(db, 'contacts'), {
+      name: 'Jane',
+      email: 'jane@example.com',
+      message: 'Hi',
+      status: 'read',
+      createdAt: serverTimestamp(),
+    }),
+  );
+});
+
+test('contacts/{id}: create rejected when message too long', async () => {
+  await env.clearFirestore();
+  const db = unauthed();
+  const huge = 'x'.repeat(5001);
+  await assertFails(
+    addDoc(collection(db, 'contacts'), {
+      name: 'Jane',
+      email: 'jane@example.com',
+      message: huge,
+      status: 'new',
+      createdAt: serverTimestamp(),
+    }),
+  );
+});
+
+test('contacts/{id}: create rejected with empty name', async () => {
+  await env.clearFirestore();
+  const db = unauthed();
+  await assertFails(
+    addDoc(collection(db, 'contacts'), {
+      name: '',
+      email: 'jane@example.com',
+      message: 'Hi',
+      status: 'new',
+      createdAt: serverTimestamp(),
+    }),
+  );
+});
+
+test('contacts/{id}: non-admin read denied', async () => {
+  await env.clearFirestore();
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), 'contacts', 'c1'), {
+      name: 'Jane',
+      email: 'jane@example.com',
+      message: 'Hi',
+      status: 'new',
+    });
+  });
+  await assertFails(getDoc(doc(authed('alice'), 'contacts', 'c1')));
+});
+
+test('contacts/{id}: admin read allowed', async () => {
+  await env.clearFirestore();
+  await seedAdmin('admin1');
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), 'contacts', 'c1'), {
+      name: 'Jane',
+      email: 'jane@example.com',
+      message: 'Hi',
+      status: 'new',
+    });
+  });
+  await assertSucceeds(getDoc(doc(authed('admin1'), 'contacts', 'c1')));
+});
+
+test('contacts/{id}: admin update status allowed', async () => {
+  await env.clearFirestore();
+  await seedAdmin('admin1');
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), 'contacts', 'c1'), {
+      name: 'Jane',
+      email: 'jane@example.com',
+      message: 'Hi',
+      status: 'new',
+    });
+  });
+  await assertSucceeds(
+    updateDoc(doc(authed('admin1'), 'contacts', 'c1'), { status: 'read' }),
+  );
+});
+
 // ---- storage: siteSettings/** ----------------------------------------
 // Branding uploads (logo + favicon) from <AdminSiteSettingsPage>. Added v1.21.
 //

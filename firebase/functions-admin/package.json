@@ -1,6 +1,6 @@
 {
   "name": "caspian-admin-functions",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Firebase Cloud Functions for Caspian Store admin triggers (auto-promote, scheduled retention, transactional emails). No Stripe dependency — deployable without Stripe secrets.",
   "main": "lib/index.js",
   "engines": {

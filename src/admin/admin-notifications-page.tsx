@@ -19,6 +19,7 @@ const KIND_LABEL: Record<AdminNotificationKind, string> = {
   'update-available': 'Update',
   'pending-reviews': 'Moderation',
   'pending-questions': 'Moderation',
+  'new-contacts': 'Inbox',
 };
 
 export function AdminNotificationsPage({ className, ...options }: AdminNotificationsPageProps) {

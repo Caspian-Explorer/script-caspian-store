@@ -37,6 +37,11 @@ export interface RenderContext {
   orderDate: string;
   customerName: string;
   customerEmail: string;
+  /** Contact-form placeholders (v2.13). Empty strings for non-contact templates. */
+  contactName?: string;
+  contactEmail?: string;
+  contactSubject?: string;
+  contactMessage?: string;
 }
 
 /**
@@ -52,6 +57,10 @@ export function substitutePlaceholders(input: string, ctx: RenderContext): strin
     '{order_date}': ctx.orderDate,
     '{customer_name}': ctx.customerName,
     '{customer_email}': ctx.customerEmail,
+    '{contact_name}': ctx.contactName ?? '',
+    '{contact_email}': ctx.contactEmail ?? '',
+    '{contact_subject}': ctx.contactSubject ?? '',
+    '{contact_message}': ctx.contactMessage ?? '',
   };
   return Object.entries(map).reduce(
     (acc, [token, value]) => acc.split(token).join(value),
