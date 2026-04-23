@@ -16,6 +16,42 @@ Do not omit the heading, rename it, or fold it into `### Notes`. This is how
 customers tell at a glance whether an upgrade needs attention.
 -->
 
+## v2.14.1 — Security: npm audit remediation for Cloud Functions
+
+Fixes all `@tootallnate/once <3.0.1` (GHSA-vpq2-c234-7xj6) and `uuid <14.0.0` (GHSA-w5hq-g745-h8pq) findings surfaced by `npm audit` in the Cloud Functions packages shipped with this library. These vulnerabilities enter via `firebase-admin`'s transitive `@google-cloud/storage → teeny-request → http-proxy-agent → @tootallnate/once` chain and are resolved without changing the top-level `firebase-admin ^13.0.0` pin — npm `overrides` in each `functions-*/package.json` force safe versions of the transitive deps.
+
+### Warning — do not run `npm audit fix --force`
+
+On this dependency tree `--force` downgrades `firebase-admin` to **10.1.0** (well below the `^13.0.0` pin) and re-introduces 5 additional critical/high CVEs in `dicer`, `jsonwebtoken`, `protobufjs`, `@grpc/grpc-js`, and old `@google-cloud/firestore`. If any consumer has already run this, recovery is: restore `firebase-admin: "^13.0.0"` in their `functions-*/package.json`, delete `package-lock.json`, and re-run `npm install`.
+
+### Fixed
+
+- **`firebase/functions-admin`** (0.3.0 → 0.3.1) — `@tootallnate/once`, `uuid`, `http-proxy-agent` forced to safe versions via `overrides`. `npm audit` now reports 0 vulnerabilities.
+- **`firebase/functions-stripe`** (0.1.0 → 0.1.1) — same `overrides` block. `npm audit` now reports 0 vulnerabilities.
+
+### Consumer action required on upgrade
+
+Consumers who have deployed these Cloud Functions need to pick up the new `overrides` and regenerate their lock files:
+
+```bash
+# 1. Update the library
+npm install @caspian-explorer/script-caspian-store@latest
+
+# 2. For each functions directory your project uses, sync the new package.json
+#    (the overrides block and the version bump) from the library tarball.
+for d in functions-admin functions-stripe; do
+  cp "node_modules/@caspian-explorer/script-caspian-store/firebase/$d/package.json" "firebase/$d/package.json"
+  (cd "firebase/$d" && rm -f package-lock.json && rm -rf node_modules && npm install && npm audit)
+done
+
+# 3. Redeploy
+firebase deploy --only functions
+```
+
+Expected `npm audit` result: `found 0 vulnerabilities` in both directories.
+
+**Do NOT run `npm audit fix --force`** — see warning above.
+
 ## v2.14.0 — Collections storefront
 
 Fixes a scaffolder bug that had `/collections` rendering a full-width product list titled "Shop" on every generated site — admins could create `productCollections` in the dashboard, but shoppers never saw them. Ships a proper storefront surface: a discovery page that lists the admin-curated collections and a per-collection detail page with hero + products. Also introduces a dedicated `/shop` route for the full catalog so the header nav's "Shop" link stops bouncing visitors to the homepage.

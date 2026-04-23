@@ -1,6 +1,6 @@
 {
   "name": "caspian-stripe-functions",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Firebase Cloud Functions for Caspian Store Stripe integration — checkout session creation, session lookup, and webhook handler. Requires STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET secrets.",
   "main": "lib/index.js",
   "engines": {
@@ -21,6 +21,11 @@
   },
   "devDependencies": {
     "typescript": "^5.6.3"
+  },
+  "overrides": {
+    "@tootallnate/once": "^3.0.1",
+    "http-proxy-agent": "^7.0.2",
+    "uuid": "^14.0.0"
   },
   "private": true
 }
