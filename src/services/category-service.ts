@@ -14,6 +14,7 @@ import {
   type QueryDocumentSnapshot,
 } from 'firebase/firestore';
 import type { ProductCategoryDoc } from '../types';
+import { stripUndefined } from '../utils/strip-undefined';
 
 function docToCategory(docSnap: QueryDocumentSnapshot): ProductCategoryDoc {
   const data = docSnap.data();
@@ -64,7 +65,7 @@ export async function createCategory(
   input: CategoryWriteInput,
   id?: string,
 ): Promise<string> {
-  const payload = { ...input, createdAt: Timestamp.now() };
+  const payload = stripUndefined({ ...input, createdAt: Timestamp.now() });
   if (id) {
     await setDoc(doc(db, 'productCategories', id), payload);
     return id;
@@ -78,7 +79,7 @@ export async function updateCategory(
   id: string,
   input: Partial<CategoryWriteInput>,
 ): Promise<void> {
-  await updateDoc(doc(db, 'productCategories', id), input);
+  await updateDoc(doc(db, 'productCategories', id), stripUndefined({ ...input }));
 }
 
 export async function deleteCategory(db: Firestore, id: string): Promise<void> {

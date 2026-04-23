@@ -1,5 +1,6 @@
 import { doc, getDoc, setDoc, type Firestore } from 'firebase/firestore';
 import type { SiteSettings } from '../types';
+import { stripUndefined } from '../utils/strip-undefined';
 
 /**
  * Loads the site-level settings doc (`settings/site`) that stores brand /
@@ -13,5 +14,5 @@ export async function getSiteSettings(db: Firestore): Promise<SiteSettings | nul
 }
 
 export async function saveSiteSettings(db: Firestore, input: SiteSettings): Promise<void> {
-  await setDoc(doc(db, 'settings', 'site'), input);
+  await setDoc(doc(db, 'settings', 'site'), stripUndefined({ ...input }));
 }

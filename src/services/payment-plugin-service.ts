@@ -14,6 +14,7 @@ import {
   type QueryDocumentSnapshot,
 } from 'firebase/firestore';
 import type { PaymentPluginInstall } from '../types';
+import { stripUndefined } from '../utils/strip-undefined';
 
 function docToInstall(snap: QueryDocumentSnapshot): PaymentPluginInstall {
   const data = snap.data();
@@ -46,7 +47,7 @@ export async function createPaymentPluginInstall(
   input: PaymentPluginInstallWriteInput,
   id?: string,
 ): Promise<string> {
-  const payload = { ...input, createdAt: Timestamp.now() };
+  const payload = stripUndefined({ ...input, createdAt: Timestamp.now() });
   if (id) {
     await setDoc(doc(db, 'paymentPluginInstalls', id), payload);
     return id;
@@ -60,7 +61,7 @@ export async function updatePaymentPluginInstall(
   id: string,
   input: Partial<PaymentPluginInstallWriteInput>,
 ): Promise<void> {
-  await updateDoc(doc(db, 'paymentPluginInstalls', id), input);
+  await updateDoc(doc(db, 'paymentPluginInstalls', id), stripUndefined({ ...input }));
 }
 
 export async function deletePaymentPluginInstall(

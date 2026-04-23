@@ -13,6 +13,7 @@ import {
   type QueryDocumentSnapshot,
 } from 'firebase/firestore';
 import type { ProductCollectionDoc } from '../types';
+import { stripUndefined } from '../utils/strip-undefined';
 
 function docToCollection(snap: QueryDocumentSnapshot): ProductCollectionDoc {
   const data = snap.data();
@@ -48,7 +49,7 @@ export async function createProductCollection(
   id?: string,
 ): Promise<string> {
   const now = Timestamp.now();
-  const payload = { ...input, createdAt: now, updatedAt: now };
+  const payload = stripUndefined({ ...input, createdAt: now, updatedAt: now });
   if (id) {
     await setDoc(doc(db, 'productCollections', id), payload);
     return id;
@@ -62,7 +63,10 @@ export async function updateProductCollection(
   id: string,
   input: Partial<ProductCollectionWriteInput>,
 ): Promise<void> {
-  await updateDoc(doc(db, 'productCollections', id), { ...input, updatedAt: Timestamp.now() });
+  await updateDoc(
+    doc(db, 'productCollections', id),
+    stripUndefined({ ...input, updatedAt: Timestamp.now() }),
+  );
 }
 
 export async function deleteProductCollection(db: Firestore, id: string): Promise<void> {

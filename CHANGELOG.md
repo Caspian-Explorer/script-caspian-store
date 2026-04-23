@@ -16,6 +16,28 @@ Do not omit the heading, rename it, or fold it into `### Notes`. This is how
 customers tell at a glance whether an upgrade needs attention.
 -->
 
+## v2.5.2 — Apply `stripUndefined` across all admin write services
+
+v2.5.1 fixed the `Unsupported field value: undefined` Firestore error for **Products** and **Promo codes** — the two surfaces a user had hit. This release sweeps the same hardening across every other admin-write service that takes a payload with optional fields, so the next blank-field save can't trigger the same crash on a different page.
+
+### Fixed (preventatively)
+
+The following admin save flows are now also immune to the "undefined field value" Firestore error when optional inputs are left blank:
+
+- **Categories** (`description`, `imageUrl`, `parentId`, `path`, `depth`, `isFeatured`) — [src/services/category-service.ts](src/services/category-service.ts)
+- **Collections** (`description`, `imageUrl`, `isFeatured`, `updatedAt`) — [src/services/product-collection-service.ts](src/services/product-collection-service.ts)
+- **Languages** (`flag`, `updatedAt`) — [src/services/language-service.ts](src/services/language-service.ts)
+- **Journal articles** (defensive on partial updates) — [src/services/journal-service.ts](src/services/journal-service.ts)
+- **FAQs** (defensive on partial updates) — [src/services/faq-service.ts](src/services/faq-service.ts)
+- **Site settings** (`faviconUrl`, `currency`, `timezone`, `country`, `taxMode`, `taxLabel`, `flatTaxRate`, `supportedCountries`) — [src/services/site-settings-service.ts](src/services/site-settings-service.ts)
+- **Shipping plugin installs** (`eligibleCountries`) — [src/services/shipping-plugin-service.ts](src/services/shipping-plugin-service.ts)
+- **Payment plugin installs** (defensive on partial updates) — [src/services/payment-plugin-service.ts](src/services/payment-plugin-service.ts)
+- **Admin todos** (`description`, `done`, `order`, `isDefault` on partial updates) — [src/services/admin-todo-service.ts](src/services/admin-todo-service.ts)
+
+### No consumer action required
+
+Pure runtime hardening; no schema changes, no API changes. Upgrade and the affected admin save flows can no longer throw `Unsupported field value: undefined` on blank optional inputs.
+
 ## v2.5.1 — Fix Firestore "undefined field" rejection on product and promo-code save
 
 Both the admin product editor and the new-promo-code dialog were building write payloads that included optional fields (e.g. `weightKg`, `shortDescription`, `details` on products; `minOrderAmount`, `maxDiscount` on promo codes) with `undefined` values when the admin left them blank. Firestore's SDK rejects any document key whose value is `undefined`, so saves failed with `Function addDoc() called with invalid data. Unsupported field value: undefined (found in field weightKg ...)`. The fix lives in the service layer: a new `stripUndefined` helper drops `undefined` keys from the payload before `addDoc`/`setDoc`/`updateDoc` runs. Service-layer placement means every current and future caller is protected without changing form code.

@@ -15,6 +15,7 @@ import {
 } from 'firebase/firestore';
 import type { ShippingPluginInstall } from '../types';
 import type { ShippingPluginId } from '../shipping/types';
+import { stripUndefined } from '../utils/strip-undefined';
 
 function docToInstall(snap: QueryDocumentSnapshot): ShippingPluginInstall {
   const data = snap.data();
@@ -48,7 +49,7 @@ export async function createShippingPluginInstall(
   input: ShippingPluginInstallWriteInput,
   id?: string,
 ): Promise<string> {
-  const payload = { ...input, createdAt: Timestamp.now() };
+  const payload = stripUndefined({ ...input, createdAt: Timestamp.now() });
   if (id) {
     await setDoc(doc(db, 'shippingPluginInstalls', id), payload);
     return id;
@@ -62,7 +63,7 @@ export async function updateShippingPluginInstall(
   id: string,
   input: Partial<ShippingPluginInstallWriteInput>,
 ): Promise<void> {
-  await updateDoc(doc(db, 'shippingPluginInstalls', id), input);
+  await updateDoc(doc(db, 'shippingPluginInstalls', id), stripUndefined({ ...input }));
 }
 
 export async function deleteShippingPluginInstall(

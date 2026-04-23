@@ -13,6 +13,7 @@ import {
   type QueryDocumentSnapshot,
 } from 'firebase/firestore';
 import type { LanguageDoc } from '../types';
+import { stripUndefined } from '../utils/strip-undefined';
 
 function docToLanguage(snap: QueryDocumentSnapshot): LanguageDoc {
   const data = snap.data();
@@ -43,7 +44,7 @@ export async function createLanguage(
   input: LanguageWriteInput,
   id?: string,
 ): Promise<string> {
-  const payload = { ...input, updatedAt: Timestamp.now() };
+  const payload = stripUndefined({ ...input, updatedAt: Timestamp.now() });
   if (id) {
     await setDoc(doc(db, 'languages', id), payload);
     return id;
@@ -57,7 +58,10 @@ export async function updateLanguage(
   id: string,
   input: Partial<LanguageWriteInput>,
 ): Promise<void> {
-  await updateDoc(doc(db, 'languages', id), { ...input, updatedAt: Timestamp.now() });
+  await updateDoc(
+    doc(db, 'languages', id),
+    stripUndefined({ ...input, updatedAt: Timestamp.now() }),
+  );
 }
 
 export async function deleteLanguage(db: Firestore, id: string): Promise<void> {

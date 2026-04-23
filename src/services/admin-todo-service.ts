@@ -16,6 +16,7 @@ import {
   type Unsubscribe,
 } from 'firebase/firestore';
 import type { AdminTodo } from '../types';
+import { stripUndefined } from '../utils/strip-undefined';
 
 function docToAdminTodo(snap: QueryDocumentSnapshot): AdminTodo {
   const data = snap.data();
@@ -92,7 +93,7 @@ export async function updateAdminTodo(
   id: string,
   input: Partial<AdminTodoWriteInput>,
 ): Promise<void> {
-  await updateDoc(doc(db, 'adminTodos', id), { ...input, updatedAt: Timestamp.now() });
+  await updateDoc(doc(db, 'adminTodos', id), stripUndefined({ ...input, updatedAt: Timestamp.now() }));
 }
 
 export async function deleteAdminTodo(db: Firestore, id: string): Promise<void> {
