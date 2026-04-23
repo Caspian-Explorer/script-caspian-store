@@ -23,4 +23,12 @@ export {
   LogOutIcon,
   CheckIcon,
   RefreshIcon,
+  BellIcon,
+  MenuIcon,
 } from './icons';
+export {
+  RichTextEditor,
+  sanitizeRichHtml,
+  type RichTextEditorProps,
+} from './rich-text-editor';
+export { HtmlContent, type HtmlContentProps } from './html-content';

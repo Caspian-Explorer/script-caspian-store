@@ -43,6 +43,7 @@ export { ProductGallery } from './components/product-gallery';
 export { SizeSelector, QuantitySelector } from './components/product-selectors';
 export { ProductDetailPage, type ProductDetailPageProps } from './components/product-detail-page';
 export { CartSheet, type CartSheetProps } from './components/cart-sheet';
+export { CartPage, type CartPageProps } from './components/cart-page';
 export { CheckoutPage, type CheckoutPageProps } from './components/checkout-page';
 export {
   OrderConfirmationPage,
@@ -243,6 +244,11 @@ export {
   EditIcon,
   TrashIcon,
   ExternalLinkIcon,
+  RichTextEditor,
+  sanitizeRichHtml,
+  HtmlContent,
+  type RichTextEditorProps,
+  type HtmlContentProps,
 } from './ui';
 
 // --- Services ---
@@ -472,6 +478,8 @@ export {
   AdminTodoPage,
   AdminAboutPage,
   AdminSearchTermsPage,
+  AdminNotificationsBell,
+  AdminNotificationsPage,
   AdminProfileMenu,
   DEFAULT_PAGE_KEYS,
   type AdminGuardProps,
@@ -486,6 +494,8 @@ export {
   type AdminFaqsPageProps,
   type AdminAboutPageProps,
   type AdminSearchTermsPageProps,
+  type AdminNotificationsBellProps,
+  type AdminNotificationsPageProps,
   type AdminAppearancePageProps,
   type AdminAppearancePreviewPageProps,
   type AdminProfileMenuProps,
@@ -524,6 +534,8 @@ export type {
   SocialLink,
   SocialPlatform,
   SiteSettings,
+  SupportedCountry,
+  TaxMode,
   PromoCode,
   AppliedPromoCode,
   SearchTerm,
@@ -555,3 +567,10 @@ export {
   triggerSelfUpdate,
   type SelfUpdateResult,
 } from './services/self-update-service';
+export {
+  useAdminNotifications,
+  type AdminNotification,
+  type AdminNotificationKind,
+  type UseAdminNotificationsOptions,
+  type UseAdminNotificationsResult,
+} from './hooks/use-admin-notifications';

@@ -20,6 +20,21 @@ export interface Product {
   name: string;
   brand: string;
   description: string;
+  /**
+   * Short marketing blurb shown in the PDP hero column above the Add-to-Cart
+   * button. Kept separate from `description` so the storefront can show a
+   * punchy 2–3 line pitch in the hero and the longer `description` in the
+   * Details tab. Optional — falls back to the first ~240 chars of
+   * `description` when empty.
+   */
+  shortDescription?: string;
+  /**
+   * Rich-text specs / dimensions rendered under the "Details" tab on the PDP.
+   * Stored as sanitized HTML (allowlist: `<p>`, `<strong>`, `<ul>`, `<li>`,
+   * `<br>`). Authored with the `<RichTextEditor>` in the admin product editor.
+   * Optional — tab is hidden when empty and no `description` exists.
+   */
+  details?: string;
   price: number;
   images: ProductImage[];
   category: string;
@@ -217,6 +232,30 @@ export interface SocialLink {
   url: string;
 }
 
+/**
+ * How tax is computed and rendered on the checkout page. See
+ * `SiteSettings.taxMode` / `supportedCountries`.
+ * - `flat`: every order uses the single `flatTaxRate`.
+ * - `per-country`: per-entry `taxRate` on each row in `supportedCountries`;
+ *   checkout reads the rate of the shopper's selected country.
+ * - `none`: no tax row rendered anywhere.
+ */
+export type TaxMode = 'flat' | 'per-country' | 'none';
+
+/**
+ * A country the store sells to. Populates the country dropdown in checkout —
+ * shoppers can only pick from this list. Under `taxMode: 'per-country'`, the
+ * `taxRate` field is also consumed.
+ */
+export interface SupportedCountry {
+  /** ISO 3166-1 alpha-2 code, uppercase (e.g. `US`, `GB`). */
+  code: string;
+  /** Display name used in the checkout country dropdown (e.g. `United States`). */
+  name: string;
+  /** Decimal tax rate 0–1 (e.g. `0.08` for 8%). Only used under per-country mode. */
+  taxRate?: number;
+}
+
 export interface SiteSettings {
   logoUrl: string;
   faviconUrl?: string;
@@ -232,6 +271,23 @@ export interface SiteSettings {
   timezone?: string;
   /** ISO 3166-1 alpha-2 country code (e.g. `US`, `GB`). Optional — added in v1.19. */
   country?: string;
+  /**
+   * Tax calculation mode. When `undefined` or `'none'`, no tax row renders on
+   * the checkout. When `'flat'`, `flatTaxRate` applies site-wide. When
+   * `'per-country'`, the rate is read from the selected country's entry in
+   * `supportedCountries`. Added in v2.5.
+   */
+  taxMode?: TaxMode;
+  /** Display label for the tax row (e.g. `Sales tax`, `VAT`). Defaults to "Tax". Added in v2.5. */
+  taxLabel?: string;
+  /** Decimal tax rate 0–1 used under `taxMode: 'flat'`. Ignored otherwise. Added in v2.5. */
+  flatTaxRate?: number;
+  /**
+   * Countries the store sells to. When populated, the checkout country
+   * dropdown is restricted to this list. When empty or undefined, the library
+   * falls back to the global ISO 3166 list. Added in v2.5.
+   */
+  supportedCountries?: SupportedCountry[];
   socialLinks: SocialLink[];
 }
 
@@ -274,6 +330,11 @@ export interface ShippingPluginInstall {
   estimatedDays: { min: number; max: number };
   /** Plugin-specific configuration. Validated by the plugin's `validateConfig` at runtime. */
   config: Record<string, unknown>;
+  /**
+   * ISO 3166-1 alpha-2 codes of countries this shipping method is available
+   * in. Empty or undefined → all `SiteSettings.supportedCountries`. Added in v2.5.
+   */
+  eligibleCountries?: string[];
   createdAt: Timestamp;
 }
 

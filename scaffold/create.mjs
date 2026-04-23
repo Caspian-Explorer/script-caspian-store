@@ -440,11 +440,9 @@ export default function Page() { return <ProductListPage title="Shop" />; }
 `);
 
 write('src/app/cart/page.tsx', `'use client';
-import { useState } from 'react';
-import { CartSheet } from '@caspian-explorer/script-caspian-store';
+import { CartPage } from '@caspian-explorer/script-caspian-store';
 export default function Page() {
-  const [open, setOpen] = useState(true);
-  return <CartSheet open={open} onOpenChange={setOpen} />;
+  return <CartPage />;
 }
 `);
 
@@ -577,6 +575,7 @@ const adminRoutes = [
   ['appearance', 'AdminAppearancePage'],
   ['appearance/preview', 'AdminAppearancePreviewPage'],
   ['about', 'AdminAboutPage'],
+  ['notifications', 'AdminNotificationsPage'],
 ];
 
 for (const [sub, comp] of adminRoutes) {

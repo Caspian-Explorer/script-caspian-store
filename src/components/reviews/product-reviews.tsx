@@ -31,9 +31,19 @@ function computeSummary(reviews: FirestoreReview[]): ReviewSummaryData {
 export function ProductReviews({
   productId,
   onSummaryChange,
+  mode = 'combined',
 }: {
   productId: string;
   onSummaryChange?: (s: ReviewSummaryData) => void;
+  /**
+   * - `combined` (default): reviews + questions shown as internal sub-tabs.
+   *   Back-compat mode for standalone use.
+   * - `reviews-only`: reviews list + summary + Write dialog. No questions.
+   * - `questions-only`: questions list + Ask dialog. No reviews list/summary.
+   * The PDP uses `reviews-only` and `questions-only` to split the content
+   * across two sibling tabs alongside "Details".
+   */
+  mode?: 'combined' | 'reviews-only' | 'questions-only';
 }) {
   const { db } = useCaspianFirebase();
   const t = useT();
@@ -78,62 +88,115 @@ export function ProductReviews({
     onSummaryChange?.(summary);
   }, [summary, onSummaryChange]);
 
-  return (
-    <section style={{ marginTop: 48, borderTop: '1px solid #eee', paddingTop: 32 }}>
-      <h2 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>{t('reviews.title')}</h2>
+  const sectionStyle: React.CSSProperties =
+    mode === 'combined'
+      ? { marginTop: 48, borderTop: '1px solid #eee', paddingTop: 32 }
+      : {};
 
-      {loading ? (
+  if (loading) {
+    return (
+      <section style={sectionStyle}>
+        {mode === 'combined' && (
+          <h2 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>{t('reviews.title')}</h2>
+        )}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '32px 0' }}>
           <Skeleton style={{ height: 100, width: '100%' }} />
           <Skeleton style={{ height: 180, width: '100%' }} />
         </div>
-      ) : (
-        <>
-          <ReviewSummary
-            summary={summary}
-            onWriteReview={() => setWriteOpen(true)}
-            onAskQuestion={() => setAskOpen(true)}
+      </section>
+    );
+  }
+
+  if (mode === 'reviews-only') {
+    return (
+      <section style={sectionStyle}>
+        <ReviewSummary
+          summary={summary}
+          onWriteReview={() => setWriteOpen(true)}
+          onAskQuestion={() => setAskOpen(true)}
+        />
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'flex-end',
+            gap: 8,
+            margin: '16px 0',
+          }}
+        >
+          <span style={{ fontSize: 13, color: '#666' }}>{t('reviews.sortBy')}</span>
+          <Select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as ReviewSortBy)}
+            options={[
+              { value: 'recent', label: t('reviews.sort.recent') },
+              { value: 'highest', label: t('reviews.sort.highest') },
+              { value: 'lowest', label: t('reviews.sort.lowest') },
+            ]}
           />
+        </div>
+        <ReviewList reviews={reviews} onWriteReview={() => setWriteOpen(true)} />
+        <WriteReviewDialog productId={productId} open={writeOpen} onOpenChange={setWriteOpen} />
+      </section>
+    );
+  }
 
-          <Tabs defaultValue="reviews">
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: 12,
-                padding: 8,
-                background: '#f5f5f5',
-                borderRadius: 'var(--caspian-radius, 6px)',
-              }}
-            >
-              <TabsList>
-                <TabsTrigger value="reviews">{t('reviews.tab.reviews', { count: reviews.length })}</TabsTrigger>
-                <TabsTrigger value="questions">{t('reviews.tab.questions', { count: questions.length })}</TabsTrigger>
-              </TabsList>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ fontSize: 13, color: '#666' }}>{t('reviews.sortBy')}</span>
-                <Select
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value as ReviewSortBy)}
-                  options={[
-                    { value: 'recent', label: t('reviews.sort.recent') },
-                    { value: 'highest', label: t('reviews.sort.highest') },
-                    { value: 'lowest', label: t('reviews.sort.lowest') },
-                  ]}
-                />
-              </div>
-            </div>
+  if (mode === 'questions-only') {
+    return (
+      <section style={sectionStyle}>
+        <QuestionList questions={questions} onAskQuestion={() => setAskOpen(true)} />
+        <AskQuestionDialog productId={productId} open={askOpen} onOpenChange={setAskOpen} />
+      </section>
+    );
+  }
 
-            <TabsContent value="reviews">
-              <ReviewList reviews={reviews} onWriteReview={() => setWriteOpen(true)} />
-            </TabsContent>
-            <TabsContent value="questions">
-              <QuestionList questions={questions} onAskQuestion={() => setAskOpen(true)} />
-            </TabsContent>
-          </Tabs>
-        </>
-      )}
+  return (
+    <section style={sectionStyle}>
+      <h2 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>{t('reviews.title')}</h2>
+
+      <ReviewSummary
+        summary={summary}
+        onWriteReview={() => setWriteOpen(true)}
+        onAskQuestion={() => setAskOpen(true)}
+      />
+
+      <Tabs defaultValue="reviews">
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 12,
+            padding: 8,
+            background: '#f5f5f5',
+            borderRadius: 'var(--caspian-radius, 6px)',
+          }}
+        >
+          <TabsList>
+            <TabsTrigger value="reviews">{t('reviews.tab.reviews', { count: reviews.length })}</TabsTrigger>
+            <TabsTrigger value="questions">{t('reviews.tab.questions', { count: questions.length })}</TabsTrigger>
+          </TabsList>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 13, color: '#666' }}>{t('reviews.sortBy')}</span>
+            <Select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as ReviewSortBy)}
+              options={[
+                { value: 'recent', label: t('reviews.sort.recent') },
+                { value: 'highest', label: t('reviews.sort.highest') },
+                { value: 'lowest', label: t('reviews.sort.lowest') },
+              ]}
+            />
+          </div>
+        </div>
+
+        <TabsContent value="reviews">
+          <ReviewList reviews={reviews} onWriteReview={() => setWriteOpen(true)} />
+        </TabsContent>
+        <TabsContent value="questions">
+          <QuestionList questions={questions} onAskQuestion={() => setAskOpen(true)} />
+        </TabsContent>
+      </Tabs>
 
       <WriteReviewDialog productId={productId} open={writeOpen} onOpenChange={setWriteOpen} />
       <AskQuestionDialog productId={productId} open={askOpen} onOpenChange={setAskOpen} />

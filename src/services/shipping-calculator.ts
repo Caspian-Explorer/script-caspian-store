@@ -61,6 +61,7 @@ export async function calculateShippingRates(
       label: install.name,
       price,
       estimatedDays: install.estimatedDays,
+      eligibleCountries: install.eligibleCountries,
     });
   }
   return rates;

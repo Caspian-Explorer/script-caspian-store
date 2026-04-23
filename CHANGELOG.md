@@ -16,6 +16,60 @@ Do not omit the heading, rename it, or fold it into `### Notes`. This is how
 customers tell at a glance whether an upgrade needs attention.
 -->
 
+## v2.5.0 — Retail-skin storefront + admin layout overhaul with notifications
+
+Two parallel pushes landed together. On the storefront, four design screenshots defined the cleanWhite theme's look across the funnel: a product page with a vertical thumbnail rail and tabbed content, a full-page shopping bag, and a two-card checkout step — v2.5 implements that skin end-to-end and adds the product-content and tax/countries primitives it needs. On the admin side, the shell was rebuilt so the sidebar runs full-height (not under the header), the header starts from the right of the sidebar with a toggle icon at its far left, a notifications bell lives in the header with an unread badge + dropdown, and a new `/admin/notifications` page lists every active signal — starting with available-library-update alerts and pending moderation items.
+
+### Added
+
+- **`<CartPage>`** at [src/components/cart-page.tsx](src/components/cart-page.tsx) — new full-page shopping bag. Two-column layout: item cards on the left (thumbnail + name + variant + pill qty stepper + price + `×` remove); sticky order summary on the right (subtotal, shipping placeholder, total, promo code with apply/clear, Proceed-to-Checkout CTA, lock-icon "Secure checkout" microcopy, Continue Shopping link). Applied promo codes carry to checkout via a `?promo=` query param. Mount at `/cart`. The existing `<CartSheet>` drawer is preserved for quick peeks.
+- **`<RichTextEditor>`** at [src/ui/rich-text-editor.tsx](src/ui/rich-text-editor.tsx) — minimal contentEditable editor with Bold + Bulleted-list toolbar. Cmd/Ctrl+B shortcut. Paste-as-plain-text to keep foreign markup out. Output sanitized to a tight allowlist (`<p>`, `<br>`, `<strong>`, `<b>`, `<ul>`, `<li>`; every attribute stripped).
+- **`sanitizeRichHtml(input)`** — exported sanitizer used by both the editor and the `<HtmlContent>` renderer. Zero dependencies; runs on the client via `DOMParser`.
+- **`<HtmlContent>`** at [src/ui/html-content.tsx](src/ui/html-content.tsx) — renders sanitized HTML via `dangerouslySetInnerHTML`, re-sanitizing at render so stale Firestore data stays inside the allowlist.
+- **`Product.shortDescription`** — 1–3 line marketing blurb rendered in the PDP hero column above Add-to-Cart. Optional; falls back to the first paragraph of `description` when empty.
+- **`Product.details`** — rich-text HTML for the Details tab on the PDP (dimensions, materials, care). Authored via `<RichTextEditor>` in the admin product editor. Optional; tab is hidden when both `details` and `description` are empty.
+- **PDP tab system** — the product page now renders three sibling tabs (Details / Reviews / Questions) below the hero grid with an active-underline style. Reviews and Questions reuse the existing `<ProductReviews>` via a new `mode` prop (`reviews-only` / `questions-only` / `combined`); existing standalone consumers continue to see the previous combined widget.
+- **`<ProductGallery>` rebuild** — vertical thumbnail rail on the left (fixed height, internal scroll for ≥5 images) + 4:5 featured image on the right. New `aspectRatio` prop. Single-image products render without a rail.
+- **`SiteSettings.taxMode` / `taxLabel` / `flatTaxRate` / `supportedCountries`** — tax system. Three modes: `none` (hide the tax row), `flat` (one decimal rate applies site-wide), `per-country` (per-row `taxRate` on each entry in `supportedCountries`). Admin configures in `/admin/settings` → new "Tax & supported countries" section.
+- **`SupportedCountry` type** — `{ code: ISO-2, name, taxRate? }`. Populates the checkout country dropdown (restricted to this whitelist when non-empty). Library falls back to a 6-country default (US/CA/GB/AU/DE/FR) on unconfigured stores so checkout stays usable.
+- **`ShippingPluginInstall.eligibleCountries`** — per-install whitelist of ISO-2 codes. Empty or undefined → available everywhere. The shipping-rate calculator copies it through onto `ShippingRate`; the checkout filters the radio list to the selected country.
+- **`<CheckoutPage>` restyle** — card-based layout (Contact / Shipping Address / Shipping Method) with sticky Order Summary. Signed-in users see a saved-address picker that auto-fills the form; an "Enter a new address" option reveals blank fields, and a checkbox offers to save the new address to their profile. A "Email me with news and offers" checkbox wires to the `subscribers` collection on submit. CART › CHECKOUT breadcrumb at top. Tax row is rendered based on `taxMode`. Continue-to-Payment still redirects through the active payment plugin (Stripe-hosted today).
+- **i18n** — 40+ new keys under `product.tabs.*`, `cart.page.*`, and `checkout.*` (breadcrumb, contact, shipping address, shipping method, tax, etc.).
+- **Scaffold + example wiring** — scaffolder's `/cart` route now mounts `<CartPage>` instead of auto-opening the sheet; new `examples/nextjs/app/cart/page.tsx` mirrors it.
+- **Main-entry exports** — `CartPage`, `CartPageProps`, `RichTextEditor`, `HtmlContent`, `sanitizeRichHtml`, `TaxMode`, `SupportedCountry`.
+- **`<AdminShell>` layout rebuild** — the sidebar is now sticky and runs from top to bottom of the viewport with the brand title at its top. The header occupies only the content area on the right, sits sticky above the main scroll, and hosts a sidebar-toggle button at the far left. Toggle state persists in `localStorage` under `caspian:admin:sidebarOpen` so it survives page navigation and refreshes. Two new props on `<AdminShell>`: `showNotificationsBell` (default `true`) and `notificationsHref` (default `/admin/notifications`); `defaultSidebarOpen` (default `true`) controls the first-visit state when no saved preference exists.
+- **`<AdminNotificationsBell>`** at [src/admin/admin-notifications-bell.tsx](src/admin/admin-notifications-bell.tsx) — bell icon in the admin header with an unread count badge. Click opens a 340-px dropdown showing the 5 most recent items + a "View all notifications →" link. Closes on outside click or Escape. Pulls its data from `useAdminNotifications()`, so turning it off is a one-prop change on `<AdminShell>`.
+- **`<AdminNotificationsPage>`** at [src/admin/admin-notifications-page.tsx](src/admin/admin-notifications-page.tsx) — full-page list of every active notification with a Refresh button and kind labels (Update / Moderation). Mount at `/admin/notifications`; scaffolder emits the route automatically.
+- **`useAdminNotifications()`** hook at [src/hooks/use-admin-notifications.ts](src/hooks/use-admin-notifications.ts) — derives notifications from live sources. Kinds shipped today: `update-available` (from the GitHub Releases check), `pending-reviews`, `pending-questions` (via `getCountFromServer` on the matching collections). No persistent read state — notifications disappear when the underlying condition resolves (library upgraded, reviews approved). Options to disable per-source: `checkForUpdates`, `checkModeration`.
+- **`BellIcon`, `MenuIcon`** added to [src/ui/icons.tsx](src/ui/icons.tsx) and re-exported from the main entry.
+- **DEFAULT_ADMIN_NAV** gains a "Notifications" item pointing at `/admin/notifications`.
+
+### Changed
+
+- **`<ProductDetailPage>`** replaces the flat hero + in-page reviews with a hero grid over a tab bar. Long `product.description` content migrates into the Details tab alongside `product.details`; the hero column shows only the short blurb.
+- **Admin product editor** grows a "Short description (PDP hero blurb)" textarea and a "Details" rich-text editor.
+- **Shipping calculator** emits `eligibleCountries` on each rate so the checkout can filter without a second Firestore read.
+
+### Consumer action required on upgrade
+
+Fresh scaffolds pick up everything automatically. Existing installs on v2.4.x need **two route files** to get the new full-page cart and notifications page:
+
+```tsx
+// src/app/cart/page.tsx
+'use client';
+import { CartPage } from '@caspian-explorer/script-caspian-store';
+export default function Page() { return <CartPage />; }
+```
+
+```tsx
+// src/app/admin/notifications/page.tsx
+'use client';
+import { AdminNotificationsPage } from '@caspian-explorer/script-caspian-store';
+export default function Page() { return <AdminNotificationsPage />; }
+```
+
+No Firestore rules changes, no migrations. Products without `shortDescription` / `details` keep rendering — the PDP falls back to `description` in both the hero and the Details tab. The tax row is hidden until an admin picks a `taxMode` in `/admin/settings`. Supported-country whitelist defaults to a 6-country fallback list; configure your own to restrict. The admin sidebar toggle + notifications bell are on by default on any page wrapped in `<AdminShell>` — no wiring needed. To hide the bell, pass `showNotificationsBell={false}`; to skip the GitHub update check, pass `checkForUpdates={false}`.
+
 ## v2.4.0 — One-click library self-update from the admin About page
 
 The About page added in v1.25 told admins an update was available but left them to run `npm install` in a terminal. v2.4 adds an **Update to vX.Y.Z** button that installs the latest tag end-to-end: the button posts to a companion Next.js API route (`/api/caspian-store/update`) that verifies the caller's admin claim via Firebase Admin, runs `npm install github:Caspian-Explorer/script-caspian-store#vX.Y.Z` on the host, and schedules a `process.exit(0)` so a process manager (or the Next dev server) respawns with the new dependency loaded. A **Copy install command** button is always shown as a fallback for non-scaffolded setups.

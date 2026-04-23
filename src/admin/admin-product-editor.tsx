@@ -14,6 +14,7 @@ import { Button } from '../ui/button';
 import { ImageUploadField } from '../ui/image-upload-field';
 import { Input, Label, Textarea } from '../ui/input';
 import { Skeleton } from '../ui/misc';
+import { RichTextEditor } from '../ui/rich-text-editor';
 import { Select } from '../ui/select';
 import { useToast } from '../ui/toast';
 
@@ -29,6 +30,9 @@ interface FormState {
   name: string;
   brand: string;
   description: string;
+  shortDescription: string;
+  /** Rich-text HTML produced by `<RichTextEditor>`. Sanitized on render. */
+  details: string;
   price: string;
   /** Category document id (not the display name). */
   category: string;
@@ -46,6 +50,8 @@ const empty: FormState = {
   name: '',
   brand: '',
   description: '',
+  shortDescription: '',
+  details: '',
   price: '0',
   category: '',
   sizes: '',
@@ -176,6 +182,8 @@ export function AdminProductEditor({
           name: p.name,
           brand: p.brand,
           description: p.description,
+          shortDescription: p.shortDescription ?? '',
+          details: p.details ?? '',
           price: String(p.price),
           category: p.category,
           sizes: (p.sizes ?? []).join(', '),
@@ -250,10 +258,14 @@ export function AdminProductEditor({
         }
         weightKg = parsed;
       }
+      const shortDescTrimmed = form.shortDescription.trim();
+      const detailsTrimmed = form.details.trim();
       const payload: ProductWriteInput = {
         name: form.name.trim(),
         brand: form.brand.trim(),
         description: form.description.trim(),
+        shortDescription: shortDescTrimmed || undefined,
+        details: detailsTrimmed || undefined,
         price: priceNum,
         category: form.category,
         sizes: form.sizes
@@ -319,6 +331,24 @@ export function AdminProductEditor({
             rows={4}
             value={form.description}
             onChange={(e) => setForm((s) => ({ ...s, description: e.target.value }))}
+          />
+        </Field>
+        <Field label="Short description (PDP hero blurb)">
+          <Textarea
+            rows={2}
+            placeholder="Punchy 1–3 line pitch shown above Add to Cart. Falls back to the first paragraph of Description when empty."
+            value={form.shortDescription}
+            onChange={(e) => setForm((s) => ({ ...s, shortDescription: e.target.value }))}
+            maxLength={280}
+          />
+        </Field>
+        <Field label="Details (bullets, specs, dimensions)">
+          <RichTextEditor
+            value={form.details}
+            onChange={(html) => setForm((s) => ({ ...s, details: html }))}
+            placeholder="Dimensions, materials, finish, compatibility, care instructions — use the bullet button to list specs."
+            ariaLabel="Product details"
+            minHeight={140}
           />
         </Field>
         <div style={gridStyle}>

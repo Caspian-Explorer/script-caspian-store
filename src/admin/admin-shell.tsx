@@ -8,9 +8,11 @@ import {
   fetchRecentReleases,
   isUpdateAvailable,
 } from '../services/github-updates-service';
+import { MenuIcon } from '../ui/icons';
 import { Badge } from '../ui/misc';
 import { cn } from '../utils/cn';
 import { CASPIAN_STORE_VERSION } from '../version';
+import { AdminNotificationsBell } from './admin-notifications-bell';
 
 export interface AdminNavItem {
   href: string;
@@ -22,6 +24,7 @@ export interface AdminNavItem {
 export const DEFAULT_ADMIN_NAV: AdminNavItem[] = [
   { href: '/admin', label: 'Dashboard' },
   { href: '/admin/todos', label: 'Todo list' },
+  { href: '/admin/notifications', label: 'Notifications' },
   { href: '/admin/products', label: 'Products' },
   { href: '/admin/categories', label: 'Categories' },
   { href: '/admin/collections', label: 'Collections' },
@@ -44,7 +47,7 @@ export const DEFAULT_ADMIN_NAV: AdminNavItem[] = [
 export interface AdminShellProps {
   title?: string;
   navItems?: AdminNavItem[];
-  /** Extra header content (search box, user menu, etc.). */
+  /** Extra header content (search box, user menu, etc.). Placed at the far right. */
   headerRight?: ReactNode;
   /**
    * Show an "Update available" badge next to the title when the installed
@@ -56,9 +59,20 @@ export interface AdminShellProps {
   updateCheckOwner?: string;
   /** GitHub repo to check for updates. Default: script-caspian-store. */
   updateCheckRepo?: string;
+  /**
+   * Show the notifications bell in the header. Default true. Hide if the
+   * consumer wants a custom bell in `headerRight`.
+   */
+  showNotificationsBell?: boolean;
+  /** Where the bell's "View all" link points. Default `/admin/notifications`. */
+  notificationsHref?: string;
+  /** Initial sidebar state when no saved preference exists. Default true (open). */
+  defaultSidebarOpen?: boolean;
   children: ReactNode;
   className?: string;
 }
+
+const SIDEBAR_STATE_KEY = 'caspian:admin:sidebarOpen';
 
 export function AdminShell({
   title = 'Admin',
@@ -67,51 +81,93 @@ export function AdminShell({
   checkForUpdates = true,
   updateCheckOwner = DEFAULT_REPO_OWNER,
   updateCheckRepo = DEFAULT_REPO_NAME,
+  showNotificationsBell = true,
+  notificationsHref = '/admin/notifications',
+  defaultSidebarOpen = true,
   children,
   className,
 }: AdminShellProps) {
   const Link = useCaspianLink();
   const nav = useCaspianNavigation();
+  const [sidebarOpen, setSidebarOpen] = useState(defaultSidebarOpen);
+
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem(SIDEBAR_STATE_KEY);
+      if (saved === 'open') setSidebarOpen(true);
+      else if (saved === 'closed') setSidebarOpen(false);
+    } catch {
+      /* no-op */
+    }
+  }, []);
+
+  const toggleSidebar = () => {
+    setSidebarOpen((prev) => {
+      const next = !prev;
+      try {
+        window.localStorage.setItem(SIDEBAR_STATE_KEY, next ? 'open' : 'closed');
+      } catch {
+        /* no-op */
+      }
+      return next;
+    });
+  };
 
   const isActive = (href: string) =>
     nav.pathname === href || (href !== '/admin' && nav.pathname.startsWith(href));
 
   return (
-    <div className={cn('caspian-admin-shell', className)} style={{ minHeight: '100vh', background: '#fafafa' }}>
-      <header
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '12px 24px',
-          borderBottom: '1px solid #eee',
-          background: '#fff',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <Link href="/admin">
-            <span style={{ fontWeight: 700, fontSize: 14, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-              {title}
-            </span>
-          </Link>
-          {checkForUpdates && (
-            <AdminUpdateBadge owner={updateCheckOwner} repo={updateCheckRepo} />
-          )}
-        </div>
-        <div>{headerRight}</div>
-      </header>
-
-      <div style={{ display: 'flex', minHeight: 'calc(100vh - 49px)' }}>
+    <div
+      className={cn('caspian-admin-shell', className)}
+      style={{
+        display: 'flex',
+        minHeight: '100vh',
+        background: '#fafafa',
+      }}
+    >
+      {sidebarOpen && (
         <aside
           style={{
             width: 220,
             flexShrink: 0,
             borderRight: '1px solid #eee',
-            padding: 16,
             background: '#fff',
+            display: 'flex',
+            flexDirection: 'column',
+            position: 'sticky',
+            top: 0,
+            height: '100vh',
+            overflowY: 'auto',
           }}
         >
-          <nav style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <div
+            style={{
+              padding: '14px 16px',
+              borderBottom: '1px solid #eee',
+            }}
+          >
+            <Link href="/admin">
+              <span
+                style={{
+                  fontWeight: 700,
+                  fontSize: 14,
+                  letterSpacing: '0.08em',
+                  textTransform: 'uppercase',
+                }}
+              >
+                {title}
+              </span>
+            </Link>
+          </div>
+          <nav
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 2,
+              padding: 12,
+              flex: 1,
+            }}
+          >
             {navItems.map((item) => {
               const active = isActive(item.href);
               return (
@@ -142,6 +198,84 @@ export function AdminShell({
             })}
           </nav>
         </aside>
+      )}
+
+      <div
+        style={{
+          flex: 1,
+          minWidth: 0,
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+      >
+        <header
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '12px 24px',
+            borderBottom: '1px solid #eee',
+            background: '#fff',
+            gap: 12,
+            position: 'sticky',
+            top: 0,
+            zIndex: 20,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
+            <button
+              type="button"
+              onClick={toggleSidebar}
+              aria-label={sidebarOpen ? 'Hide sidebar' : 'Show sidebar'}
+              aria-pressed={sidebarOpen}
+              style={{
+                width: 36,
+                height: 36,
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                border: '1px solid rgba(0,0,0,0.1)',
+                background: '#fff',
+                borderRadius: 'var(--caspian-radius, 8px)',
+                cursor: 'pointer',
+                color: '#444',
+                flexShrink: 0,
+              }}
+            >
+              <MenuIcon size={18} />
+            </button>
+            {!sidebarOpen && (
+              <Link href="/admin">
+                <span
+                  style={{
+                    fontWeight: 700,
+                    fontSize: 14,
+                    letterSpacing: '0.08em',
+                    textTransform: 'uppercase',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {title}
+                </span>
+              </Link>
+            )}
+            {checkForUpdates && (
+              <AdminUpdateBadge owner={updateCheckOwner} repo={updateCheckRepo} />
+            )}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {showNotificationsBell && (
+              <AdminNotificationsBell
+                viewAllHref={notificationsHref}
+                updateCheckOwner={updateCheckOwner}
+                updateCheckRepo={updateCheckRepo}
+                checkForUpdates={checkForUpdates}
+              />
+            )}
+            {headerRight}
+          </div>
+        </header>
+
         <main style={{ flex: 1, minWidth: 0, padding: 24 }}>{children}</main>
       </div>
     </div>

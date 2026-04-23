@@ -28,6 +28,12 @@ export interface ShippingRate {
   label: string;
   price: number;
   estimatedDays: { min: number; max: number };
+  /**
+   * ISO 3166-1 alpha-2 codes copied through from the plugin install. Empty
+   * or undefined → available in every supported country. Consumed by the
+   * checkout to filter rates to the selected shipping country. Added in v2.5.
+   */
+  eligibleCountries?: string[];
 }
 
 export interface PluginDescribeContext {

@@ -441,6 +441,90 @@ export function AdminSiteSettingsPage({ className }: { className?: string }) {
           )}
         </div>
 
+        <div>
+          <h2 style={{ fontSize: 16, fontWeight: 600, marginBottom: 12 }}>Tax & supported countries</h2>
+          <p style={{ fontSize: 13, color: '#666', margin: '0 0 12px' }}>
+            Controls which countries shoppers can pick at checkout and how tax is estimated.
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 640 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div>
+                <Label>Tax mode</Label>
+                <Select
+                  value={draft.taxMode ?? 'none'}
+                  onChange={(e) => patch({ taxMode: e.target.value as SiteSettings['taxMode'] })}
+                  options={[
+                    { value: 'none', label: 'No tax' },
+                    { value: 'flat', label: 'Flat rate (all orders)' },
+                    { value: 'per-country', label: 'Per-country rates' },
+                  ]}
+                />
+              </div>
+              <div>
+                <Label>Tax label</Label>
+                <Input
+                  placeholder="Sales tax / VAT"
+                  value={draft.taxLabel ?? ''}
+                  onChange={(e) => patch({ taxLabel: e.target.value })}
+                />
+              </div>
+            </div>
+            {draft.taxMode === 'flat' && (
+              <div>
+                <Label>Flat tax rate (decimal, e.g. 0.08 for 8%)</Label>
+                <Input
+                  type="number"
+                  step="0.001"
+                  min="0"
+                  max="1"
+                  value={draft.flatTaxRate ?? 0}
+                  onChange={(e) => patch({ flatTaxRate: Number(e.target.value) })}
+                />
+              </div>
+            )}
+            <div>
+              <Label>Supported countries (one per line: CODE,Name[,rate])</Label>
+              <Textarea
+                rows={5}
+                placeholder={
+                  'US,United States,0.08\nGB,United Kingdom,0.20\nCA,Canada,0.13'
+                }
+                value={(draft.supportedCountries ?? [])
+                  .map((c) =>
+                    c.taxRate !== undefined
+                      ? `${c.code},${c.name},${c.taxRate}`
+                      : `${c.code},${c.name}`,
+                  )
+                  .join('\n')}
+                onChange={(e) => {
+                  const rows = e.target.value
+                    .split('\n')
+                    .map((line) => line.trim())
+                    .filter(Boolean)
+                    .map((line) => {
+                      const [code, name, rate] = line.split(',').map((s) => s.trim());
+                      const entry: { code: string; name: string; taxRate?: number } = {
+                        code: (code ?? '').toUpperCase().slice(0, 2),
+                        name: name ?? code ?? '',
+                      };
+                      if (rate !== undefined && rate !== '') {
+                        const n = Number(rate);
+                        if (Number.isFinite(n)) entry.taxRate = n;
+                      }
+                      return entry;
+                    })
+                    .filter((c) => c.code.length === 2);
+                  patch({ supportedCountries: rows });
+                }}
+              />
+              <p style={{ fontSize: 12, color: '#888', marginTop: 6 }}>
+                Third column (rate) is used under per-country mode only. An MVP editor; a full
+                picker dialog is planned.
+              </p>
+            </div>
+          </div>
+        </div>
+
         <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
           <Button onClick={handleSave} loading={saving}>
             Save settings

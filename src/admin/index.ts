@@ -46,4 +46,12 @@ export {
 } from './admin-appearance-preview-page';
 export { AdminTodoPage } from './admin-todo-page';
 export { AdminAboutPage, type AdminAboutPageProps } from './admin-about-page';
+export {
+  AdminNotificationsBell,
+  type AdminNotificationsBellProps,
+} from './admin-notifications-bell';
+export {
+  AdminNotificationsPage,
+  type AdminNotificationsPageProps,
+} from './admin-notifications-page';
 export { AdminProfileMenu, type AdminProfileMenuProps } from './admin-profile-menu';
