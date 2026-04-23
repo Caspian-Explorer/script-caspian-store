@@ -473,6 +473,8 @@ export {
   AdminProductCollectionsPage,
   AdminLanguagesPage,
   AdminSiteSettingsPage,
+  CountryPickerDialog,
+  ISO_COUNTRIES,
   AdminAppearancePage,
   AdminAppearancePreviewPage,
   AdminTodoPage,
@@ -498,6 +500,8 @@ export {
   type AdminNotificationsPageProps,
   type AdminAppearancePageProps,
   type AdminAppearancePreviewPageProps,
+  type CountryPickerDialogProps,
+  type IsoCountry,
   type AdminProfileMenuProps,
 } from './admin';
 

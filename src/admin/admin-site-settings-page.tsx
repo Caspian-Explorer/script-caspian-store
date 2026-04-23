@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import type { SiteSettings, SocialLink, SocialPlatform } from '../types';
+import type { SiteSettings, SocialLink, SocialPlatform, SupportedCountry } from '../types';
 import { SOCIAL_PLATFORMS } from '../types';
 import { getSiteSettings, saveSiteSettings } from '../services/site-settings-service';
 import { useCaspianFirebase } from '../provider/caspian-store-provider';
@@ -12,6 +12,7 @@ import { Input, Label, Textarea } from '../ui/input';
 import { Skeleton } from '../ui/misc';
 import { Select } from '../ui/select';
 import { useToast } from '../ui/toast';
+import { CountryPickerDialog, ISO_COUNTRIES } from './country-picker-dialog';
 
 const emptySettings: SiteSettings = {
   logoUrl: '',
@@ -170,6 +171,7 @@ export function AdminSiteSettingsPage({ className }: { className?: string }) {
   const { toast } = useToast();
   const [draft, setDraft] = useState<SiteSettings | null>(null);
   const [saving, setSaving] = useState(false);
+  const [countryPickerOpen, setCountryPickerOpen] = useState(false);
 
   const timezoneOptions = useMemo(
     () => [
@@ -483,44 +485,116 @@ export function AdminSiteSettingsPage({ className }: { className?: string }) {
               </div>
             )}
             <div>
-              <Label>Supported countries (one per line: CODE,Name[,rate])</Label>
-              <Textarea
-                rows={5}
-                placeholder={
-                  'US,United States,0.08\nGB,United Kingdom,0.20\nCA,Canada,0.13'
-                }
-                value={(draft.supportedCountries ?? [])
-                  .map((c) =>
-                    c.taxRate !== undefined
-                      ? `${c.code},${c.name},${c.taxRate}`
-                      : `${c.code},${c.name}`,
-                  )
-                  .join('\n')}
-                onChange={(e) => {
-                  const rows = e.target.value
-                    .split('\n')
-                    .map((line) => line.trim())
-                    .filter(Boolean)
-                    .map((line) => {
-                      const [code, name, rate] = line.split(',').map((s) => s.trim());
-                      const entry: { code: string; name: string; taxRate?: number } = {
-                        code: (code ?? '').toUpperCase().slice(0, 2),
-                        name: name ?? code ?? '',
-                      };
-                      if (rate !== undefined && rate !== '') {
-                        const n = Number(rate);
-                        if (Number.isFinite(n)) entry.taxRate = n;
-                      }
-                      return entry;
-                    })
-                    .filter((c) => c.code.length === 2);
-                  patch({ supportedCountries: rows });
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  marginBottom: 8,
                 }}
-              />
-              <p style={{ fontSize: 12, color: '#888', marginTop: 6 }}>
-                Third column (rate) is used under per-country mode only. An MVP editor; a full
-                picker dialog is planned.
-              </p>
+              >
+                <Label style={{ marginBottom: 0 }}>Supported countries</Label>
+                <Button variant="outline" size="sm" onClick={() => setCountryPickerOpen(true)}>
+                  {(draft.supportedCountries?.length ?? 0) === 0
+                    ? '+ Add countries'
+                    : 'Manage countries'}
+                </Button>
+              </div>
+              {(draft.supportedCountries?.length ?? 0) === 0 ? (
+                <p style={{ fontSize: 13, color: '#888', margin: '8px 0 0' }}>
+                  No countries configured. Checkout falls back to a default list of 6 countries
+                  until you add your own.
+                </p>
+              ) : (
+                <div
+                  style={{
+                    border: '1px solid rgba(0,0,0,0.08)',
+                    borderRadius: 8,
+                    overflow: 'hidden',
+                  }}
+                >
+                  {(draft.supportedCountries ?? []).map((c, idx) => (
+                    <div
+                      key={c.code}
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns:
+                          draft.taxMode === 'per-country'
+                            ? '40px 1fr 120px 40px'
+                            : '40px 1fr 40px',
+                        gap: 10,
+                        alignItems: 'center',
+                        padding: '8px 12px',
+                        borderBottom:
+                          idx === (draft.supportedCountries?.length ?? 0) - 1
+                            ? 0
+                            : '1px solid rgba(0,0,0,0.05)',
+                        background: idx % 2 === 0 ? 'transparent' : 'rgba(0,0,0,0.02)',
+                      }}
+                    >
+                      <span style={{ fontFamily: 'monospace', fontSize: 12, color: '#666' }}>
+                        {c.code}
+                      </span>
+                      <span style={{ fontSize: 14 }}>{c.name}</span>
+                      {draft.taxMode === 'per-country' && (
+                        <input
+                          type="number"
+                          step="0.001"
+                          min="0"
+                          max="1"
+                          value={c.taxRate ?? ''}
+                          placeholder="0.00"
+                          onChange={(e) => {
+                            const raw = e.target.value;
+                            const next = [...(draft.supportedCountries ?? [])];
+                            const parsed = raw === '' ? undefined : Number(raw);
+                            next[idx] = {
+                              ...c,
+                              taxRate: Number.isFinite(parsed as number)
+                                ? (parsed as number)
+                                : undefined,
+                            };
+                            patch({ supportedCountries: next });
+                          }}
+                          style={{
+                            padding: '6px 8px',
+                            border: '1px solid rgba(0,0,0,0.15)',
+                            borderRadius: 6,
+                            fontSize: 13,
+                            outline: 'none',
+                          }}
+                        />
+                      )}
+                      <button
+                        type="button"
+                        aria-label={`Remove ${c.name}`}
+                        onClick={() => {
+                          const next = (draft.supportedCountries ?? []).filter(
+                            (x) => x.code !== c.code,
+                          );
+                          patch({ supportedCountries: next });
+                        }}
+                        style={{
+                          background: 'transparent',
+                          border: 0,
+                          color: '#888',
+                          cursor: 'pointer',
+                          fontSize: 16,
+                          padding: 0,
+                        }}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {draft.taxMode === 'per-country' && (
+                <p style={{ fontSize: 12, color: '#888', marginTop: 6 }}>
+                  Tax rate is a decimal (e.g. 0.08 for 8%). Leave blank to charge no tax for
+                  that country.
+                </p>
+              )}
             </div>
           </div>
         </div>
@@ -531,6 +605,26 @@ export function AdminSiteSettingsPage({ className }: { className?: string }) {
           </Button>
         </div>
       </section>
+
+      <CountryPickerDialog
+        open={countryPickerOpen}
+        onOpenChange={setCountryPickerOpen}
+        selected={(draft.supportedCountries ?? []).map((c) => c.code)}
+        onConfirm={(codes) => {
+          // Preserve existing tax rates when a country is kept; add new rows
+          // with empty taxRate; drop rows that were deselected.
+          const existing = new Map(
+            (draft.supportedCountries ?? []).map((c) => [c.code, c] as const),
+          );
+          const next: SupportedCountry[] = codes.map((code) => {
+            const prev = existing.get(code);
+            if (prev) return prev;
+            const iso = ISO_COUNTRIES.find((x) => x.code === code);
+            return { code, name: iso?.name ?? code };
+          });
+          patch({ supportedCountries: next });
+        }}
+      />
     </div>
   );
 }

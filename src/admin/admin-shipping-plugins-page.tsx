@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import type { ShippingPluginInstall } from '../types';
+import type { ShippingPluginInstall, SiteSettings } from '../types';
 import {
   createShippingPluginInstall,
   deleteShippingPluginInstall,
@@ -9,6 +9,7 @@ import {
   updateShippingPluginInstall,
   type ShippingPluginInstallWriteInput,
 } from '../services/shipping-plugin-service';
+import { getSiteSettings } from '../services/site-settings-service';
 import { SHIPPING_PLUGIN_CATALOG, getShippingPlugin } from '../shipping/catalog';
 import { SHIPPING_PLUGIN_IDS, type ShippingPluginId } from '../shipping/types';
 import { useCaspianFirebase } from '../provider/caspian-store-provider';
@@ -19,6 +20,7 @@ import { Input, Label } from '../ui/input';
 import { Badge, Skeleton } from '../ui/misc';
 import { Table, TBody, TD, TH, THead, TR } from '../ui/table';
 import { useToast } from '../ui/toast';
+import { CountryPickerDialog, ISO_COUNTRIES, type IsoCountry } from './country-picker-dialog';
 
 type DraftConfig = Record<string, string>;
 
@@ -29,6 +31,8 @@ interface DraftState {
   estimatedDaysMin: number;
   estimatedDaysMax: number;
   config: DraftConfig;
+  /** ISO-2 codes where this install is offered. Empty = everywhere. */
+  eligibleCountries: string[];
 }
 
 function stringifyDefaults(cfg: Record<string, unknown>): DraftConfig {
@@ -48,6 +52,7 @@ function draftFromPlugin(pluginId: ShippingPluginId, name: string, order: number
     estimatedDaysMin: 3,
     estimatedDaysMax: 7,
     config: stringifyDefaults((plugin?.defaultConfig ?? {}) as Record<string, unknown>),
+    eligibleCountries: [],
   };
 }
 
@@ -59,6 +64,7 @@ function draftFromInstall(install: ShippingPluginInstall): DraftState {
     estimatedDaysMin: install.estimatedDays.min,
     estimatedDaysMax: install.estimatedDays.max,
     config: stringifyDefaults(install.config),
+    eligibleCountries: [...(install.eligibleCountries ?? [])],
   };
 }
 
@@ -83,6 +89,8 @@ export function AdminShippingPluginsPage({ className }: { className?: string }) 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState<DraftState | null>(null);
   const [saving, setSaving] = useState(false);
+  const [site, setSite] = useState<SiteSettings | null>(null);
+  const [countryPickerOpen, setCountryPickerOpen] = useState(false);
 
   const load = async () => {
     try {
@@ -97,6 +105,36 @@ export function AdminShippingPluginsPage({ className }: { className?: string }) 
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Load site settings so the eligible-countries picker is scoped to the
+  // admin's whitelist. Falls back to the full ISO list when no whitelist
+  // is configured yet, so a fresh install still lets the admin pick.
+  useEffect(() => {
+    let alive = true;
+    getSiteSettings(db)
+      .then((s) => {
+        if (alive) setSite(s ?? null);
+      })
+      .catch(() => {
+        if (alive) setSite(null);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [db]);
+
+  const eligibleSource = useMemo<readonly IsoCountry[]>(() => {
+    if (site?.supportedCountries && site.supportedCountries.length > 0) {
+      return site.supportedCountries.map((c) => ({ code: c.code, name: c.name }));
+    }
+    return ISO_COUNTRIES;
+  }, [site]);
+
+  const countryNameByCode = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const c of eligibleSource) map.set(c.code, c.name);
+    return map;
+  }, [eligibleSource]);
 
   const catalogEntries = useMemo(
     () => SHIPPING_PLUGIN_IDS.map((id) => SHIPPING_PLUGIN_CATALOG[id]),
@@ -149,6 +187,8 @@ export function AdminShippingPluginsPage({ className }: { className?: string }) 
       order: draft.order,
       estimatedDays: { min: draft.estimatedDaysMin, max: draft.estimatedDaysMax },
       config: coerced,
+      eligibleCountries:
+        draft.eligibleCountries.length > 0 ? draft.eligibleCountries : undefined,
     };
     setSaving(true);
     try {
@@ -415,8 +455,100 @@ export function AdminShippingPluginsPage({ className }: { className?: string }) 
             </div>
 
             <ConfigFields draft={draft} setDraft={setDraft} />
+
+            <div>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  marginBottom: 6,
+                }}
+              >
+                <Label style={{ marginBottom: 0 }}>
+                  {t('admin.shippingPlugins.field.eligibleCountries')}
+                </Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCountryPickerOpen(true)}
+                >
+                  {draft.eligibleCountries.length === 0
+                    ? t('admin.shippingPlugins.field.pickCountries')
+                    : t('admin.shippingPlugins.field.editCountries', {
+                        count: draft.eligibleCountries.length,
+                      })}
+                </Button>
+              </div>
+              {draft.eligibleCountries.length === 0 ? (
+                <p style={{ fontSize: 12, color: '#888', margin: 0 }}>
+                  {t('admin.shippingPlugins.field.eligibleCountriesAll')}
+                </p>
+              ) : (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
+                  {draft.eligibleCountries.map((code) => (
+                    <span
+                      key={code}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 4,
+                        fontSize: 12,
+                        padding: '3px 8px',
+                        borderRadius: 4,
+                        background: 'rgba(0,0,0,0.05)',
+                      }}
+                    >
+                      <span style={{ fontFamily: 'monospace', color: '#555' }}>{code}</span>
+                      <span>{countryNameByCode.get(code) ?? ''}</span>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setDraft((d) =>
+                            d
+                              ? {
+                                  ...d,
+                                  eligibleCountries: d.eligibleCountries.filter(
+                                    (c) => c !== code,
+                                  ),
+                                }
+                              : d,
+                          )
+                        }
+                        aria-label={`Remove ${code}`}
+                        style={{
+                          background: 'transparent',
+                          border: 0,
+                          color: '#888',
+                          cursor: 'pointer',
+                          padding: 0,
+                          fontSize: 14,
+                          lineHeight: 1,
+                        }}
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </Dialog>
+      )}
+
+      {draft && (
+        <CountryPickerDialog
+          open={countryPickerOpen}
+          onOpenChange={setCountryPickerOpen}
+          selected={draft.eligibleCountries}
+          source={eligibleSource}
+          onConfirm={(codes) =>
+            setDraft((d) => (d ? { ...d, eligibleCountries: codes } : d))
+          }
+          title={t('admin.shippingPlugins.pickCountriesTitle')}
+        />
       )}
     </div>
   );

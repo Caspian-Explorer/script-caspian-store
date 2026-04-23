@@ -27,6 +27,9 @@ function docToInstall(snap: QueryDocumentSnapshot): ShippingPluginInstall {
     order: data.order ?? 0,
     estimatedDays: data.estimatedDays ?? { min: 0, max: 0 },
     config: (data.config ?? {}) as Record<string, unknown>,
+    eligibleCountries: Array.isArray(data.eligibleCountries)
+      ? (data.eligibleCountries as string[])
+      : undefined,
     createdAt: data.createdAt,
   };
 }

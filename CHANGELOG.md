@@ -16,6 +16,29 @@ Do not omit the heading, rename it, or fold it into `### Notes`. This is how
 customers tell at a glance whether an upgrade needs attention.
 -->
 
+## v2.6.0 — Country picker dialog + per-country tax table + per-method shipping eligibility
+
+v2.5 shipped the tax + supported-countries schema but with a minimal MVP admin UI — a comma-separated textarea. v2.6 lands the proper admin surfaces I deferred: a check-many-at-once **Country Picker dialog** over a curated ISO 3166 list, a per-row **tax-rate table** that appears when tax mode is `per-country`, and an **Eligible countries** picker on each shipping-plugin install so "Standard Shipping" can be US-only while "International" covers everywhere else. No schema change — these surfaces populate the same `SiteSettings.supportedCountries` and `ShippingPluginInstall.eligibleCountries` fields that already exist.
+
+### Added
+
+- **`<CountryPickerDialog>`** at [src/admin/country-picker-dialog.tsx](src/admin/country-picker-dialog.tsx). Reusable check-many-at-once picker: searchable list of ~90 ISO 3166 countries (curated, not exhaustive), Select-visible and Clear-all helpers, Confirm-with-count primary button. Takes an optional `source` prop so callers can scope the picker to a narrower list (e.g. the shipping-eligibility picker scopes to `SiteSettings.supportedCountries`, not the full ISO list).
+- **`ISO_COUNTRIES`** exported alongside — 90-country curated list covering North America, UK/EU/EEA, Oceania, Asia, Middle East, Africa, and Latin America. Admins needing codes outside this set can still edit `supportedCountries` via Firestore directly.
+- **Admin shipping-plugin "Eligible countries" field** in `/admin/shipping-plugins` install config dialog. Defaults to empty (available everywhere). Shows the picker dialog + a row of removable chips listing the chosen countries. The picker is scoped to `SiteSettings.supportedCountries` so admins don't accidentally offer shipping to countries they don't sell in.
+
+### Changed
+
+- **`/admin/settings` "Tax & supported countries" section** — replaces the v2.5 textarea with: a **Manage countries** button that opens the picker dialog; a proper table of selected countries with a `×` remove on each row; when tax mode is `per-country`, each row grows an inline numeric input for the decimal tax rate (e.g. `0.08`). Existing `supportedCountries` data is preserved — rates and custom names survive the upgrade untouched.
+- **`docToInstall`** now reads `eligibleCountries` from Firestore so saved values hydrate back into the edit form correctly.
+
+### Exports added
+
+- `CountryPickerDialog`, `ISO_COUNTRIES`, `CountryPickerDialogProps`, `IsoCountry`.
+
+### No consumer action required
+
+Pure additive release — no schema changes, no rules changes, no migrations. Stores on v2.5.x that configured countries via the textarea will see the new table-driven UI immediately with the same data. Shipping plugins without `eligibleCountries` keep shipping to every supported country.
+
 ## v2.5.2 — Apply `stripUndefined` across all admin write services
 
 v2.5.1 fixed the `Unsupported field value: undefined` Firestore error for **Products** and **Promo codes** — the two surfaces a user had hit. This release sweeps the same hardening across every other admin-write service that takes a payload with optional fields, so the next blank-field save can't trigger the same crash on a different page.

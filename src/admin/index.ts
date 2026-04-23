@@ -37,6 +37,12 @@ export { AdminProductCollectionsPage } from './admin-product-collections-page';
 export { AdminLanguagesPage } from './admin-languages-page';
 export { AdminSiteSettingsPage } from './admin-site-settings-page';
 export {
+  CountryPickerDialog,
+  ISO_COUNTRIES,
+  type CountryPickerDialogProps,
+  type IsoCountry,
+} from './country-picker-dialog';
+export {
   AdminAppearancePage,
   type AdminAppearancePageProps,
 } from './admin-appearance-page';

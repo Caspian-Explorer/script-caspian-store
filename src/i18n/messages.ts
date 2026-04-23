@@ -521,6 +521,21 @@ export const DEFAULT_MESSAGES: MessageDict = {
   'admin.shippingPlugins.field.weightBased.pricePerKg': 'Price per kg',
   'admin.shippingPlugins.field.weightBased.hint':
     'Only offered at checkout when at least one cart item has a weight set (see product editor → Weight).',
+  'admin.shippingPlugins.field.eligibleCountries': 'Eligible countries',
+  'admin.shippingPlugins.field.eligibleCountriesAll':
+    'Available in every supported country (no restriction).',
+  'admin.shippingPlugins.field.pickCountries': '+ Pick countries',
+  'admin.shippingPlugins.field.editCountries': 'Edit ({count} selected)',
+  'admin.shippingPlugins.pickCountriesTitle': 'Eligible countries for this method',
+
+  'admin.countryPicker.title': 'Select countries',
+  'admin.countryPicker.description':
+    'Check every country this setting applies to. Search by name or ISO code.',
+  'admin.countryPicker.searchPlaceholder': 'Search by name or code',
+  'admin.countryPicker.noResults': 'No countries match.',
+  'admin.countryPicker.clearAll': 'Clear all',
+  'admin.countryPicker.selectAllVisible': 'Select visible ({count})',
+  'admin.countryPicker.confirm': 'Confirm ({count})',
   'admin.shippingPlugins.toasts.installed': 'Shipping plugin installed',
   'admin.shippingPlugins.toasts.updated': 'Shipping plugin updated',
   'admin.shippingPlugins.toasts.removed': 'Shipping plugin removed',

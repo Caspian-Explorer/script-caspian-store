@@ -727,10 +727,21 @@ const VERSION_RE = /^[0-9]+\\.[0-9]+\\.[0-9]+$/;
 
 function ensureAdminApp() {
   if (getApps().length > 0) return;
+  // firebase-admin needs an explicit projectId off Firebase-managed runtimes.
+  // GCLOUD_PROJECT / GOOGLE_CLOUD_PROJECT are set automatically on Firebase
+  // App Hosting and Cloud Functions; on Vercel, generic Node hosts, and local
+  // dev they are not, and applicationDefault() then can't auto-detect one,
+  // producing "Unable to detect a Project Id in the current environment".
+  // The scaffolder's .env.local always defines NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  // so we use that as a reliable fallback.
+  const projectId =
+    process.env.GOOGLE_CLOUD_PROJECT ||
+    process.env.GCLOUD_PROJECT ||
+    process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
   try {
-    initializeApp({ credential: applicationDefault() });
+    initializeApp({ credential: applicationDefault(), projectId });
   } catch {
-    initializeApp();
+    initializeApp({ projectId });
   }
 }
 
