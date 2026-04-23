@@ -15,6 +15,7 @@ import type { ShippingRate } from '../shipping/types';
 import { Button } from '../ui/button';
 import { Input, Label } from '../ui/input';
 import { Select } from '../ui/select';
+import { useToast } from '../ui/toast';
 
 export interface CheckoutPageProps {
   /** Where the payment provider returns users after successful payment. */
@@ -91,7 +92,9 @@ export function CheckoutPage({
   const Image = useCaspianImage();
   const Link = useCaspianLink();
   const { items, subtotal, count } = useCart();
-  const { user, userProfile, loading: authLoading } = useAuth();
+  const { user, userProfile, loading: authLoading, signInAsGuest } = useAuth();
+  const { toast } = useToast();
+  const [guestSignInLoading, setGuestSignInLoading] = useState(false);
   const { startCheckout, loading, error, activePlugin } = useCheckout();
   const t = useT();
 
@@ -273,13 +276,52 @@ export function CheckoutPage({
   }
 
   if (!user) {
+    const allowGuest = site?.accounts?.allowGuestCheckout ?? false;
+    const allowRegister = site?.accounts?.allowAccountCreationAtCheckout ?? true;
+
+    const handleGuestCheckout = async () => {
+      setGuestSignInLoading(true);
+      try {
+        await signInAsGuest();
+      } catch (error) {
+        console.error('[caspian-store] Guest sign-in failed:', error);
+        toast({
+          title: 'Could not start guest checkout',
+          description: error instanceof Error ? error.message : undefined,
+          variant: 'destructive',
+        });
+        setGuestSignInLoading(false);
+      }
+    };
+
     return (
-      <div className={className} style={{ padding: 40, textAlign: 'center' }}>
+      <div
+        className={className}
+        style={{
+          padding: 40,
+          textAlign: 'center',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 12,
+          alignItems: 'center',
+        }}
+      >
         <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0 }}>{t('checkout.signInTitle')}</h1>
-        <p style={{ color: '#666', marginTop: 8 }}>{t('checkout.signInSubtitle')}</p>
-        <div style={{ marginTop: 16 }}>
+        <p style={{ color: '#666', marginTop: 0 }}>{t('checkout.signInSubtitle')}</p>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
           <Link href="/login">{t('signInGate.signInLink')}</Link>
+          {allowRegister && <Link href="/register">Create an account</Link>}
         </div>
+        {allowGuest && (
+          <Button
+            variant="outline"
+            onClick={handleGuestCheckout}
+            loading={guestSignInLoading}
+            style={{ marginTop: 8 }}
+          >
+            Continue as guest
+          </Button>
+        )}
       </div>
     );
   }

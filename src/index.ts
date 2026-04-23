@@ -587,6 +587,9 @@ export type {
   // v2.9 additions — inventory + shipping display
   InventorySettings,
   ShippingOptions,
+  // v2.10 additions — accounts + privacy
+  AccountSettings,
+  PrivacyRetentionSettings,
 } from './types';
 export { DEFAULT_SCRIPT_SETTINGS, SOCIAL_PLATFORMS } from './types';
 

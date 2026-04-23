@@ -16,6 +16,46 @@ Do not omit the heading, rename it, or fold it into `### Notes`. This is how
 customers tell at a glance whether an upgrade needs attention.
 -->
 
+## v2.10.0 — Account creation policy + guest checkout + GDPR retention Cloud Function
+
+Closes Release B. Adds the four account-creation toggles, real guest checkout via Firebase anonymous auth, an optional "send password setup link" sign-up flow, and the first scheduled Cloud Function in the library — `runRetentionCleanup` — that deletes inactive accounts and old orders according to a merchant-configured retention window.
+
+### Added
+
+- **`SiteSettings.accounts`** — new `{ allowGuestCheckout, allowAccountCreationAtCheckout, allowAccountCreationOnMyAccount, sendPasswordSetupLink }`. Admin surface lives at `/admin/settings` under a new "Accounts & privacy" section.
+- **`SiteSettings.privacy`** — new `{ retainInactiveAccountsDays, retainCancelledOrdersDays, retainFailedOrdersDays, retainCompletedOrdersDays }`. Every field is optional — `undefined` means "keep indefinitely". Each field gets its own input under the Accounts & privacy section.
+- **`auth.signInAsGuest()`** — new on the auth context. Wraps `signInAnonymously(auth)` so the storefront can hand the shopper an authenticated session without an email/password. Used to back "Continue as guest" at checkout. Requires the Anonymous sign-in provider to be enabled in Firebase Authentication.
+- **`auth.signUpWithSetupLink(email, displayName)`** — new on the auth context. Generates a high-entropy random password, signs the user in, and emails a password-reset link so they can pick a real password on their own. Used by `<RegisterPage>` when `accounts.sendPasswordSetupLink` is on.
+- **`<CheckoutPage>` sign-in gate** — now reads `site.accounts`. When the shopper isn't signed in: shows a "Create an account" link only when `allowAccountCreationAtCheckout` is on, and a "Continue as guest" button only when `allowGuestCheckout` is on. Defaults preserve pre-v2.10 behavior (sign-in only).
+- **`<RegisterPage>` policy gating** — when `accounts.allowAccountCreationOnMyAccount` is `false`, renders a "Registration is disabled" notice instead of the form. When `accounts.sendPasswordSetupLink` is `true`, hides the password fields and routes the submit through `signUpWithSetupLink`. Accepts a new `accounts?` prop override for tests / bespoke wiring.
+- **`runRetentionCleanup` scheduled Cloud Function** — new in [firebase/functions-admin/src/retention-cleanup.ts](firebase/functions-admin/src/retention-cleanup.ts). Runs daily at 03:15 UTC, reads `settings/site` for the `privacy` block, and deletes inactive accounts (Firestore doc + Auth record), cancelled orders, failed/pending/on-hold orders, and delivered orders older than the configured windows. Logs `deleted N <kind> docs older than D days` per bucket. Respects `BATCH_SIZE = 200` per run to keep memory bounded — the function re-runs in 24h to catch stragglers.
+- **`FeatureFlags.guestCheckout`** is now marked `@deprecated` — `SiteSettings.accounts.allowGuestCheckout` takes precedence when set.
+
+### Exports added
+
+`AccountSettings`, `PrivacyRetentionSettings` types; `signInAsGuest`, `signUpWithSetupLink` on the auth context; new `accounts` prop on `<RegisterPage>`.
+
+### Consumer action required on upgrade
+
+Two steps — both required only if you're enabling the new features:
+
+1. **Redeploy `functions-admin`** to pick up `runRetentionCleanup`. From the consumer's project root:
+
+    ```bash
+    cd firebase/functions-admin
+    npm install
+    npm run build
+    firebase deploy --only functions:caspian-admin
+    ```
+
+   The function is harmless out of the box — it logs a single line and exits when no `privacy` block is configured.
+
+2. **Enable Anonymous sign-in in Firebase Authentication** (only if you set `accounts.allowGuestCheckout: true`): Firebase Console → Authentication → Sign-in method → Anonymous → enable.
+
+The library upgrade itself is otherwise additive — stores that don't touch `SiteSettings.accounts` or `SiteSettings.privacy` get identical pre-upgrade behavior and don't need to redeploy Functions.
+
+---
+
 ## v2.9.0 — Inventory tracking + checkout shipping-display toggles
 
 First half of Release B — inventory (B1) and the shipping checkout-behavior toggles (B2). Stores that don't opt in see identical pre-upgrade behavior; merchants who turn on `SiteSettings.inventory.trackStock` get per-size stock fields in the product editor, auto low/out-of-stock badges on product cards, an optional hide-out-of-stock PLP filter, disabled sizes on PDP, and an Add-to-cart guard for out-of-stock sizes.

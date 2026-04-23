@@ -2,8 +2,10 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import type {
+  AccountSettings,
   CurrencyDisplay,
   InventorySettings,
+  PrivacyRetentionSettings,
   SiteSettings,
   SocialLink,
   SocialPlatform,
@@ -12,6 +14,13 @@ import type {
 } from '../types';
 import { SOCIAL_PLATFORMS } from '../types';
 import { DEFAULT_INVENTORY_SETTINGS } from '../utils/inventory';
+
+const DEFAULT_ACCOUNTS: AccountSettings = {
+  allowGuestCheckout: false,
+  allowAccountCreationAtCheckout: true,
+  allowAccountCreationOnMyAccount: true,
+  sendPasswordSetupLink: false,
+};
 import { getSiteSettings, saveSiteSettings } from '../services/site-settings-service';
 import { useCaspianFirebase } from '../provider/caspian-store-provider';
 import { SocialIcon } from '../components/social-icon';
@@ -772,6 +781,13 @@ export function AdminSiteSettingsPage({ className }: { className?: string }) {
           </div>
         </div>
 
+        <AccountsAndPrivacySection
+          accounts={draft.accounts}
+          privacy={draft.privacy}
+          onChangeAccounts={(next) => patch({ accounts: next })}
+          onChangePrivacy={(next) => patch({ privacy: next })}
+        />
+
         <InventorySection
           value={draft.inventory}
           onChange={(next) => patch({ inventory: next })}
@@ -1086,6 +1102,166 @@ function StoreAddressSection({
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function AccountsAndPrivacySection({
+  accounts,
+  privacy,
+  onChangeAccounts,
+  onChangePrivacy,
+}: {
+  accounts: AccountSettings | undefined;
+  privacy: PrivacyRetentionSettings | undefined;
+  onChangeAccounts: (next: AccountSettings) => void;
+  onChangePrivacy: (next: PrivacyRetentionSettings | undefined) => void;
+}) {
+  const current: AccountSettings = accounts ?? DEFAULT_ACCOUNTS;
+  const privacyCurrent: PrivacyRetentionSettings = privacy ?? {};
+  const setPrivacy = (patchFields: Partial<PrivacyRetentionSettings>) => {
+    const next = { ...privacyCurrent, ...patchFields };
+    const empty = Object.values(next).every((v) => v === undefined || v === null);
+    onChangePrivacy(empty ? undefined : next);
+  };
+
+  const retentionField = (
+    label: string,
+    key: keyof PrivacyRetentionSettings,
+    hint: string,
+  ) => {
+    const raw = privacyCurrent[key];
+    return (
+      <div>
+        <Label>{label}</Label>
+        <Input
+          type="number"
+          min={0}
+          placeholder="Keep indefinitely"
+          value={raw === undefined ? '' : String(raw)}
+          onChange={(e) => {
+            const v = e.target.value.trim();
+            if (v === '') {
+              setPrivacy({ [key]: undefined } as Partial<PrivacyRetentionSettings>);
+            } else {
+              const num = Math.max(0, Math.floor(Number(v)));
+              setPrivacy({ [key]: Number.isFinite(num) ? num : undefined } as Partial<PrivacyRetentionSettings>);
+            }
+          }}
+        />
+        <FieldDescription>{hint}</FieldDescription>
+      </div>
+    );
+  };
+
+  return (
+    <div>
+      <h2 style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
+        Accounts & privacy
+        <FieldHelp>
+          Controls how shoppers sign up, whether guests can check out, and how long you keep
+          personal data before the retention Cloud Function deletes it.
+        </FieldHelp>
+      </h2>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 14 }}>
+          <input
+            type="checkbox"
+            style={{ marginTop: 3 }}
+            checked={current.allowGuestCheckout}
+            onChange={(e) => onChangeAccounts({ ...current, allowGuestCheckout: e.target.checked })}
+          />
+          <span>
+            Allow guest checkout
+            <FieldDescription style={{ marginTop: 2 }}>
+              Shoppers can complete checkout without picking a password — the storefront signs
+              them in with Firebase anonymous auth. Requires the Anonymous sign-in provider to
+              be enabled in Firebase Authentication.
+            </FieldDescription>
+          </span>
+        </label>
+        <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 14 }}>
+          <input
+            type="checkbox"
+            style={{ marginTop: 3 }}
+            checked={current.allowAccountCreationAtCheckout}
+            onChange={(e) =>
+              onChangeAccounts({ ...current, allowAccountCreationAtCheckout: e.target.checked })
+            }
+          />
+          <span>
+            Allow customers to create an account during checkout
+            <FieldDescription style={{ marginTop: 2 }}>
+              Shows a "Create an account" CTA on the checkout sign-in gate when the shopper
+              isn't signed in.
+            </FieldDescription>
+          </span>
+        </label>
+        <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 14 }}>
+          <input
+            type="checkbox"
+            style={{ marginTop: 3 }}
+            checked={current.allowAccountCreationOnMyAccount}
+            onChange={(e) =>
+              onChangeAccounts({ ...current, allowAccountCreationOnMyAccount: e.target.checked })
+            }
+          />
+          <span>
+            Allow customers to register on the My Account page
+            <FieldDescription style={{ marginTop: 2 }}>
+              When off, <code>/register</code> renders a "registration disabled" notice instead
+              of the signup form.
+            </FieldDescription>
+          </span>
+        </label>
+        <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 14 }}>
+          <input
+            type="checkbox"
+            style={{ marginTop: 3 }}
+            checked={current.sendPasswordSetupLink}
+            onChange={(e) =>
+              onChangeAccounts({ ...current, sendPasswordSetupLink: e.target.checked })
+            }
+          />
+          <span>
+            Send a password setup link on sign-up
+            <FieldDescription style={{ marginTop: 2 }}>
+              Registration skips the "pick a password" step — the storefront generates a random
+              password, signs the user in, and emails a reset link so they can choose their own.
+            </FieldDescription>
+          </span>
+        </label>
+      </div>
+
+      <h3 style={{ fontSize: 14, fontWeight: 600, margin: '20px 0 4px' }}>
+        Personal-data retention
+      </h3>
+      <FieldDescription style={{ margin: '0 0 10px' }}>
+        The scheduled retention Cloud Function (<code>runRetentionCleanup</code>) reads these
+        values daily. Leave a field blank to keep data indefinitely.
+      </FieldDescription>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        {retentionField(
+          'Inactive accounts (days)',
+          'retainInactiveAccountsDays',
+          'Delete user docs + Auth record when createdAt is older than this.',
+        )}
+        {retentionField(
+          'Cancelled orders (days)',
+          'retainCancelledOrdersDays',
+          "Delete orders in status 'cancelled' older than this.",
+        )}
+        {retentionField(
+          'Failed orders (days)',
+          'retainFailedOrdersDays',
+          "Delete orders in a failed / errored state older than this.",
+        )}
+        {retentionField(
+          'Completed orders (days)',
+          'retainCompletedOrdersDays',
+          "Delete orders in status 'delivered' older than this.",
+        )}
+      </div>
     </div>
   );
 }

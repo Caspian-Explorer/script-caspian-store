@@ -13,6 +13,7 @@ import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signInWithPopup,
+  signInAnonymously,
   GoogleAuthProvider,
   signOut as firebaseSignOut,
   updateProfile,
@@ -32,7 +33,21 @@ interface AuthContextValue {
   loading: boolean;
   signIn: (email: string, password: string, rememberMe?: boolean) => Promise<void>;
   signUp: (email: string, password: string, displayName: string) => Promise<void>;
+  /**
+   * Create an account without asking the shopper for a password — the
+   * storefront generates a random one, signs the user in, and emails a
+   * password-reset link so they can pick a real password on their own. Used
+   * when `SiteSettings.accounts.sendPasswordSetupLink` is enabled. Added in v2.10.
+   */
+  signUpWithSetupLink: (email: string, displayName: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
+  /**
+   * Create an anonymous Firebase Auth session. Used to back the "Continue as
+   * guest" flow at checkout when `SiteSettings.accounts.allowGuestCheckout`
+   * is true. Requires the Anonymous sign-in provider to be enabled in
+   * Firebase Authentication. Added in v2.10.
+   */
+  signInAsGuest: () => Promise<void>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
@@ -120,8 +135,36 @@ export function AuthProvider({
     [firebase],
   );
 
+  const signUpWithSetupLink = useCallback(
+    async (email: string, displayName: string) => {
+      // Generate a high-entropy temporary password the shopper never sees —
+      // we immediately email them a reset link so they can set a real one.
+      const randomPassword = `TempPwd-${crypto.randomUUID()}-${Date.now()}`;
+      const credential = await createUserWithEmailAndPassword(
+        firebase.auth,
+        email,
+        randomPassword,
+      );
+      await updateProfile(credential.user, { displayName });
+      const userDocRef = doc(firebase.db, 'users', credential.user.uid);
+      await setDoc(userDocRef, { displayName }, { merge: true });
+      // Best-effort; if the reset email fails the account still exists and
+      // the shopper can use "forgot password" manually.
+      try {
+        await sendPasswordResetEmail(firebase.auth, email);
+      } catch (error) {
+        console.warn('[caspian-store] Password setup email failed to send:', error);
+      }
+    },
+    [firebase],
+  );
+
   const signInWithGoogle = useCallback(async () => {
     await signInWithPopup(firebase.auth, new GoogleAuthProvider());
+  }, [firebase]);
+
+  const signInAsGuest = useCallback(async () => {
+    await signInAnonymously(firebase.auth);
   }, [firebase]);
 
   const signOut = useCallback(async () => {
@@ -153,7 +196,9 @@ export function AuthProvider({
         loading,
         signIn,
         signUp,
+        signUpWithSetupLink,
         signInWithGoogle,
+        signInAsGuest,
         signOut,
         refreshProfile,
         resetPassword,

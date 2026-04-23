@@ -381,6 +381,50 @@ export interface ShippingOptions {
   hideRatesWhenFreeAvailable: boolean;
 }
 
+/**
+ * Account-creation policy. Subsumes the legacy `FeatureFlags.guestCheckout`
+ * toggle on `ScriptSettings` — when `accounts.allowGuestCheckout` is set, it
+ * takes precedence; otherwise the legacy flag is read as a fallback for
+ * pre-v2.10 stores. Added in v2.10.
+ */
+export interface AccountSettings {
+  /**
+   * When true, shoppers can complete checkout without a full email+password
+   * account — the storefront signs them in with Firebase anonymous auth so
+   * Firestore rules still pass. Requires Anonymous sign-in to be enabled in
+   * Firebase Authentication.
+   */
+  allowGuestCheckout: boolean;
+  /** When true, the checkout shows a "Create an account" option for shoppers who aren't signed in. */
+  allowAccountCreationAtCheckout: boolean;
+  /** When true, the My Account / register page accepts new sign-ups. When false, the page renders a "registration disabled" notice. */
+  allowAccountCreationOnMyAccount: boolean;
+  /**
+   * When true, new registrations skip the "pick a password" step — the
+   * storefront generates a random password, signs the user in, and emails
+   * them a password-reset link so they can pick a real password on their
+   * own terms. Useful for purchase-flow sign-ups.
+   */
+  sendPasswordSetupLink: boolean;
+}
+
+/**
+ * GDPR-style personal-data retention. Every field is optional — `undefined`
+ * means "keep indefinitely". A scheduled Cloud Function in `functions-admin`
+ * reads these values daily and deletes eligible docs from Firestore (and
+ * matching auth users). Added in v2.10.
+ */
+export interface PrivacyRetentionSettings {
+  /** Delete user docs (and their Auth record) with no activity for this many days. */
+  retainInactiveAccountsDays?: number;
+  /** Delete orders in status `'cancelled'` older than this many days. */
+  retainCancelledOrdersDays?: number;
+  /** Delete orders in a failed / errored state older than this many days. */
+  retainFailedOrdersDays?: number;
+  /** Delete orders in status `'delivered'` older than this many days. */
+  retainCompletedOrdersDays?: number;
+}
+
 export interface SiteSettings {
   logoUrl: string;
   faviconUrl?: string;
@@ -430,6 +474,10 @@ export interface SiteSettings {
   inventory?: InventorySettings;
   /** Checkout shipping rate display rules. Added in v2.9. */
   shippingOptions?: ShippingOptions;
+  /** Account-creation policy (guest checkout, registration gating). Added in v2.10. */
+  accounts?: AccountSettings;
+  /** Personal-data retention policy read by the scheduled cleanup Cloud Function. Added in v2.10. */
+  privacy?: PrivacyRetentionSettings;
   socialLinks: SocialLink[];
 }
 
@@ -627,6 +675,10 @@ export interface FeatureFlags {
   questions: boolean;
   wishlist: boolean;
   promoCodes: boolean;
+  /**
+   * @deprecated Superseded by `SiteSettings.accounts.allowGuestCheckout` in v2.10.
+   * Kept for backward compat — read as a fallback when `accounts` is absent.
+   */
   guestCheckout: boolean;
   multiLanguage: boolean;
 }
