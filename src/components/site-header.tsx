@@ -43,7 +43,7 @@ export interface SiteHeaderProps {
 }
 
 const DEFAULT_NAV: SiteHeaderNavItem[] = [
-  { href: '/', label: 'Shop' },
+  { href: '/shop', label: 'Shop' },
   { href: '/collections', label: 'Collections' },
 ];
 

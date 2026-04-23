@@ -4,11 +4,13 @@ import {
   deleteDoc,
   doc,
   getDocs,
+  limit as firestoreLimit,
   orderBy,
   query,
   setDoc,
   Timestamp,
   updateDoc,
+  where,
   type Firestore,
   type QueryDocumentSnapshot,
 } from 'firebase/firestore';
@@ -36,6 +38,21 @@ export async function listProductCollections(db: Firestore): Promise<ProductColl
   const q = query(collection(db, 'productCollections'), orderBy('order', 'asc'));
   const snap = await getDocs(q);
   return snap.docs.map(docToCollection);
+}
+
+export async function getProductCollectionBySlug(
+  db: Firestore,
+  slug: string,
+): Promise<ProductCollectionDoc | null> {
+  const q = query(
+    collection(db, 'productCollections'),
+    where('slug', '==', slug),
+    where('isActive', '==', true),
+    firestoreLimit(1),
+  );
+  const snap = await getDocs(q);
+  const first = snap.docs[0];
+  return first ? docToCollection(first) : null;
 }
 
 export type ProductCollectionWriteInput = Omit<

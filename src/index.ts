@@ -38,6 +38,11 @@ export { StarRatingInput, type StarRatingInputProps } from './components/star-ra
 export { ProductCard, type ProductCardProps } from './components/product-card';
 export { ProductGrid, type ProductGridProps } from './components/product-grid';
 export { ProductListPage, type ProductListPageProps } from './components/product-list-page';
+export { CollectionsPage, type CollectionsPageProps } from './components/collections-page';
+export {
+  CollectionDetailPage,
+  type CollectionDetailPageProps,
+} from './components/collection-detail-page';
 export { SearchResultsPage, type SearchResultsPageProps } from './components/search-results-page';
 export { ProductGallery } from './components/product-gallery';
 export {
@@ -405,6 +410,7 @@ export {
 } from './services/search-term-service';
 export {
   listProductCollections,
+  getProductCollectionBySlug,
   createProductCollection,
   updateProductCollection,
   deleteProductCollection,

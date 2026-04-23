@@ -16,6 +16,61 @@ Do not omit the heading, rename it, or fold it into `### Notes`. This is how
 customers tell at a glance whether an upgrade needs attention.
 -->
 
+## v2.14.0 — Collections storefront
+
+Fixes a scaffolder bug that had `/collections` rendering a full-width product list titled "Shop" on every generated site — admins could create `productCollections` in the dashboard, but shoppers never saw them. Ships a proper storefront surface: a discovery page that lists the admin-curated collections and a per-collection detail page with hero + products. Also introduces a dedicated `/shop` route for the full catalog so the header nav's "Shop" link stops bouncing visitors to the homepage.
+
+### Added
+
+- **`<CollectionsPage>`** ([src/components/collections-page.tsx](src/components/collections-page.tsx)) — grid of active collections (image, name, description). Links each card to `/collections/{slug}` by default; override via `getCollectionHref`. Skeleton loading + empty state + i18n fall-throughs for title/subtitle/empty message.
+- **`<CollectionDetailPage>`** ([src/components/collection-detail-page.tsx](src/components/collection-detail-page.tsx)) — hero (image + name + description) + `<ProductGrid>` for the collection's products. Honors `SiteSettings.inventory` and `SiteSettings.taxConfig` the same way `<ProductListPage>` does. Renders a not-found message when the slug doesn't resolve to an active collection.
+- **`getProductCollectionBySlug(db, slug)`** ([src/services/product-collection-service.ts](src/services/product-collection-service.ts)) — returns the active collection matching `slug`, or `null`. Composite index on `(slug asc, isActive asc)` added to [firebase/firestore.indexes.json](firebase/firestore.indexes.json).
+- **Scaffolder routes** ([scaffold/create.mjs](scaffold/create.mjs)) — new `/shop` (full product catalog) and `/collections/[slug]` (per-collection detail). The existing `/collections` slot now renders `<CollectionsPage>` instead of `<ProductListPage title="Shop" />`.
+- **i18n keys** — `collections.subtitle`, `collections.empty`, `collectionDetail.notFound`, `collectionDetail.emptyProducts` in [src/i18n/messages.ts](src/i18n/messages.ts).
+
+### Changed
+
+- **Default header nav** ([src/components/site-header.tsx](src/components/site-header.tsx)) — `DEFAULT_NAV`'s "Shop" item points to `/shop` (was `/`). Consumers who pass a custom `nav` prop to `<SiteHeader>` are unaffected.
+
+### Consumer action required on upgrade
+
+Existing consumer sites (a) replace the buggy `/collections` route file, (b) add two new route files, and (c) redeploy Firestore indexes so the new `getProductCollectionBySlug` query doesn't fail at runtime:
+
+```bash
+# 1. Replace src/app/collections/page.tsx
+cat > src/app/collections/page.tsx <<'EOF'
+'use client';
+import { CollectionsPage } from '@caspian-explorer/script-caspian-store';
+export default function Page() { return <CollectionsPage />; }
+EOF
+
+# 2. Create src/app/collections/[slug]/page.tsx
+mkdir -p 'src/app/collections/[slug]'
+cat > 'src/app/collections/[slug]/page.tsx' <<'EOF'
+'use client';
+import { useParams } from 'next/navigation';
+import { CollectionDetailPage } from '@caspian-explorer/script-caspian-store';
+export default function Page() {
+  const { slug } = useParams<{ slug: string }>();
+  return <CollectionDetailPage slug={slug} />;
+}
+EOF
+
+# 3. Create src/app/shop/page.tsx
+mkdir -p src/app/shop
+cat > src/app/shop/page.tsx <<'EOF'
+'use client';
+import { ProductListPage } from '@caspian-explorer/script-caspian-store';
+export default function Page() { return <ProductListPage title="Shop" />; }
+EOF
+
+# 4. Pull + deploy the updated composite indexes.
+cp node_modules/@caspian-explorer/script-caspian-store/firebase/firestore.indexes.json .
+firebase deploy --only firestore:indexes
+```
+
+If you passed a custom `nav` prop to `<SiteHeader>` with `{ href: '/', label: 'Shop' }`, update it to `{ href: '/shop', label: 'Shop' }` so the link lands on the new product-catalog route.
+
 ## v2.13.0 — Public contact page + admin inbox
 
 Adds a built-in `/contact` page so visitors can reach the store owner. Submissions land in a new Firestore `contacts` collection, surface as a tabbed **Admin > Users > Contacts** inbox, light up the admin notifications bell, and fire a Cloud Function that sends an admin-notify email and an auto-reply to the submitter via the existing v2.11 SendGrid pipeline. A **Recent contacts** section on the admin dashboard lists the latest submissions with snippets and relative timestamps.

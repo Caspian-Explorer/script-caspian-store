@@ -377,9 +377,22 @@ export default function Page() {
   return <ProductDetailPage productId={id} />;
 }
 
-// src/app/collections/page.tsx
+// src/app/shop/page.tsx
 import { ProductListPage } from '@caspian-explorer/script-caspian-store';
 export default function Page() { return <ProductListPage title="Shop" />; }
+
+// src/app/collections/page.tsx
+import { CollectionsPage } from '@caspian-explorer/script-caspian-store';
+export default function Page() { return <CollectionsPage />; }
+
+// src/app/collections/[slug]/page.tsx
+'use client';
+import { useParams } from 'next/navigation';
+import { CollectionDetailPage } from '@caspian-explorer/script-caspian-store';
+export default function Page() {
+  const { slug } = useParams<{ slug: string }>();
+  return <CollectionDetailPage slug={slug} />;
+}
 
 // src/app/cart/page.tsx — full-page cart (<SiteHeader> already shows a cart drawer too)
 import { useState } from 'react';

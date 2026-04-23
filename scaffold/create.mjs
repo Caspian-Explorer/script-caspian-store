@@ -434,9 +434,23 @@ export default function Page() {
 }
 `);
 
-write('src/app/collections/page.tsx', `'use client';
+write('src/app/shop/page.tsx', `'use client';
 import { ProductListPage } from '@caspian-explorer/script-caspian-store';
 export default function Page() { return <ProductListPage title="Shop" />; }
+`);
+
+write('src/app/collections/page.tsx', `'use client';
+import { CollectionsPage } from '@caspian-explorer/script-caspian-store';
+export default function Page() { return <CollectionsPage />; }
+`);
+
+write('src/app/collections/[slug]/page.tsx', `'use client';
+import { useParams } from 'next/navigation';
+import { CollectionDetailPage } from '@caspian-explorer/script-caspian-store';
+export default function Page() {
+  const { slug } = useParams<{ slug: string }>();
+  return <CollectionDetailPage slug={slug} />;
+}
 `);
 
 write('src/app/cart/page.tsx', `'use client';

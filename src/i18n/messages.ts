@@ -552,6 +552,12 @@ export const DEFAULT_MESSAGES: MessageDict = {
   'navigation.pages': 'Pages',
   'navigation.searchPlaceholder': 'Search…',
 
+  // Collections storefront
+  'collections.subtitle': 'Curated groups of products.',
+  'collections.empty': 'No collections yet.',
+  'collectionDetail.notFound': 'Collection not found.',
+  'collectionDetail.emptyProducts': 'No products in this collection yet.',
+
   // Search results page
   'search.title': 'Search',
   'search.resultsFor': 'Results for "{query}"',
