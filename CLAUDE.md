@@ -45,6 +45,7 @@ Plus exports: `./styles.css` (side-effect CSS, imported once at app root), `./fi
 - [src/theme/](src/theme/) — theme presets + picker
 - [src/shipping/](src/shipping/) — shipping plugin catalog + per-plugin implementations
 - [src/payments/](src/payments/) — payment plugin catalog + per-plugin implementations (v2.0+)
+- [src/email/](src/email/) — email provider plugin catalog (metadata-only; server `send` impls live in `functions-email/`) (v2.15+)
 - [src/firebase/](src/firebase/) — Firebase init, collection refs, rules/indexes exports
 - [src/utils/](src/utils/) — pure helpers (e.g. [cn.ts](src/utils/cn.ts))
 - [src/styles/](src/styles/) — globals.css
@@ -69,7 +70,9 @@ CaspianStoreProvider
 
 **Framework-adapter contract** at [src/primitives/types.ts](src/primitives/types.ts): `{ Link, Image?, useNavigation }`. Consumers pass adapters to the provider; defaults in [src/primitives/](src/primitives/) use `<a>`, `<img>`, `window.location`. **No `next/*`, `react-router`, `react-router-dom`, or `@remix-run/*` imports may leak into `src/`.** If you need framework behaviour, extend the adapter contract — don't import directly.
 
-**Plugin catalogs — shipping and payments.** Both follow the same shape: a static `CATALOG` record in [src/shipping/catalog.ts](src/shipping/catalog.ts) / [src/payments/catalog.ts](src/payments/catalog.ts) keyed by plugin id, each entry implementing a `{ id, name, description, defaultConfig, validateConfig, … }` contract defined in the sibling `types.ts`. Per-plugin implementations live in `plugins/` subdirectories. The admin page (`AdminShippingPluginsPage` / `AdminPaymentPluginsPage`) browses the catalog and persists per-store **installs** (`shippingPluginInstalls` / `paymentPluginInstalls` Firestore collections) with merchant display name + config + `enabled` flag. The runtime (`calculateShippingRates`, `useCheckout`) reads enabled installs, resolves each to a catalog entry, validates config, and delegates to the plugin's methods. New providers land by PR into the catalog — there is no runtime registration hook and that is intentional.
+**Plugin catalogs — shipping, payments, and email.** All three follow the same shape: a static `CATALOG` record in [src/shipping/catalog.ts](src/shipping/catalog.ts) / [src/payments/catalog.ts](src/payments/catalog.ts) / [src/email/catalog.ts](src/email/catalog.ts) keyed by plugin id, each entry implementing a `{ id, name, description, defaultConfig, validateConfig, … }` contract defined in the sibling `types.ts`. Per-plugin implementations live in `plugins/` subdirectories. The admin page (`AdminShippingPluginsPage` / `AdminPaymentPluginsPage` / `AdminEmailPluginsPage`) browses the catalog and persists per-store **installs** (`shippingPluginInstalls` / `paymentPluginInstalls` / `emailPluginInstalls` Firestore collections) with merchant display name + config + `enabled` flag. The runtime reads enabled installs, resolves each to a catalog entry, validates config, and delegates to the plugin's methods. New providers land by PR into the catalog — there is no runtime registration hook and that is intentional.
+
+**Email plugins differ from shipping + payments in two ways.** (1) Catalog entries in [src/email/plugins/](src/email/plugins/) are **metadata-only** (`{ id, name, description, defaultConfig, validateConfig }` — no `send` method). Delivery runs server-side from the `caspian-email` Cloud Functions codebase because the API key must stay out of the browser. The server-side `send` implementations live in [firebase/functions-email/src/email-sender.ts](firebase/functions-email/src/email-sender.ts) and are keyed on the same `pluginId` strings. When adding a new email provider, land both halves in the same PR or neither is usable. (2) `emailPluginInstalls` Firestore rules are **admin-only read AND write** (unlike shipping/payment installs which are publicly readable), because the install's `config.apiKey` is a provider secret. Cloud Functions read via the Admin SDK, which bypasses rules. This is the trade-off v2.15.0 made to keep `firebase deploy --only functions:caspian-email` running with zero `defineSecret` declarations — a future release could add an optional `secretName` field that the dispatcher resolves via Google Secret Manager for stores that want keys out of Firestore.
 
 **Firestore collection refs** are centralized in [src/firebase/collections.ts](src/firebase/collections.ts). Services in [src/services/](src/services/) consume those refs — **do not call `collection(db, "foo")` ad-hoc** in services or components. When adding a collection:
 
@@ -284,6 +287,35 @@ Copy the repo `id` and the category `id` whose `name` is `Announcements` back in
 
 Prefer the heredoc form (`-F query=@-`) over bare `-f query=...`; apostrophes in the title or body will break shell quoting otherwise. For long bodies, write them to a file and use `gh api graphql -F query=@path/to/query.graphql`.
 
+### 13. Update the `create-caspian-store` sibling on npmjs.com (if relevant)
+
+`npm create caspian-store@latest` is powered by a **separate** npm-published package in [create-caspian-store/](create-caspian-store/) that shallow-clones this repo and invokes [scaffold/create.mjs](scaffold/create.mjs). Unlike the main package (which ships as a tarball attached to GitHub Releases — never to npmjs.com), the sibling **must** live on npmjs.com for `npm create` to work.
+
+**Check whether this release needs the sibling republished.** The sibling is thin — it just orchestrates `git clone` + `node scaffold/create.mjs`. Changes to the *main* package's source, `firebase/`, or admin UI usually don't touch it. Bump and republish only when:
+
+- The sibling's own code under [create-caspian-store/](create-caspian-store/) changed.
+- The scaffolder's CLI surface changed in a way the sibling forwards or documents (new flag, renamed flag, changed default, new positional, removed arg). The sibling passes `process.argv` through to `scaffold/create.mjs`, so most flag additions are automatic — but if the sibling's own `README.md`, help text, or flag-forwarding logic mentions the flag explicitly, it needs a republish.
+- The minimum supported Node version, `git` invocation, or clone strategy changed.
+
+**If none of those apply, skip this step and say so in the commit body** (`"sibling unaffected — no change to create-caspian-store/ and no scaffolder CLI surface change"`).
+
+**If a republish is needed:**
+
+```bash
+cd create-caspian-store
+# 1. Bump create-caspian-store/package.json version (semver — usually patch).
+# 2. Update create-caspian-store/README.md if consumer-facing flags/docs shifted.
+# 3. Verify locally:
+npm pack                    # produces create-caspian-store-X.Y.Z.tgz
+# 4. Publish (requires `npm login` with an account on the scoped publishers allowlist):
+npm publish --access public
+cd ..
+```
+
+Then tag the sibling release separately (e.g. `create-caspian-store/v0.1.1`) to keep its history visible, and cross-link from the main package's GitHub Release notes (step 11) with a one-liner: *"`create-caspian-store` bumped to v0.1.1 — no consumer action beyond running `npm create caspian-store@latest` as usual."*
+
+**This is the only `npm publish` allowed in this repo** — see "Never do without explicit user permission" for the main-package rule.
+
 ---
 
 ## Style guide
@@ -303,7 +335,7 @@ In addition to the Conventions section above:
 - Force-push to `main`
 - `git reset --hard` on a branch that has unpushed work
 - Delete branches other than short-lived local ones you created in this session
-- Publish to the npm registry (`npm publish`) — only building locally (`npm pack`) and attaching to a GitHub Release is allowed by default
+- Publish the **main** package (`@caspian-explorer/script-caspian-store`) to the npm registry (`npm publish`) — only building locally (`npm pack`) and attaching to a GitHub Release is allowed. The **sibling** `create-caspian-store/` package IS allowed to be republished without asking, per checklist step 13, because `npm create caspian-store@latest` depends on it being on npmjs.com.
 - Modify the remote repository's settings, branch protections, or secrets
 - Commit with `--no-verify` or equivalent hook-bypass flags
 - Add a `Co-Authored-By` trailer to any commit
