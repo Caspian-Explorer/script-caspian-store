@@ -587,6 +587,39 @@ firebase deploy --only firestore:rules,firestore:indexes,storage
 
 `firebase:sync` overwrites any hand edits to those root files — if you have custom rules, merge by hand from git history instead.
 
+### Self-update from `/admin/about`
+
+The admin About page can `npm install` a newer library version on the host with one click — handy for self-hosted Node deployments and dev. The button POSTs to `src/app/api/caspian-store/update/route.ts` (scaffolded into your project), which verifies your admin Firebase ID token, runs `npm install github:Caspian-Explorer/script-caspian-store#vX.Y.Z`, and exits the Node process so your process manager restarts it.
+
+**Requirements:**
+
+- **In production**, set `CASPIAN_ALLOW_SELF_UPDATE=true` on the host. The route refuses to run without it (so the path can't be triggered accidentally on production).
+- **Always**, the route needs to know your Firebase project ID to verify the admin token. It checks (in order):
+  - `GOOGLE_CLOUD_PROJECT` (auto-set on Firebase App Hosting / Cloud Functions / Cloud Run)
+  - `GCLOUD_PROJECT`
+  - `FIREBASE_PROJECT_ID`
+  - `NEXT_PUBLIC_FIREBASE_PROJECT_ID` (the scaffolder default)
+  - `CASPIAN_FIREBASE_PROJECT_ID` (server-only escape hatch)
+
+If none are set at runtime, the route returns: *"Server cannot detect a Firebase project ID. Set NEXT_PUBLIC_FIREBASE_PROJECT_ID …"* and the admin About page renders a remediation panel with platform-specific steps.
+
+**How to set it on common hosts:**
+
+- **Vercel** — Project Settings → Environment Variables → add `NEXT_PUBLIC_FIREBASE_PROJECT_ID = <your-project-id>` for Production + Preview, then redeploy.
+- **Firebase App Hosting** — `apphosting.yaml`:
+  ```yaml
+  env:
+    - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
+      value: <your-project-id>
+      availability: [BUILD, RUNTIME]
+    - variable: CASPIAN_ALLOW_SELF_UPDATE
+      value: "true"
+      availability: [RUNTIME]
+  ```
+- **Self-hosted Node** — export both vars in your process manager (PM2 `ecosystem.config.js`, systemd unit, Docker `-e`, …) before starting the Next.js server.
+
+**Serverless caveat:** Vercel and stock Firebase App Hosting use read-only filesystems for function runtimes, so `npm install` will fail with `EROFS` even when project-ID detection succeeds. Self-update is most useful on long-running Node hosts (VPS, Cloud Run with a persistent disk, App Engine flex). For serverless deploys, prefer the "Copy install command" button and run the upgrade in your CI / git workflow.
+
 ### One-off migrations
 
 Some upgrades include a data migration. Each is a single Node script under `node_modules/@caspian-explorer/script-caspian-store/firebase/scripts/`, runs once per project, and is idempotent (safe to re-run). All accept `--dry-run` to preview.

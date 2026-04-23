@@ -16,6 +16,25 @@ Do not omit the heading, rename it, or fold it into `### Notes`. This is how
 customers tell at a glance whether an upgrade needs attention.
 -->
 
+## v2.12.1 — Self-update project-id remediation
+
+Fixes a confusing failure mode in the `/admin/about` "Update to vX.Y.Z" button. When the scaffolded API route at `src/app/api/caspian-store/update/route.ts` runs on a host whose runtime `process.env` exposes none of `GOOGLE_CLOUD_PROJECT`, `GCLOUD_PROJECT`, `FIREBASE_PROJECT_ID`, `NEXT_PUBLIC_FIREBASE_PROJECT_ID`, or `CASPIAN_FIREBASE_PROJECT_ID`, `firebase-admin` cannot resolve a project ID and throws `Unable to detect a Project Id in the current environment`. The error previously surfaced verbatim with no remediation guidance.
+
+### Fixed
+
+- **Scaffolded route** ([scaffold/create.mjs](scaffold/create.mjs)) — `ensureAdminApp()` and `requireAdmin()` now: (a) extend the project-ID fallback chain to also check `FIREBASE_PROJECT_ID` and `CASPIAN_FIREBASE_PROJECT_ID`, (b) fail fast with an actionable HTTP 500 message naming the specific env vars and the Vercel / Firebase App Hosting paths to set them, and (c) mirror the resolved id into `process.env.GOOGLE_CLOUD_PROJECT` so any nested Google client lib inherits it. New scaffolds and consumers who manually re-paste the route get the improved error.
+- **Admin About page** ([src/admin/admin-about-page.tsx](src/admin/admin-about-page.tsx)) — `UpdateResultPanel` now detects the canonical Google Auth Library `Unable to detect a Project Id` error string in the route response and renders a remediation panel with the env var name, a copy-pastable example, and step-by-step instructions for Vercel, Firebase App Hosting, and self-hosted Node. This benefits **every existing v2.4.0+ install** without requiring them to update their scaffolded route, because `UpdateResultPanel` ships in `dist/`.
+
+### Added
+
+- **[INSTALL.md](INSTALL.md) → §12 Upgrade → "Self-update from `/admin/about`"** — new subsection documenting the env var requirement, the in-order fallback chain, the production `CASPIAN_ALLOW_SELF_UPDATE=true` requirement, platform-specific setup snippets, and the read-only-filesystem caveat for serverless deploys.
+
+### No consumer action required
+
+Bug-fix release. Existing installs work as-is. Consumers who hit the project-id error after upgrading either get the new client-side remediation panel (any v2.4.0+ install benefits from upgrading to v2.12.1) or, if they manually re-paste the scaffolded route, get the improved server error message.
+
+---
+
 ## v2.12.0 — Tax display + calculation options (C2)
 
 Closes Release C. Layers WooCommerce-style tax **display and calculation preferences** on top of the existing v2.5 single-rate tax surface (`SiteSettings.taxMode` + `flatTaxRate` + per-country rates). Full tax-class + multi-rate-table schema is intentionally out of scope for v2.x — it would require a parallel collection design that conflicts with the active `supportedCountries[].taxRate` field. Revisit as a v3 breaking change.

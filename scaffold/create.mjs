@@ -725,19 +725,30 @@ const ALLOWED_OWNER = 'Caspian-Explorer';
 const ALLOWED_REPO = 'script-caspian-store';
 const VERSION_RE = /^[0-9]+\\.[0-9]+\\.[0-9]+$/;
 
-function ensureAdminApp() {
-  if (getApps().length > 0) return;
+function resolveProjectId(): string | undefined {
   // firebase-admin needs an explicit projectId off Firebase-managed runtimes.
   // GCLOUD_PROJECT / GOOGLE_CLOUD_PROJECT are set automatically on Firebase
   // App Hosting and Cloud Functions; on Vercel, generic Node hosts, and local
   // dev they are not, and applicationDefault() then can't auto-detect one,
   // producing "Unable to detect a Project Id in the current environment".
-  // The scaffolder's .env.local always defines NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  // so we use that as a reliable fallback.
-  const projectId =
+  // FIREBASE_PROJECT_ID is the firebase-admin convention; NEXT_PUBLIC_* is the
+  // scaffolder default; CASPIAN_FIREBASE_PROJECT_ID is a server-only escape
+  // hatch for hosts that don't expose NEXT_PUBLIC_* to the runtime.
+  return (
     process.env.GOOGLE_CLOUD_PROJECT ||
     process.env.GCLOUD_PROJECT ||
-    process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+    process.env.FIREBASE_PROJECT_ID ||
+    process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ||
+    process.env.CASPIAN_FIREBASE_PROJECT_ID ||
+    undefined
+  );
+}
+
+function ensureAdminApp(projectId: string) {
+  if (getApps().length > 0) return;
+  // Mirror the resolved id into GOOGLE_CLOUD_PROJECT so any nested Google
+  // client lib (storage, auth) inherits it without re-running detection.
+  process.env.GOOGLE_CLOUD_PROJECT = projectId;
   try {
     initializeApp({ credential: applicationDefault(), projectId });
   } catch {
@@ -749,8 +760,20 @@ async function requireAdmin(req: Request): Promise<{ ok: true } | { ok: false; s
   const authHeader = req.headers.get('authorization') ?? '';
   const idToken = authHeader.replace(/^Bearer\\s+/i, '').trim();
   if (!idToken) return { ok: false, status: 401, error: 'Missing Authorization header' };
+  const projectId = resolveProjectId();
+  if (!projectId) {
+    return {
+      ok: false,
+      status: 500,
+      error:
+        'Server cannot detect a Firebase project ID. Set NEXT_PUBLIC_FIREBASE_PROJECT_ID ' +
+        '(or FIREBASE_PROJECT_ID) in your hosting environment and redeploy. ' +
+        'On Vercel: Project Settings → Environment Variables. ' +
+        'On Firebase App Hosting: apphosting.yaml → env.',
+    };
+  }
   try {
-    ensureAdminApp();
+    ensureAdminApp(projectId);
     const decoded = await getAuth().verifyIdToken(idToken);
     if (!decoded.admin) {
       return { ok: false, status: 403, error: 'Caller is not an admin' };

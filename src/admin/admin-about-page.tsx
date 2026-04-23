@@ -229,6 +229,8 @@ function UpdateResultPanel({ result }: { result: SelfUpdateResult }) {
       : 'Installed — restart your server'
     : 'Update failed';
   const log = [result.stdout, result.stderr].filter(Boolean).join('\n').trim();
+  const isProjectIdError =
+    !result.ok && !!result.error && /Unable to detect a Project Id/i.test(result.error);
   return (
     <div
       style={{
@@ -243,6 +245,7 @@ function UpdateResultPanel({ result }: { result: SelfUpdateResult }) {
       {result.error && (
         <p style={{ margin: '6px 0 0', fontSize: 13, color: '#991b1b' }}>{result.error}</p>
       )}
+      {isProjectIdError && <ProjectIdRemediation />}
       {log && (
         <pre
           style={{
@@ -262,6 +265,60 @@ function UpdateResultPanel({ result }: { result: SelfUpdateResult }) {
           {log}
         </pre>
       )}
+    </div>
+  );
+}
+
+function ProjectIdRemediation() {
+  return (
+    <div
+      style={{
+        marginTop: 10,
+        padding: 12,
+        background: '#fff',
+        border: '1px solid rgba(0,0,0,0.08)',
+        borderRadius: 6,
+        fontSize: 13,
+        lineHeight: 1.5,
+        color: '#1f2937',
+      }}
+    >
+      <div style={{ fontWeight: 600, marginBottom: 6 }}>How to fix</div>
+      <p style={{ margin: '0 0 6px' }}>
+        Your hosting environment is missing the Firebase project ID. The self-update API
+        route can&apos;t verify your admin token without it.
+      </p>
+      <p style={{ margin: '0 0 4px' }}>
+        Add this environment variable on your host and redeploy:
+      </p>
+      <pre
+        style={{
+          margin: '0 0 8px',
+          padding: 8,
+          background: '#f3f4f6',
+          border: '1px solid rgba(0,0,0,0.08)',
+          borderRadius: 4,
+          fontSize: 12,
+          whiteSpace: 'pre-wrap',
+          wordBreak: 'break-word',
+        }}
+      >
+        NEXT_PUBLIC_FIREBASE_PROJECT_ID=&lt;your-firebase-project-id&gt;
+      </pre>
+      <ul style={{ margin: '0 0 0 18px', padding: 0 }}>
+        <li>
+          <strong>Vercel</strong>: Project Settings → Environment Variables → add for
+          Production + Preview, then redeploy.
+        </li>
+        <li>
+          <strong>Firebase App Hosting</strong>: add to <code>apphosting.yaml</code> under{' '}
+          <code>env:</code> with <code>availability: [BUILD, RUNTIME]</code>, then redeploy.
+        </li>
+        <li>
+          <strong>Self-hosted Node</strong>: export it in the process environment before
+          starting the server (PM2 ecosystem file, systemd unit, Docker <code>-e</code>, …).
+        </li>
+      </ul>
     </div>
   );
 }
