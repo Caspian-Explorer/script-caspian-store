@@ -16,6 +16,46 @@ Do not omit the heading, rename it, or fold it into `### Notes`. This is how
 customers tell at a glance whether an upgrade needs attention.
 -->
 
+## v2.4.0 — One-click library self-update from the admin About page
+
+The About page added in v1.25 told admins an update was available but left them to run `npm install` in a terminal. v2.4 adds an **Update to vX.Y.Z** button that installs the latest tag end-to-end: the button posts to a companion Next.js API route (`/api/caspian-store/update`) that verifies the caller's admin claim via Firebase Admin, runs `npm install github:Caspian-Explorer/script-caspian-store#vX.Y.Z` on the host, and schedules a `process.exit(0)` so a process manager (or the Next dev server) respawns with the new dependency loaded. A **Copy install command** button is always shown as a fallback for non-scaffolded setups.
+
+### Added
+
+- **`<AdminAboutPage updateEndpoint>`** prop — override or disable (`null`) the companion route. Default `/api/caspian-store/update`. When an update is available and a user is signed in, the page renders an **Update to vX.Y.Z** primary button next to Refresh; clicking it streams a success/error panel with the captured `stdout`/`stderr` and a "restart your server" nudge.
+- **`triggerSelfUpdate(user, version, options?)`** at [src/services/self-update-service.ts](src/services/self-update-service.ts) — client-side helper that attaches `Authorization: Bearer <idToken>` from the current Firebase user and POSTs to the endpoint. Exposed from the main entry so consumers can wire custom buttons elsewhere.
+- **Scaffolder emits `src/app/api/caspian-store/update/route.ts`** — Node runtime, Firebase-Admin ID-token verification (must have `admin: true` custom claim), version-string validation (`/^\d+\.\d+\.\d+$/`), fixed owner/repo allowlist, captured stdout/stderr, 500ms-deferred `process.exit(0)` on success. Production requires `CASPIAN_ALLOW_SELF_UPDATE=true` server env or the route returns 403 — no one can accidentally ship a site that lets admins push arbitrary versions.
+- **`firebase-admin` promoted from `devDependencies` to `dependencies`** in scaffolded sites so the route's ID-token verification works under `NODE_ENV=production` installs (Vercel, Firebase App Hosting, etc. strip devDeps).
+
+### Platform matrix
+
+| Host                                         | In-app Update button                                                                                      |
+| -------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| Local dev (`npm run dev`)                    | ✅ Works. Dev server respawns after install.                                                              |
+| Self-hosted Node (VPS, Docker + PM2/systemd) | ✅ Works when `CASPIAN_ALLOW_SELF_UPDATE=true` is set and a process manager restarts the exited Node.    |
+| Firebase App Hosting                         | ⚠️ Works only if the runtime has a writable `node_modules` and respawns on exit. Normally use re-deploys. |
+| Vercel / other serverless                    | ❌ Read-only filesystem — `npm install` fails with EROFS. Use the Copy install command button + redeploy. |
+
+### Consumer action required on upgrade
+
+Existing scaffolds on v2.3.x need to add the new API route file and move `firebase-admin` to `dependencies`:
+
+```bash
+# 1. Add the route file
+mkdir -p src/app/api/caspian-store/update
+# paste the route from scaffold/create.mjs's emitted template, or re-scaffold into a sibling
+# with --force and diff.
+
+# 2. Move firebase-admin to dependencies
+npm uninstall firebase-admin --save-dev
+npm install firebase-admin@^13.0.0
+
+# 3. For production, opt in explicitly
+echo 'CASPIAN_ALLOW_SELF_UPDATE=true' >> .env.production
+```
+
+Fresh `npm create caspian-store@latest` scaffolds get everything automatically.
+
 ## v2.3.0 — Storefront search + admin search-terms analytics
 
 The header search box was a dead input — no submit handler, no results page, no analytics. v2.3 wires it up end-to-end: submitting the header search logs the normalized term to a new `searchTerms` Firestore collection (atomic count-increment + timestamps) and navigates to a new `/search` results page that filters the active-product catalog client-side. Admins get a **Search terms** page showing the list of everything shoppers have searched, sorted by frequency or recency, with per-row delete + clear-all actions. Useful for spotting demand gaps, naming mismatches, and recurring typos.

@@ -163,14 +163,15 @@ const ourScripts = {
 const ourDeps = {
   '@caspian-explorer/script-caspian-store': packageSpec,
   firebase: '^11.0.0',
-};
-const ourDevDeps = {
   // v13 drops the transitive @tootallnate/once / older @google-cloud/* chain
-  // that triggers `npm audit` noise on fresh scaffolds. APIs used by seed.mjs
-  // and grant-admin.mjs (admin.initializeApp / firestore / auth) are stable
-  // from 12 → 13.
+  // that triggers `npm audit` noise on fresh scaffolds. APIs used by seed.mjs,
+  // grant-admin.mjs, and the /api/caspian-store/update route
+  // (admin.initializeApp / firestore / auth) are stable from 12 → 13.
+  // Kept under `dependencies` (not devDependencies) because
+  // /api/caspian-store/update loads firebase-admin at runtime in production.
   'firebase-admin': '^13.0.0',
 };
+const ourDevDeps = {};
 
 // Storefronts routinely reference product images from arbitrary hosts (seeded
 // demos, Unsplash, Wikimedia, third-party CDNs). `next/image` rejects any host
@@ -699,6 +700,135 @@ export async function POST(request: Request) {
 
   await writeFile(envPath, next + '\\n', 'utf8');
   return NextResponse.json({ ok: true });
+}
+`);
+
+// ---- Caspian self-update API route (v2.4.0+) ----
+// Runs `npm install github:Caspian-Explorer/script-caspian-store#v<version>`
+// on the host when an admin clicks "Update to vX.Y.Z" in /admin/about.
+// Verifies the caller is an admin via Firebase Admin SDK ID-token check,
+// validates the version string, spawns npm, and on success schedules
+// process.exit(0) so a process manager (or Next.js dev-server) restarts
+// the Node process with the new dependency loaded. Production requires an
+// explicit CASPIAN_ALLOW_SELF_UPDATE=true env var so self-update can't be
+// turned on accidentally. Serverless platforms with read-only filesystems
+// (Vercel, stock App Hosting) will get a clean EROFS error back.
+write('src/app/api/caspian-store/update/route.ts', `import { NextResponse } from 'next/server';
+import { spawn } from 'node:child_process';
+import { getApps, initializeApp, applicationDefault } from 'firebase-admin/app';
+import { getAuth } from 'firebase-admin/auth';
+
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+export const maxDuration = 300;
+
+const ALLOWED_OWNER = 'Caspian-Explorer';
+const ALLOWED_REPO = 'script-caspian-store';
+const VERSION_RE = /^[0-9]+\\.[0-9]+\\.[0-9]+$/;
+
+function ensureAdminApp() {
+  if (getApps().length > 0) return;
+  try {
+    initializeApp({ credential: applicationDefault() });
+  } catch {
+    initializeApp();
+  }
+}
+
+async function requireAdmin(req: Request): Promise<{ ok: true } | { ok: false; status: number; error: string }> {
+  const authHeader = req.headers.get('authorization') ?? '';
+  const idToken = authHeader.replace(/^Bearer\\s+/i, '').trim();
+  if (!idToken) return { ok: false, status: 401, error: 'Missing Authorization header' };
+  try {
+    ensureAdminApp();
+    const decoded = await getAuth().verifyIdToken(idToken);
+    if (!decoded.admin) {
+      return { ok: false, status: 403, error: 'Caller is not an admin' };
+    }
+    return { ok: true };
+  } catch (err) {
+    return {
+      ok: false,
+      status: 401,
+      error: err instanceof Error ? err.message : 'Token verification failed',
+    };
+  }
+}
+
+export async function POST(req: Request) {
+  if (
+    process.env.NODE_ENV === 'production' &&
+    process.env.CASPIAN_ALLOW_SELF_UPDATE !== 'true'
+  ) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error:
+          'Self-update is disabled in production. Set CASPIAN_ALLOW_SELF_UPDATE=true on the server to enable.',
+      },
+      { status: 403 },
+    );
+  }
+
+  const auth = await requireAdmin(req);
+  if (!auth.ok) {
+    return NextResponse.json({ ok: false, error: auth.error }, { status: auth.status });
+  }
+
+  const body = (await req.json().catch(() => null)) as { version?: unknown } | null;
+  const version = typeof body?.version === 'string' ? body.version : '';
+  if (!VERSION_RE.test(version)) {
+    return NextResponse.json(
+      { ok: false, error: 'Invalid version. Expected X.Y.Z.' },
+      { status: 400 },
+    );
+  }
+
+  const spec = \`github:\${ALLOWED_OWNER}/\${ALLOWED_REPO}#v\${version}\`;
+  const npmCmd = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+
+  let stdout = '';
+  let stderr = '';
+  const exitCode: number | null = await new Promise((resolve) => {
+    const child = spawn(npmCmd, ['install', spec, '--no-audit', '--no-fund'], {
+      cwd: process.cwd(),
+      env: process.env,
+      shell: false,
+    });
+    child.stdout.on('data', (d: Buffer) => (stdout += d.toString()));
+    child.stderr.on('data', (d: Buffer) => (stderr += d.toString()));
+    child.on('error', (err) => {
+      stderr += '\\n' + (err instanceof Error ? err.message : String(err));
+      resolve(-1);
+    });
+    child.on('close', (code) => resolve(code));
+  });
+
+  if (exitCode !== 0) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: \`npm install exited with code \${exitCode}\`,
+        stdout,
+        stderr,
+      },
+      { status: 500 },
+    );
+  }
+
+  // Schedule a restart after responding. In dev, Next.js respawns on file
+  // change — we rely on the install writing to node_modules. In production,
+  // rely on a process manager (PM2, systemd, Docker restart policy, Firebase
+  // App Hosting) to restart the container when the Node process exits.
+  setTimeout(() => {
+    try {
+      process.exit(0);
+    } catch {
+      /* no-op */
+    }
+  }, 500);
+
+  return NextResponse.json({ ok: true, stdout, stderr, restarting: true });
 }
 `);
 

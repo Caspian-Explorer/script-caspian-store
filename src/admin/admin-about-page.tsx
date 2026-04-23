@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useAuth } from '../context/auth-context';
 import { CASPIAN_STORE_VERSION } from '../version';
 import {
   DEFAULT_REPO_NAME,
@@ -9,6 +10,11 @@ import {
   isUpdateAvailable,
   type GithubRelease,
 } from '../services/github-updates-service';
+import {
+  triggerSelfUpdate,
+  type SelfUpdateResult,
+} from '../services/self-update-service';
+import { useToast } from '../ui/toast';
 import { Button } from '../ui/button';
 import { ExternalLinkIcon, RefreshIcon } from '../ui/icons';
 import { Badge, Separator, Skeleton } from '../ui/misc';
@@ -17,6 +23,12 @@ export interface AdminAboutPageProps {
   owner?: string;
   repo?: string;
   maxReleases?: number;
+  /**
+   * Override the companion update endpoint. Default `/api/caspian-store/update`.
+   * Set to `null` to hide the in-app Update button entirely (only the copy-command
+   * fallback will show).
+   */
+  updateEndpoint?: string | null;
   className?: string;
 }
 
@@ -24,11 +36,16 @@ export function AdminAboutPage({
   owner = DEFAULT_REPO_OWNER,
   repo = DEFAULT_REPO_NAME,
   maxReleases = 5,
+  updateEndpoint = '/api/caspian-store/update',
   className,
 }: AdminAboutPageProps) {
+  const { user } = useAuth();
+  const { toast } = useToast();
   const [releases, setReleases] = useState<GithubRelease[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [reloading, setReloading] = useState(false);
+  const [updating, setUpdating] = useState(false);
+  const [updateResult, setUpdateResult] = useState<SelfUpdateResult | null>(null);
 
   async function load(force: boolean) {
     setError(null);
@@ -50,6 +67,43 @@ export function AdminAboutPage({
   const latest = releases?.[0];
   const behind =
     latest && latest.version ? isUpdateAvailable(CASPIAN_STORE_VERSION, latest.version) : false;
+
+  async function handleUpdate() {
+    if (!latest?.version || !user) return;
+    setUpdating(true);
+    setUpdateResult(null);
+    try {
+      const result = await triggerSelfUpdate(user, latest.version, {
+        endpoint: updateEndpoint ?? undefined,
+      });
+      setUpdateResult(result);
+      if (result.ok) {
+        toast({
+          title: `Updated to v${latest.version}`,
+          description: result.restarting
+            ? 'Server is restarting — refresh in a few seconds.'
+            : 'Restart your server for changes to take effect.',
+        });
+      } else {
+        toast({
+          title: 'Update failed',
+          description: result.error ?? `HTTP ${result.status}`,
+          variant: 'destructive',
+        });
+      }
+    } finally {
+      setUpdating(false);
+    }
+  }
+
+  function copyInstallCommand() {
+    if (!latest?.version) return;
+    const cmd = `npm install github:${owner}/${repo}#v${latest.version}`;
+    void navigator.clipboard.writeText(cmd).then(
+      () => toast({ title: 'Command copied', description: cmd }),
+      () => toast({ title: 'Copy failed', variant: 'destructive' }),
+    );
+  }
 
   return (
     <div className={className}>
@@ -92,9 +146,23 @@ export function AdminAboutPage({
             )}
           </div>
         </div>
-        <Button variant="outline" size="sm" onClick={() => void load(true)} loading={reloading}>
-          <RefreshIcon size={14} /> Refresh
-        </Button>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          {behind && latest?.version && (
+            <>
+              {updateEndpoint && user && (
+                <Button size="sm" onClick={handleUpdate} loading={updating}>
+                  {updating ? 'Installing…' : `Update to v${latest.version}`}
+                </Button>
+              )}
+              <Button variant="outline" size="sm" onClick={copyInstallCommand}>
+                Copy install command
+              </Button>
+            </>
+          )}
+          <Button variant="outline" size="sm" onClick={() => void load(true)} loading={reloading}>
+            <RefreshIcon size={14} /> Refresh
+          </Button>
+        </div>
       </section>
 
       {error && (
@@ -102,6 +170,8 @@ export function AdminAboutPage({
           Couldn&apos;t reach GitHub: {error}
         </p>
       )}
+
+      {updateResult && <UpdateResultPanel result={updateResult} />}
 
       <Separator />
 
@@ -146,6 +216,52 @@ export function AdminAboutPage({
           Announcements
         </ExternalLink>
       </div>
+    </div>
+  );
+}
+
+function UpdateResultPanel({ result }: { result: SelfUpdateResult }) {
+  const borderColor = result.ok ? '#16a34a' : '#dc2626';
+  const bg = result.ok ? '#f0fdf4' : '#fef2f2';
+  const title = result.ok
+    ? result.restarting
+      ? 'Installed — server restarting'
+      : 'Installed — restart your server'
+    : 'Update failed';
+  const log = [result.stdout, result.stderr].filter(Boolean).join('\n').trim();
+  return (
+    <div
+      style={{
+        marginTop: 12,
+        padding: 14,
+        border: `1px solid ${borderColor}`,
+        borderRadius: 'var(--caspian-radius, 8px)',
+        background: bg,
+      }}
+    >
+      <div style={{ fontWeight: 600, fontSize: 14 }}>{title}</div>
+      {result.error && (
+        <p style={{ margin: '6px 0 0', fontSize: 13, color: '#991b1b' }}>{result.error}</p>
+      )}
+      {log && (
+        <pre
+          style={{
+            margin: '8px 0 0',
+            padding: 10,
+            maxHeight: 200,
+            overflow: 'auto',
+            background: '#fff',
+            border: '1px solid rgba(0,0,0,0.08)',
+            borderRadius: 6,
+            fontSize: 12,
+            lineHeight: 1.4,
+            whiteSpace: 'pre-wrap',
+            wordBreak: 'break-word',
+          }}
+        >
+          {log}
+        </pre>
+      )}
     </div>
   );
 }

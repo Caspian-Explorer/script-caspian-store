@@ -549,3 +549,7 @@ export {
   DEFAULT_REPO_NAME,
   type GithubRelease,
 } from './services/github-updates-service';
+export {
+  triggerSelfUpdate,
+  type SelfUpdateResult,
+} from './services/self-update-service';

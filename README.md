@@ -83,7 +83,7 @@ See [INSTALL.md](./INSTALL.md) for the **one-command scaffolder**, **Vite** / **
 | **Order confirmation:** `<OrderConfirmationPage />` — polls Firestore for the webhook-created order | ✅ |
 | **Order history:** `<OrderHistoryList />` | ✅ |
 | **Wishlist:** `useWishlist()` + `<WishlistButton />` | ✅ |
-| **Admin:** `<AdminGuard />`, `<AdminShell />`, `<AdminDashboard />`, product CRUD, orders + status, reviews moderation, `<AdminAboutPage />` (installed version + GitHub release feed) | ✅ |
+| **Admin:** `<AdminGuard />`, `<AdminShell />`, `<AdminDashboard />`, product CRUD, orders + status, reviews moderation, `<AdminAboutPage />` (installed version + GitHub release feed + one-click self-update) | ✅ |
 | **Auth:** `<LoginPage />`, `<RegisterPage />`, `<ForgotPasswordPage />`, `<AccountPage />` (profile, password, addresses, orders) | ✅ |
 | **i18n:** `<LocaleProvider>` + `useT()` + `DEFAULT_MESSAGES` + `<LocaleSwitcher />` (all surfaces migrated) | ✅ |
 | **Theming:** 10-theme `THEME_CATALOG` + Avada-style `<AdminAppearancePage>` grid + popup `<AdminAppearancePreviewPage>` with dummy-data storefront | ✅ |
@@ -121,7 +121,8 @@ AdminAboutPage
 
 // Library metadata + update checks
 CASPIAN_STORE_VERSION,
-fetchRecentReleases, compareVersions, isUpdateAvailable
+fetchRecentReleases, compareVersions, isUpdateAvailable,
+triggerSelfUpdate
 
 // Auth + account
 LoginPage, RegisterPage, ForgotPasswordPage,
