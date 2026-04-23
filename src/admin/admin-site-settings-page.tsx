@@ -11,9 +11,11 @@ import type {
   SocialPlatform,
   StoreAddress,
   SupportedCountry,
+  TaxConfig,
 } from '../types';
 import { SOCIAL_PLATFORMS } from '../types';
 import { DEFAULT_INVENTORY_SETTINGS } from '../utils/inventory';
+import { DEFAULT_TAX_CONFIG } from '../utils/tax';
 
 const DEFAULT_ACCOUNTS: AccountSettings = {
   allowGuestCheckout: false,
@@ -946,6 +948,10 @@ export function AdminSiteSettingsPage({ className }: { className?: string }) {
                 </p>
               )}
             </div>
+            <TaxOptionsSubSection
+              value={draft.taxConfig}
+              onChange={(next) => patch({ taxConfig: next })}
+            />
           </div>
         </div>
 
@@ -1367,6 +1373,162 @@ function InventorySection({
           </>
         )}
       </div>
+    </div>
+  );
+}
+
+function TaxOptionsSubSection({
+  value,
+  onChange,
+}: {
+  value: TaxConfig | undefined;
+  onChange: (next: TaxConfig | undefined) => void;
+}) {
+  const enabled = value !== undefined;
+  const config: TaxConfig = value ?? DEFAULT_TAX_CONFIG;
+  const update = (patchFields: Partial<TaxConfig>) => onChange({ ...config, ...patchFields });
+
+  return (
+    <div style={{ marginTop: 8 }}>
+      <h3 style={{ fontSize: 14, fontWeight: 600, margin: '8px 0 4px' }}>
+        Tax display options
+        <FieldHelp>
+          Layered on top of the rate table above. Every field is optional — defaults preserve
+          pre-v2.12 behavior (tax added on top at checkout, no price-display suffix, single tax row).
+        </FieldHelp>
+      </h3>
+      <FieldDescription style={{ margin: '0 0 10px' }}>
+        Enable to override how tax renders across the storefront and which address drives the
+        per-country rate lookup.
+      </FieldDescription>
+      <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, marginBottom: 10 }}>
+        <input
+          type="checkbox"
+          checked={enabled}
+          onChange={(e) => onChange(e.target.checked ? DEFAULT_TAX_CONFIG : undefined)}
+        />
+        <span>Customize tax display</span>
+      </label>
+      {enabled && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div>
+              <Label>Prices entered with tax</Label>
+              <Select
+                value={config.pricesEnteredWithTax ? 'incl' : 'excl'}
+                onChange={(e) =>
+                  update({ pricesEnteredWithTax: e.target.value === 'incl' })
+                }
+                options={[
+                  { value: 'excl', label: 'No, prices exclude tax' },
+                  { value: 'incl', label: 'Yes, prices include tax' },
+                ]}
+                style={{ width: '100%' }}
+              />
+              <FieldDescription>
+                Only relevant if you want the storefront to strip tax out of displayed prices.
+                Checkout math still uses the rate configured above.
+              </FieldDescription>
+            </div>
+            <div>
+              <Label>Calculate tax based on</Label>
+              <Select
+                value={config.taxBasedOn}
+                onChange={(e) => update({ taxBasedOn: e.target.value as TaxConfig['taxBasedOn'] })}
+                options={[
+                  { value: 'shipping', label: 'Customer shipping address' },
+                  { value: 'billing', label: 'Customer billing address (reserved)' },
+                  { value: 'store', label: 'Shop base country' },
+                ]}
+                style={{ width: '100%' }}
+              />
+              <FieldDescription>
+                <code>billing</code> falls back to the shipping address — checkout doesn't collect
+                a separate billing address yet.
+              </FieldDescription>
+            </div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div>
+              <Label>Shop price display</Label>
+              <Select
+                value={config.displayPricesInShop}
+                onChange={(e) =>
+                  update({ displayPricesInShop: e.target.value as TaxConfig['displayPricesInShop'] })
+                }
+                options={[
+                  { value: 'excl', label: 'Excluding tax' },
+                  { value: 'incl', label: 'Including tax' },
+                ]}
+                style={{ width: '100%' }}
+              />
+            </div>
+            <div>
+              <Label>Cart & checkout price display</Label>
+              <Select
+                value={config.displayPricesCartCheckout}
+                onChange={(e) =>
+                  update({
+                    displayPricesCartCheckout:
+                      e.target.value as TaxConfig['displayPricesCartCheckout'],
+                  })
+                }
+                options={[
+                  { value: 'excl', label: 'Excluding tax' },
+                  { value: 'incl', label: 'Including tax' },
+                ]}
+                style={{ width: '100%' }}
+              />
+            </div>
+          </div>
+          <div>
+            <Label>Price display suffix</Label>
+            <Input
+              value={config.priceDisplaySuffix}
+              placeholder="incl. VAT  •  or: ex. GST"
+              onChange={(e) => update({ priceDisplaySuffix: e.target.value })}
+            />
+            <FieldDescription>
+              Appended after every rendered price. Use the <code>{'{rate}'}</code> placeholder to
+              inline the active rate (e.g. <code>inc. {'{rate}'} VAT</code> → <code>inc. 8% VAT</code>).
+            </FieldDescription>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div>
+              <Label>Round tax</Label>
+              <Select
+                value={config.roundAtSubtotalLevel ? 'subtotal' : 'per-line'}
+                onChange={(e) =>
+                  update({ roundAtSubtotalLevel: e.target.value === 'subtotal' })
+                }
+                options={[
+                  { value: 'subtotal', label: 'At subtotal level' },
+                  { value: 'per-line', label: 'Per line item (reserved)' },
+                ]}
+                style={{ width: '100%' }}
+              />
+              <FieldDescription>
+                Per-line rounding is reserved for future multi-class support; the single-rate
+                engine rounds at the subtotal either way.
+              </FieldDescription>
+            </div>
+            <div>
+              <Label>Checkout tax row</Label>
+              <Select
+                value={config.displayTaxTotals}
+                onChange={(e) =>
+                  update({ displayTaxTotals: e.target.value as TaxConfig['displayTaxTotals'] })
+                }
+                options={[
+                  { value: 'single', label: 'Single "Tax" row' },
+                  { value: 'itemized', label: 'Itemized per class (reserved)' },
+                ]}
+                style={{ width: '100%' }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

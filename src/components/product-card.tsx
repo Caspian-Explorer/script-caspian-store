@@ -1,11 +1,12 @@
 'use client';
 
-import type { InventorySettings, Product } from '../types';
+import type { InventorySettings, Product, TaxConfig } from '../types';
 import { useCaspianLink, useCaspianImage } from '../provider/caspian-store-provider';
 import { useT } from '../i18n/locale-context';
 import { Badge } from '../ui/misc';
 import { cn } from '../utils/cn';
 import { resolveStockBadge } from '../utils/inventory';
+import { renderPriceSuffix } from '../utils/tax';
 
 export interface ProductCardProps {
   product: Product;
@@ -20,6 +21,11 @@ export interface ProductCardProps {
    * `SiteSettings.inventory` upstream. Added in v2.9.
    */
   inventory?: InventorySettings;
+  /**
+   * Tax display config. When set, the card renders the configured
+   * `priceDisplaySuffix` after the price (e.g. "incl. VAT"). Added in v2.12.
+   */
+  taxConfig?: TaxConfig;
 }
 
 export function ProductCard({
@@ -28,12 +34,14 @@ export function ProductCard({
   className,
   formatPrice = (p) => `$${p.toFixed(2)}`,
   inventory,
+  taxConfig,
 }: ProductCardProps) {
   const Link = useCaspianLink();
   const Image = useCaspianImage();
   const t = useT();
   const img = product.images?.[0];
   const stockBadge = inventory ? resolveStockBadge(product, inventory) : null;
+  const priceSuffix = renderPriceSuffix(taxConfig);
 
   return (
     <Link href={getProductHref(product.id)} className={cn('caspian-product-card', className)}>
@@ -77,7 +85,14 @@ export function ProductCard({
             {product.brand}
           </p>
           <p style={{ fontSize: 15, fontWeight: 500, margin: 0, lineHeight: 1.3 }}>{product.name}</p>
-          <p style={{ fontSize: 15, fontWeight: 600, margin: 0 }}>{formatPrice(product.price)}</p>
+          <p style={{ fontSize: 15, fontWeight: 600, margin: 0 }}>
+            {formatPrice(product.price)}
+            {priceSuffix && (
+              <span style={{ fontWeight: 400, color: '#888', fontSize: 12, marginLeft: 6 }}>
+                {priceSuffix}
+              </span>
+            )}
+          </p>
         </div>
       </div>
     </Link>

@@ -1,6 +1,6 @@
 'use client';
 
-import type { InventorySettings, Product } from '../types';
+import type { InventorySettings, Product, TaxConfig } from '../types';
 import { ProductCard } from './product-card';
 import { Skeleton } from '../ui/misc';
 import { useT } from '../i18n/locale-context';
@@ -19,6 +19,11 @@ export interface ProductGridProps {
    * cards skip stock badging — preserving pre-v2.9 behavior. Added in v2.9.
    */
   inventory?: InventorySettings;
+  /**
+   * Forwarded to every `<ProductCard>` so the price-display suffix renders.
+   * Added in v2.12.
+   */
+  taxConfig?: TaxConfig;
 }
 
 export function ProductGrid({
@@ -30,6 +35,7 @@ export function ProductGrid({
   emptyMessage,
   className,
   inventory,
+  taxConfig,
 }: ProductGridProps) {
   const t = useT();
   const empty = emptyMessage ?? t('storefront.empty');
@@ -66,6 +72,7 @@ export function ProductGrid({
           getProductHref={getProductHref}
           formatPrice={formatPrice}
           inventory={inventory}
+          taxConfig={taxConfig}
         />
       ))}
     </div>

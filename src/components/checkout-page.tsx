@@ -253,12 +253,15 @@ export function CheckoutPage({
     site?.shippingOptions?.hideRatesWhenFreeAvailable,
   ]);
 
-  // Tax estimate.
+  // Tax estimate. v2.12 honors `SiteSettings.taxConfig.taxBasedOn` to pick
+  // which country code drives the per-country rate lookup.
   const taxAmount = useMemo(() => {
     if (!site?.taxMode || site.taxMode === 'none') return 0;
     if (site.taxMode === 'flat') return subtotal * (site.flatTaxRate ?? 0);
-    // per-country
-    const row = site.supportedCountries?.find((c) => c.code === form.countryCode);
+    const mode = site.taxConfig?.taxBasedOn ?? 'shipping';
+    const taxCountry =
+      mode === 'store' ? (site.country ?? '') : form.countryCode;
+    const row = site.supportedCountries?.find((c) => c.code === taxCountry);
     return subtotal * (row?.taxRate ?? 0);
   }, [site, subtotal, form.countryCode]);
 

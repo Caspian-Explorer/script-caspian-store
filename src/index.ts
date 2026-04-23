@@ -597,6 +597,8 @@ export type {
   EmailTemplate,
   EmailTemplateKey,
   EmailAudience,
+  // v2.12 additions — tax display/calc options
+  TaxConfig,
 } from './types';
 export { EMAIL_TEMPLATE_KEYS } from './types';
 export {
@@ -634,6 +636,11 @@ export {
   resolveStockBadge,
   type StockBadgeKind,
 } from './utils/inventory';
+export {
+  DEFAULT_TAX_CONFIG,
+  resolveTaxCountryCode,
+  renderPriceSuffix,
+} from './utils/tax';
 
 // --- Library metadata ---
 export { CASPIAN_STORE_VERSION } from './version';

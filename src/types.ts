@@ -118,6 +118,13 @@ export interface Order {
   shippingCost: number;
   discount: number;
   promoCode: string | null;
+  /**
+   * Tax amount on the order, in the same currency as `total`. Optional for
+   * backward compat — orders created before v2.12 won't have this field.
+   * When present, `total = subtotal + shippingCost + tax - discount`.
+   * Added in v2.12.
+   */
+  tax?: number;
   total: number;
   createdAt: Timestamp;
   updatedAt?: Timestamp;
@@ -254,6 +261,57 @@ export interface SocialLink {
  * - `none`: no tax row rendered anywhere.
  */
 export type TaxMode = 'flat' | 'per-country' | 'none';
+
+/**
+ * Display + calculation preferences layered on top of the existing
+ * `taxMode` / `flatTaxRate` / per-country rate surface. None of these are
+ * required — defaults preserve pre-v2.12 behavior. Added in v2.12.
+ *
+ * Full WooCommerce-parity tax classes and multi-rate tables are intentionally
+ * out of scope for v2.x — they would require a parallel collection schema
+ * that conflicts with the existing `SiteSettings.supportedCountries[].taxRate`
+ * field. Revisit as a v3 breaking change.
+ */
+export interface TaxConfig {
+  /**
+   * When `true`, prices entered by the merchant in the product editor are
+   * treated as *including* tax — the storefront strips it out on the fly.
+   * When `false` (default, pre-v2.12 behavior), prices are tax-exclusive.
+   */
+  pricesEnteredWithTax: boolean;
+  /**
+   * Which address drives the rate lookup under `taxMode: 'per-country'`.
+   * - `shipping` (default): use the shopper's shipping-address country.
+   * - `billing`: use the shopper's billing-address country (reserved — checkout
+   *   doesn't collect a separate billing address yet; falls back to shipping).
+   * - `store`: use `SiteSettings.country` regardless of where the shopper is.
+   */
+  taxBasedOn: 'shipping' | 'billing' | 'store';
+  /**
+   * When `true`, tax is computed once on the subtotal and rounded; when
+   * `false`, tax is computed per line and each line rounded before summing.
+   * Only matters once per-line tax is implemented (stored as
+   * `OrderItem.taxAmount`); today's single-rate engine is unaffected.
+   */
+  roundAtSubtotalLevel: boolean;
+  /** Whether PLP/PDP prices render tax-inclusive (`incl`) or tax-exclusive (`excl`). Default `excl`. */
+  displayPricesInShop: 'incl' | 'excl';
+  /** Same, for the cart and checkout pages. Default `excl`. */
+  displayPricesCartCheckout: 'incl' | 'excl';
+  /**
+   * Suffix appended after every rendered price (e.g. `"incl. VAT"`, `"ex. GST"`).
+   * Empty string to suppress. Supports the `{rate}` placeholder — resolved to
+   * the active decimal rate (e.g. `0.08` → `"8%"`).
+   */
+  priceDisplaySuffix: string;
+  /**
+   * How tax totals render on the checkout summary.
+   * - `single`: one "Tax: $X" row (default, matches pre-v2.12 behavior).
+   * - `itemized`: one row per tax class — reserved for v3 multi-class work;
+   *   with today's single-rate engine this renders the same as `single`.
+   */
+  displayTaxTotals: 'single' | 'itemized';
+}
 
 /**
  * A country the store sells to. Populates the country dropdown in checkout —
@@ -553,6 +611,8 @@ export interface SiteSettings {
    * falls back to the global ISO 3166 list. Added in v2.5.
    */
   supportedCountries?: SupportedCountry[];
+  /** Tax display + calculation preferences. Additive; defaults preserve pre-v2.12 behavior. Added in v2.12. */
+  taxConfig?: TaxConfig;
   /** Maintenance / pre-launch splash. Added in v2.7. */
   comingSoon?: ComingSoonSettings;
   /** Price formatting overrides. Added in v2.7. */

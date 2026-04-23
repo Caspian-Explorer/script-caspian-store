@@ -16,6 +16,37 @@ Do not omit the heading, rename it, or fold it into `### Notes`. This is how
 customers tell at a glance whether an upgrade needs attention.
 -->
 
+## v2.12.0 — Tax display + calculation options (C2)
+
+Closes Release C. Layers WooCommerce-style tax **display and calculation preferences** on top of the existing v2.5 single-rate tax surface (`SiteSettings.taxMode` + `flatTaxRate` + per-country rates). Full tax-class + multi-rate-table schema is intentionally out of scope for v2.x — it would require a parallel collection design that conflicts with the active `supportedCountries[].taxRate` field. Revisit as a v3 breaking change.
+
+### Added
+
+- **`SiteSettings.taxConfig`** — new optional object with seven fields:
+  - `pricesEnteredWithTax: boolean` — whether entered prices include tax.
+  - `taxBasedOn: 'shipping' | 'billing' | 'store'` — drives rate lookup under `taxMode: 'per-country'`. (Billing falls back to shipping — checkout doesn't collect a separate billing address yet.)
+  - `roundAtSubtotalLevel: boolean` — reserved for future per-line tax work.
+  - `displayPricesInShop: 'incl' | 'excl'` — PLP / PDP price-display mode.
+  - `displayPricesCartCheckout: 'incl' | 'excl'` — cart / checkout mode.
+  - `priceDisplaySuffix: string` — e.g. `"incl. VAT"` or `"ex. {rate} GST"`; supports the `{rate}` placeholder.
+  - `displayTaxTotals: 'single' | 'itemized'` — reserved for multi-class work.
+  All fields default to pre-v2.12 behavior when `taxConfig` is absent.
+- **`Order.tax?: number`** (additive, optional). When present, `total = subtotal + shippingCost + tax - discount`. Existing orders without the field continue to work — the storefront reads `total` directly.
+- **Admin surface** — a new "Tax display options" sub-section inside the existing "Tax & supported countries" block at `/admin/settings`. Opt-in via a top-level checkbox so merchants who don't care see no new UI.
+- **Checkout tax-based-on honoring** — `<CheckoutPage>` now picks the rate-lookup country from `taxConfig.taxBasedOn === 'store'` (uses `SiteSettings.country`) or defaults to the shopper's shipping-address country.
+- **Price-display suffix wiring** — `<ProductCard>` renders the configured suffix after every price (muted, small). Threaded through `<ProductGrid>` and `<ProductListPage>` automatically.
+- **`src/utils/tax.ts`** — new helper module exporting `DEFAULT_TAX_CONFIG`, `resolveTaxCountryCode(site, shippingCountry, billingCountry?)`, and `renderPriceSuffix(config, rate?)` for consumers bypassing the built-in components.
+
+### Exports added
+
+`TaxConfig` type; `DEFAULT_TAX_CONFIG`, `resolveTaxCountryCode`, `renderPriceSuffix` from `./utils/tax`; new `taxConfig` props on `<ProductCard>`, `<ProductGrid>`, `<ProductListPage>`.
+
+### No consumer action required
+
+Pure additive release — no new Firestore collections, no rules changes, no migrations. Stores that don't set `SiteSettings.taxConfig` get identical pre-v2.12 behavior. The `Order.tax` field is optional and defaults to `undefined` — existing order-confirmation pages and admin views continue to render `total` without change.
+
+---
+
 ## v2.11.0 — Transactional email system (C1)
 
 First half of Release C. The library now ships a complete transactional email surface: admin UI for editing per-type templates, global sender settings, reference Cloud Functions that listen on `orders/{id}` writes and deliver via SendGrid, and a callable for the "Send test" button.
