@@ -3,12 +3,14 @@ export {
   AdminShell,
   DEFAULT_ADMIN_NAV,
   SETTINGS_SUB_NAV,
+  PLUGINS_SUB_NAV,
   type AdminShellProps,
   type AdminNavItem,
   type AdminNavLeaf,
   type AdminNavGroup,
 } from './admin-shell';
 export { AdminSettingsShell, type AdminSettingsShellProps } from './admin-settings-shell';
+export { AdminPluginsShell, type AdminPluginsShellProps } from './admin-plugins-shell';
 export { AdminDashboard, type AdminDashboardProps } from './admin-dashboard';
 export {
   AdminProductsList,

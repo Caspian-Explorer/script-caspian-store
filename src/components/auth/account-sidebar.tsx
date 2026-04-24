@@ -1,7 +1,6 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { useCaspianNavigation } from '../../provider/caspian-store-provider';
 import {
   HeartIcon,
   LockIcon,
@@ -21,20 +20,26 @@ export interface AccountSidebarItem {
 export interface AccountSidebarProps {
   items: AccountSidebarItem[];
   active: AccountSection;
-  basePath: string;
+  /**
+   * Called when the user picks a section. Parents should set their own state
+   * here so the UI swaps synchronously, then optionally mirror to the URL for
+   * deep-linking / history. Driving the view from local state rather than the
+   * navigation adapter's `searchParams` keeps the panel switch working even on
+   * consumer adapters whose `searchParams` isn't reactive.
+   */
+  onSelect: (section: AccountSection) => void;
   className?: string;
 }
 
 /**
  * Left-rail nav for `<AccountPage>`. Renders as a vertical list on desktop and
  * as a horizontal scrollable strip on mobile (via the `caspian-account-sidebar`
- * class hooked up in globals.css). Section switching is URL-driven
- * (`?section=<id>`) so deep-links from the header dropdown land on the right
- * panel and browser back/forward works.
+ * class hooked up in globals.css). Section switching fires `onSelect` — the
+ * parent owns state and optionally mirrors to the URL. Keeping the view off
+ * the navigation adapter's `searchParams` means the panel swaps synchronously
+ * on click even when the consumer's adapter isn't reactive on query changes.
  */
-export function AccountSidebar({ items, active, basePath, className }: AccountSidebarProps) {
-  const nav = useCaspianNavigation();
-
+export function AccountSidebar({ items, active, onSelect, className }: AccountSidebarProps) {
   return (
     <nav
       aria-label="Account sections"
@@ -52,12 +57,11 @@ export function AccountSidebar({ items, active, basePath, className }: AccountSi
     >
       {items.map((item) => {
         const isActive = item.id === active;
-        const href = item.id === 'profile' ? basePath : `${basePath}?section=${item.id}`;
         return (
           <button
             key={item.id}
             type="button"
-            onClick={() => nav.push(href)}
+            onClick={() => onSelect(item.id)}
             aria-current={isActive ? 'page' : undefined}
             className="caspian-account-sidebar__item"
             style={{

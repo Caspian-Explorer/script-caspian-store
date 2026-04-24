@@ -800,6 +800,12 @@ export const DEFAULT_MESSAGES: MessageDict = {
   'admin.settings.nav.languages': 'Languages',
   'admin.settings.categories': 'Categories',
 
+  // Admin plugins (v5.0.0, mod1197) — separate page for pluggable providers
+  'admin.plugins.title': 'Plugins',
+  'admin.plugins.subtitle':
+    'Manage shipping carriers, payment gateways, and email providers.',
+  'admin.plugins.categories': 'Categories',
+
   // Admin About — errors on this installation (mod1182)
   'admin.about.errors.title': 'Errors on this installation',
   'admin.about.errors.description':

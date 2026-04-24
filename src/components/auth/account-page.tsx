@@ -1,5 +1,6 @@
 'use client';
 
+import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../../context/auth-context';
 import { useCaspianLink, useCaspianNavigation } from '../../provider/caspian-store-provider';
 import { useT } from '../../i18n/locale-context';
@@ -46,6 +47,12 @@ function resolveSection(searchParams: URLSearchParams | undefined): AccountSecti
   return (VALID_SECTIONS as string[]).includes(raw) ? (raw as AccountSection) : 'profile';
 }
 
+function readWindowSection(): AccountSection {
+  if (typeof window === 'undefined') return 'profile';
+  const raw = new URLSearchParams(window.location.search).get('section') ?? '';
+  return (VALID_SECTIONS as string[]).includes(raw) ? (raw as AccountSection) : 'profile';
+}
+
 export function AccountPage({
   signInHref = '/login',
   hideOrders,
@@ -61,6 +68,37 @@ export function AccountPage({
   const Link = useCaspianLink();
   const nav = useCaspianNavigation();
   const t = useT();
+
+  const [active, setActive] = useState<AccountSection>(() =>
+    resolveSection(nav.searchParams) !== 'profile'
+      ? resolveSection(nav.searchParams)
+      : readWindowSection(),
+  );
+
+  // Keep local state in sync with the URL for: (a) deep-links from the header
+  // dropdown, (b) browser back/forward (popstate), (c) consumer adapters whose
+  // `searchParams` IS reactive (nav.searchParams flips → we pick it up).
+  useEffect(() => {
+    const fromNav = resolveSection(nav.searchParams);
+    if (fromNav !== active) setActive(fromNav);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nav.searchParams]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const onPop = () => setActive(readWindowSection());
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
+
+  const handleSelect = useCallback(
+    (next: AccountSection) => {
+      setActive(next);
+      const href = next === 'profile' ? basePath : `${basePath}?section=${next}`;
+      nav.push(href);
+    },
+    [nav, basePath],
+  );
 
   if (loading) return <p style={{ padding: 40, color: '#888' }}>{t('common.loading')}</p>;
 
@@ -84,7 +122,6 @@ export function AccountPage({
   };
 
   const displayedName = userProfile?.displayName || user.email;
-  const active = resolveSection(nav.searchParams);
 
   const sidebarItems: AccountSidebarItem[] = [
     { id: 'profile', label: t('account.menu.profile'), icon: ACCOUNT_SECTION_ICONS.profile },
@@ -159,7 +196,7 @@ export function AccountPage({
       </header>
 
       <div className="caspian-account-grid">
-        <AccountSidebar items={sidebarItems} active={active} basePath={basePath} />
+        <AccountSidebar items={sidebarItems} active={active} onSelect={handleSelect} />
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12, minWidth: 0 }}>
           {active === 'profile' && (
             <>

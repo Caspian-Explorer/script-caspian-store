@@ -6,9 +6,6 @@ import { useT } from '../i18n/locale-context';
 import { cn } from '../utils/cn';
 import { SETTINGS_SUB_NAV } from './admin-shell';
 import { AdminSiteSettingsPage } from './admin-site-settings-page';
-import { AdminShippingPluginsPage } from './admin-shipping-plugins-page';
-import { AdminPaymentPluginsPage } from './admin-payment-plugins-page';
-import { AdminEmailPluginsPage } from './admin-email-plugins-page';
 import { AdminEmailsPage } from './admin-emails-page';
 import { AdminLanguagesPage } from './admin-languages-page';
 
@@ -22,24 +19,31 @@ export interface AdminSettingsShellProps {
  * Reads the current pathname from the framework-agnostic navigation adapter
  * and renders the matching sub-page. Landing on `/admin/settings` (no slug)
  * redirects to `/admin/settings/general` so the URL always names the active
- * panel. The individual page components are unchanged — this shell just wraps
- * them in a two-column layout modeled on AdminAppearancePage. Sidebar visual
- * styling was aligned with AdminAppearancePage's "Categories" menu in v4.1.1.
+ * panel. Plugin panels (shipping, payments, email providers) moved to
+ * AdminPluginsShell in v5.0.0 (mod1197); legacy URLs still redirect there
+ * for one release so existing bookmarks don't 404.
  */
 export function AdminSettingsShell({ className }: AdminSettingsShellProps) {
   const nav = useCaspianNavigation();
   const Link = useCaspianLink();
   const t = useT();
 
-  const slug = deriveSlug(nav.pathname);
+  const raw = deriveRawSlug(nav.pathname);
 
   useEffect(() => {
-    if (slug === null) {
+    if (raw === null) {
       nav.replace('/admin/settings/general');
+      return;
     }
-  }, [slug, nav]);
+    if (raw.kind === 'legacyPlugin') {
+      nav.replace(`/admin/plugins/${raw.slug}`);
+    }
+  }, [raw, nav]);
 
-  if (slug === null) return null;
+  if (raw === null) return null;
+  if (raw.kind === 'legacyPlugin') return null;
+
+  const slug = raw.slug;
 
   return (
     <div className={className}>
@@ -115,12 +119,6 @@ function SettingsPanel({ slug }: { slug: SettingsSlug }): ReactNode {
   switch (slug) {
     case 'general':
       return <AdminSiteSettingsPage />;
-    case 'shipping':
-      return <AdminShippingPluginsPage />;
-    case 'payments':
-      return <AdminPaymentPluginsPage />;
-    case 'email-providers':
-      return <AdminEmailPluginsPage />;
     case 'emails':
       return <AdminEmailsPage />;
     case 'languages':
@@ -128,21 +126,30 @@ function SettingsPanel({ slug }: { slug: SettingsSlug }): ReactNode {
   }
 }
 
-type SettingsSlug = 'general' | 'shipping' | 'payments' | 'email-providers' | 'emails' | 'languages';
+type SettingsSlug = 'general' | 'emails' | 'languages';
+type LegacyPluginSlug = 'shipping' | 'payments' | 'email-providers';
 
-const KNOWN_SLUGS: readonly SettingsSlug[] = [
-  'general',
+const KNOWN_SLUGS: readonly SettingsSlug[] = ['general', 'emails', 'languages'];
+const LEGACY_PLUGIN_SLUGS: readonly LegacyPluginSlug[] = [
   'shipping',
   'payments',
   'email-providers',
-  'emails',
-  'languages',
 ];
 
-function deriveSlug(pathname: string): SettingsSlug | null {
+type RawSlug =
+  | { kind: 'settings'; slug: SettingsSlug }
+  | { kind: 'legacyPlugin'; slug: LegacyPluginSlug };
+
+function deriveRawSlug(pathname: string): RawSlug | null {
   const match = pathname.match(/^\/admin\/settings\/?(.*)$/);
-  if (!match) return 'general';
+  if (!match) return { kind: 'settings', slug: 'general' };
   const rest = match[1].split('/')[0];
   if (!rest) return null;
-  return (KNOWN_SLUGS as readonly string[]).includes(rest) ? (rest as SettingsSlug) : 'general';
+  if ((LEGACY_PLUGIN_SLUGS as readonly string[]).includes(rest)) {
+    return { kind: 'legacyPlugin', slug: rest as LegacyPluginSlug };
+  }
+  if ((KNOWN_SLUGS as readonly string[]).includes(rest)) {
+    return { kind: 'settings', slug: rest as SettingsSlug };
+  }
+  return { kind: 'settings', slug: 'general' };
 }

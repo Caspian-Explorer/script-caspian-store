@@ -417,3 +417,14 @@ export function InfoIcon(props: IconProps) {
     </svg>
   );
 }
+
+export function PlugIcon(props: IconProps) {
+  return (
+    <svg {...svgDefaults(props)}>
+      <path d="M9 2v6" />
+      <path d="M15 2v6" />
+      <path d="M6 8h12v3a6 6 0 1 1-12 0V8z" />
+      <path d="M12 17v5" />
+    </svg>
+  );
+}

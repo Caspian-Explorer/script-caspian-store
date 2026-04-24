@@ -26,6 +26,7 @@ import {
   MenuIcon,
   PackageIcon,
   PaletteIcon,
+  PlugIcon,
   ReceiptIcon,
   SettingsIcon,
   ShoppingCartIcon,
@@ -114,6 +115,7 @@ export const DEFAULT_ADMIN_NAV: AdminNavItem[] = [
     ],
   },
   { href: '/admin/appearance', label: 'Appearance', icon: <PaletteIcon size={ICON_SIZE} /> },
+  { href: '/admin/plugins', label: 'Plugins', icon: <PlugIcon size={ICON_SIZE} /> },
   { href: '/admin/settings', label: 'Settings', icon: <SettingsIcon size={ICON_SIZE} /> },
   { href: '/admin/about', label: 'About', icon: <InfoIcon size={ICON_SIZE} /> },
 ];
@@ -122,15 +124,20 @@ export const DEFAULT_ADMIN_NAV: AdminNavItem[] = [
 // surfaces share the same ordering and icon set.
 export const SETTINGS_SUB_NAV: AdminNavLeaf[] = [
   { href: '/admin/settings/general', label: 'General', icon: <SlidersIcon size={ICON_SIZE} /> },
-  { href: '/admin/settings/shipping', label: 'Shipping', icon: <TruckIcon size={ICON_SIZE} /> },
-  { href: '/admin/settings/payments', label: 'Payments', icon: <CreditCardIcon size={ICON_SIZE} /> },
+  { href: '/admin/settings/emails', label: 'Emails', icon: <InboxIcon size={ICON_SIZE} /> },
+  { href: '/admin/settings/languages', label: 'Languages', icon: <GlobeIcon size={ICON_SIZE} /> },
+];
+
+// Plugins sub-sidebar items. Split out from SETTINGS_SUB_NAV in v5.0.0
+// (mod1197) when plugin management became its own top-level admin area.
+export const PLUGINS_SUB_NAV: AdminNavLeaf[] = [
+  { href: '/admin/plugins/shipping', label: 'Shipping', icon: <TruckIcon size={ICON_SIZE} /> },
+  { href: '/admin/plugins/payments', label: 'Payments', icon: <CreditCardIcon size={ICON_SIZE} /> },
   {
-    href: '/admin/settings/email-providers',
+    href: '/admin/plugins/email-providers',
     label: 'Email providers',
     icon: <AtSignIcon size={ICON_SIZE} />,
   },
-  { href: '/admin/settings/emails', label: 'Emails', icon: <InboxIcon size={ICON_SIZE} /> },
-  { href: '/admin/settings/languages', label: 'Languages', icon: <GlobeIcon size={ICON_SIZE} /> },
 ];
 
 export interface AdminShellProps {

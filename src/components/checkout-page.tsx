@@ -350,7 +350,7 @@ export function CheckoutPage({
         <p style={{ color: '#666', marginTop: 8 }}>{t('checkout.noPaymentConfigured.body')}</p>
         {userProfile?.role === 'admin' && (
           <div style={{ marginTop: 16 }}>
-            <Link href="/admin/settings/payments">{t('checkout.noPaymentConfigured.adminLink')}</Link>
+            <Link href="/admin/plugins/payments">{t('checkout.noPaymentConfigured.adminLink')}</Link>
           </div>
         )}
       </div>

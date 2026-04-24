@@ -83,12 +83,13 @@ function toAdminPath(sub) {
 }
 
 // Map a scaffolder sub-route to the file path the example app must contain.
-// `settings` is special — the scaffolder writes it as a `[[...slug]]` catch-all
-// (see scaffold/create.mjs around the AdminSettingsShell write), so the example
-// file lives at `settings/[[...slug]]/page.tsx`, not `settings/page.tsx`.
+// `settings` and `plugins` are special — the scaffolder writes them as
+// `[[...slug]]` catch-alls (see scaffold/create.mjs around the
+// AdminSettingsShell / AdminPluginsShell writes), so the example file lives
+// at `<sub>/[[...slug]]/page.tsx`, not `<sub>/page.tsx`.
 function exampleFileFor(sub) {
-  if (sub === 'settings') {
-    return join(EXAMPLE_ADMIN_DIR, 'settings', '[[...slug]]', 'page.tsx');
+  if (sub === 'settings' || sub === 'plugins') {
+    return join(EXAMPLE_ADMIN_DIR, sub, '[[...slug]]', 'page.tsx');
   }
   if (sub === '') {
     return join(EXAMPLE_ADMIN_DIR, 'page.tsx');

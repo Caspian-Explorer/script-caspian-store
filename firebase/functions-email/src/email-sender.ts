@@ -10,7 +10,7 @@
  * rules. This restores the zero-secrets invariant for the email codebase:
  * `firebase deploy --only functions:caspian-email` works immediately, even
  * before any provider is configured — the function is just dormant until an
- * admin installs one at /admin/settings/email-providers.
+ * admin installs one at /admin/plugins/email-providers.
  *
  * Supported providers in v2.14: SendGrid, Brevo. New providers land by PR
  * adding a branch to `EMAIL_PROVIDERS` below plus a matching catalog entry
@@ -68,7 +68,7 @@ export async function send(message: SendableMessage): Promise<SendResult> {
     logger.warn(
       '[email-sender] No enabled emailPluginInstalls doc — email to ' +
         JSON.stringify(message.to) +
-        ' not sent. Install a provider at /admin/settings/email-providers.',
+        ' not sent. Install a provider at /admin/plugins/email-providers.',
     );
     return { ok: false, error: 'No email provider is configured.' };
   }

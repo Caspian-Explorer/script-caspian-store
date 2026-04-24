@@ -13,7 +13,7 @@
  *                                    #   + webhook) — admin codebase is always scaffolded
  *     [--with-email]                # also copy firebase/functions-email/ (transactional
  *                                    #   email via SendGrid/Brevo plugins — configure at
- *                                    #   /admin/settings/email-providers after deploy)
+ *                                    #   /admin/plugins/email-providers after deploy)
  *     [--with-functions]            # deprecated alias for --with-stripe (back-compat)
  *     [--no-apphosting]             # suppress apphosting.yaml in the output (default: emit).
  *                                    #   Useful for Vercel deployments where the file would
@@ -588,9 +588,10 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
 
 // v3.0.0 reshuffle — the sidebar now groups under /admin/settings/* and
 // folds Todos / Notifications / Search-terms into the Dashboard. The
-// standalone routes for those pages (and the flat shipping/payment/email
-// plugin routes) are gone. See scripts/check-scaffold-routes.mjs for the
-// allowlist of sub-routes that nest under Settings.
+// standalone routes for those pages are gone. v5.0.0 split shipping /
+// payment / email plugins out to /admin/plugins/*. Both catch-all shells
+// are emitted below. See scripts/check-scaffold-routes.mjs for the
+// allowlist of sub-routes that nest under each shell.
 const adminRoutes = [
   ['', 'AdminDashboard'],
   ['products', 'AdminProductsList'],
@@ -606,14 +607,15 @@ const adminRoutes = [
   ['collections', 'AdminProductCollectionsPage'],
   ['appearance', 'AdminAppearancePage'],
   ['about', 'AdminAboutPage'],
-  // Settings is a catch-all route (see below); no direct entry here.
+  // Settings and Plugins are catch-all routes (see below); no direct entry here.
   ['settings', 'AdminSettingsShell'],
+  ['plugins', 'AdminPluginsShell'],
 ];
 
 for (const [sub, comp] of adminRoutes) {
-  // `settings` is handled specially via a [[...slug]] catch-all route so the
-  // same shell renders /admin/settings and /admin/settings/<panel>.
-  if (sub === 'settings') continue;
+  // `settings` and `plugins` are handled specially via [[...slug]] catch-all
+  // routes so each shell renders its root and all sub-panels.
+  if (sub === 'settings' || sub === 'plugins') continue;
   const path = sub ? `src/app/admin/${sub}/page.tsx` : `src/app/admin/page.tsx`;
   write(path, `'use client';
 import { ${comp} } from '@caspian-explorer/script-caspian-store';
@@ -623,12 +625,21 @@ export default function Page() { return <${comp} />; }
 
 // ---- Settings catch-all route ----
 // AdminSettingsShell reads the pathname via useCaspianNavigation and renders
-// the matching sub-panel (General / Shipping / Payments / Email providers /
-// Emails / Languages). Using Next's optional catch-all keeps a single file
-// responsible for the whole tree.
+// the matching sub-panel (General / Emails / Languages). Legacy plugin
+// slugs (shipping / payments / email-providers) are transparently redirected
+// to /admin/plugins/* for one release so existing bookmarks keep working.
 write('src/app/admin/settings/[[...slug]]/page.tsx', `'use client';
 import { AdminSettingsShell } from '@caspian-explorer/script-caspian-store';
 export default function Page() { return <AdminSettingsShell />; }
+`);
+
+// ---- Plugins catch-all route (v5.0.0, mod1197) ----
+// AdminPluginsShell is the new home for shipping / payment / email provider
+// management, split out from Settings so pluggable providers have a
+// first-class admin area.
+write('src/app/admin/plugins/[[...slug]]/page.tsx', `'use client';
+import { AdminPluginsShell } from '@caspian-explorer/script-caspian-store';
+export default function Page() { return <AdminPluginsShell />; }
 `);
 
 // ---- Theme preview route ----
@@ -1080,7 +1091,7 @@ npm run dev                  # http://localhost:3000
    npm run deploy:stripe
    \`\`\`
 
-   Then go to \`/admin/settings/payments\`, click **Browse providers → Install** on the Stripe card, paste your publishable (\`pk_...\`) key, save, and click **Enable**. The publishable key lives in Firestore under \`paymentPluginInstalls\`; only server-side secrets live in Cloud Functions secrets.
+   Then go to \`/admin/plugins/payments\`, click **Browse providers → Install** on the Stripe card, paste your publishable (\`pk_...\`) key, save, and click **Enable**. The publishable key lives in Firestore under \`paymentPluginInstalls\`; only server-side secrets live in Cloud Functions secrets.
 
    If you also scaffolded with \`--with-email\`, deploy the email codebase. **No secrets to set** — the provider (SendGrid or Brevo) API key is stored in Firestore under \`emailPluginInstalls\` (admin-only read) and loaded by the dispatcher at runtime:
    \`\`\`bash
@@ -1088,7 +1099,7 @@ npm run dev                  # http://localhost:3000
    npm run deploy:email
    \`\`\`
 
-   Then go to \`/admin/settings/email-providers\`, click **Browse providers → Install** on SendGrid or Brevo, paste the API key, save, and click **Enable**. Order-lifecycle and contact-form emails will start firing the next time a shopper triggers one. Configure sender identity + templates at \`/admin/settings/emails\`.
+   Then go to \`/admin/plugins/email-providers\`, click **Browse providers → Install** on SendGrid or Brevo, paste the API key, save, and click **Enable**. Order-lifecycle and contact-form emails will start firing the next time a shopper triggers one. Configure sender identity + templates at \`/admin/settings/emails\`.
 5. **Seed Firestore:**
    \`\`\`bash
    # After downloading a service-account JSON:
@@ -1144,9 +1155,9 @@ npm run dev                  # http://localhost:3000
 - \`/admin/appearance\` — theme catalog grid (preview + activate)
 - \`/admin-preview/appearance\` — dummy-data preview window (outside \`/admin\` so it escapes the admin shell)
 - \`/admin/settings/general\` — brand / logo / favicon / social / privacy
-- \`/admin/settings/shipping\` — install / configure shipping providers
-- \`/admin/settings/payments\` — install / configure payment providers (Stripe, …)
-- \`/admin/settings/email-providers\` — install / configure email providers (SendGrid, Brevo)
+- \`/admin/plugins/shipping\` — install / configure shipping providers
+- \`/admin/plugins/payments\` — install / configure payment providers (Stripe, …)
+- \`/admin/plugins/email-providers\` — install / configure email providers (SendGrid, Brevo)
 - \`/admin/settings/emails\` — edit transactional email templates
 - \`/admin/settings/languages\` — enable / disable locales
 - \`/admin/about\` — library info + error-log triage surface

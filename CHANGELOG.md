@@ -16,6 +16,54 @@ Do not omit the heading, rename it, or fold it into `### Notes`. This is how
 customers tell at a glance whether an upgrade needs attention.
 -->
 
+## v5.0.0 — Plugins get their own admin page (mod1197)
+
+Shipping, payment, and email plugin management move out of Settings into a dedicated top-level admin area at `/admin/plugins`. Three changes land together:
+
+**New sidebar item.** The main admin sidebar grows a `Plugins` entry between `Appearance` and `Settings`, backed by a new `<AdminPluginsShell>` catch-all component that mirrors the existing `<AdminSettingsShell>` pattern — two-column layout with its own sticky sub-nav (Shipping / Payments / Email providers). The three plugin admin page components themselves (`AdminShippingPluginsPage`, `AdminPaymentPluginsPage`, `AdminEmailPluginsPage`) are unchanged — they just mount under the new shell.
+
+**Settings slims down.** `/admin/settings` now holds only General / Emails / Languages. The three plugin entries are removed from `SETTINGS_SUB_NAV` and the matching panel cases from `<AdminSettingsShell>`. Plugin management being a first-class area is a better fit for how shops actually grow — merchants install providers once at setup time, then live in Settings.
+
+**Old URLs keep working for one release.** `<AdminSettingsShell>` still matches the legacy `shipping`, `payments`, `email-providers` slugs — but instead of rendering, it redirects to `/admin/plugins/*`. So bookmarks, email-to-admin deep links, and the onboarding-todo copy keep working until a future major removes the redirect.
+
+### Consumer action required on upgrade
+
+Consumers must add a new Next.js catch-all route to mount the new shell. Drop this file into your app:
+
+```tsx
+// src/app/admin/plugins/[[...slug]]/page.tsx
+'use client';
+import { AdminPluginsShell } from '@caspian-explorer/script-caspian-store';
+export default function Page() { return <AdminPluginsShell />; }
+```
+
+Fresh scaffolds (`npm create caspian-store@latest`) already include it — this only affects stores created before v5.0.0.
+
+If your app has hardcoded links to `/admin/settings/shipping`, `/admin/settings/payments`, or `/admin/settings/email-providers` (e.g. in docs, onboarding scripts, or helpdesk macros), update them to `/admin/plugins/*`. The old URLs keep redirecting for one release, then will 404.
+
+### Added
+
+- [src/admin/admin-plugins-shell.tsx](src/admin/admin-plugins-shell.tsx): new `<AdminPluginsShell>` component + `AdminPluginsShellProps`. Catch-all shell at `/admin/plugins/<slug>`; landing redirects to `/admin/plugins/shipping`. Mirrors `<AdminSettingsShell>`'s two-column layout.
+- [src/admin/admin-shell.tsx](src/admin/admin-shell.tsx): new `PLUGINS_SUB_NAV` export (Shipping / Payments / Email providers leaves), new `Plugins` top-level entry in `DEFAULT_ADMIN_NAV`.
+- [src/ui/icons.tsx](src/ui/icons.tsx): new `PlugIcon` stroke-based inline SVG used by the Plugins sidebar leaf.
+- [src/i18n/messages.ts](src/i18n/messages.ts): new keys `admin.plugins.title`, `admin.plugins.subtitle`, `admin.plugins.categories`.
+- Public exports: `AdminPluginsShell`, `AdminPluginsShellProps`, `PLUGINS_SUB_NAV`.
+- Scaffolder + example app: new `app/admin/plugins/[[...slug]]/page.tsx` route.
+
+### Changed
+
+- [src/admin/admin-shell.tsx](src/admin/admin-shell.tsx): `SETTINGS_SUB_NAV` trimmed to `general`, `emails`, `languages` — the three plugin entries moved to `PLUGINS_SUB_NAV`.
+- [src/admin/admin-settings-shell.tsx](src/admin/admin-settings-shell.tsx): the shell no longer renders shipping/payment/email-provider panels. If the URL still carries one of those legacy slugs, it issues a client-side redirect to the matching `/admin/plugins/*` URL.
+- [src/components/checkout-page.tsx](src/components/checkout-page.tsx), [src/hooks/use-checkout.ts](src/hooks/use-checkout.ts), [src/services/admin-todo-service.ts](src/services/admin-todo-service.ts), [firebase/functions-email/src/email-sender.ts](firebase/functions-email/src/email-sender.ts): all admin-facing path strings and comments updated from `/admin/settings/{shipping,payments,email-providers}` to `/admin/plugins/*`.
+- [README.md](README.md), [INSTALL.md](INSTALL.md), [scaffold/create.mjs](scaffold/create.mjs) (scaffolded README): admin route listings and setup instructions updated to the new paths.
+- [scripts/check-scaffold-routes.mjs](scripts/check-scaffold-routes.mjs): recognizes `plugins` as a `[[...slug]]` catch-all alongside `settings` when validating example-app routes.
+
+### Fixed
+
+- **Account page: section panel didn't swap on click for some Next.js App Router setups.** The sidebar drove section changes through `nav.push('/account?section=orders')` and assumed the resulting query-string change would re-render `<AccountPage>`. That only works when the consumer's `useNavigation` adapter subscribes to query-string changes (via `useSearchParams()` or equivalent) — on adapters that don't, the URL updated but the panel stayed frozen. `AccountSidebar` now fires `onSelect(sectionId)` instead of navigating internally; `AccountPage` owns `active` as local state, updates it synchronously on click, and mirrors to the URL via `nav.push` afterwards for deep-linking. URL → state is reconciled from `useState` initializer + `nav.searchParams` effect + `popstate` listener, so the panel switches instantly regardless of how the adapter is wired. Breaking for consumers who imported `AccountSidebar` directly and passed `basePath`; the prop is gone — pass `onSelect` instead.
+
+---
+
 ## v4.2.0 — Account page redesign: avatar dropdown, sidebar, wishlist section (mod1194)
 
 The signed-in storefront experience gets a cohesive redesign. Three user-visible changes, one schema addition, and one helper utility — all additive. Closes mod1194.
