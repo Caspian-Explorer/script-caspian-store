@@ -16,6 +16,29 @@ Do not omit the heading, rename it, or fold it into `### Notes`. This is how
 customers tell at a glance whether an upgrade needs attention.
 -->
 
+## v7.3.1 — Unified plugins grid + filter dropdowns
+
+The v7.1.0 `/admin/plugins` page split the list into two sections — an **Installed** table above an **Available plugins** card grid — and offered a chip row (`All / Shipping / Payments / Email`) for filtering. A merchant searching for "stripe" had to visually scan both sections and re-run the chip filter to know the result set.
+
+v7.3.1 folds both into a single card grid. Status becomes a badge (`Installed`) on the card, not a section boundary. The chip row becomes two dropdowns next to the search input:
+
+- **Status** — All / Installed / Available
+- **Category** — All / Shipping / Payments / Email
+
+Enabled installs appear as cards with the `Installed` badge + `Configure` button (linking to `/admin/plugins/<pluginId>/<installId>`). Catalog entries appear as cards with an `Install` button. A catalog entry is listed whether or not it already has installs — merchants with a Flat Rate install can still install a second Flat Rate with different rates, so the catalog card remains reachable.
+
+### No consumer action required
+
+Pure UX patch. Single-mount `<CaspianRoot />` still dispatches `/admin/plugins` the same way; no scaffold change; no public API change. Consumers who linked to the v7.1.0 `?filter=<category>` query parameter keep working — the category dropdown seeds from it. A new `?status=installed|available|all` query parameter is also supported so links to a pre-filtered view work out of the box.
+
+### Changed
+
+- [src/admin/admin-plugins-page.tsx](src/admin/admin-plugins-page.tsx): rewrote the body. New `PluginEntry` discriminated union (`install | catalog`), one `useMemo` builds the merged list, one card grid renders it. Chip `<button>`s replaced with two `<Select>` dropdowns. The separate installed-table and catalog-grid sections are gone. New `PluginCard` component inside the same file renders both install and catalog entries with the right badge + action.
+
+- [src/i18n/messages.ts](src/i18n/messages.ts): added `admin.plugins.status.{label,all,installed,available}`, `admin.plugins.filter.label`, `admin.plugins.badge.installed`, `admin.plugins.empty.all`. Removed obsolete keys: `admin.plugins.installed.{title,empty}`, `admin.plugins.catalog.{title,empty}`, `admin.plugins.col.{category,name,plugin,actions}`.
+
+---
+
 ## v7.3.0 — Surface v7.1.1 plugins sidebar fix above v7.2.0
 
 Version realignment. v7.1.1 shipped a fix so the `Plugins` sidebar header navigates to `/admin/plugins` (not just toggles the submenu), but v7.2.0's "Self-healing LayoutShell" release followed right after and pushed v7.1.1 off the top of the release list — even though v7.2.0's history includes v7.1.1's commit, consumers scanning the releases page saw v7.2.0 and assumed plugin-sidebar behavior came from it. This release puts the plugin-sidebar fix at the visible top without duplicating any code: every consumer on v7.2.0 already has the fix, but upgrading to v7.3.0 confirms it and makes the release ordering match what shipped first.
