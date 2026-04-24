@@ -605,7 +605,6 @@ const adminRoutes = [
   ['categories', 'AdminProductCategoriesPage'],
   ['collections', 'AdminProductCollectionsPage'],
   ['appearance', 'AdminAppearancePage'],
-  ['appearance/preview', 'AdminAppearancePreviewPage'],
   ['about', 'AdminAboutPage'],
   // Settings is a catch-all route (see below); no direct entry here.
   ['settings', 'AdminSettingsShell'],
@@ -630,6 +629,16 @@ export default function Page() { return <${comp} />; }
 write('src/app/admin/settings/[[...slug]]/page.tsx', `'use client';
 import { AdminSettingsShell } from '@caspian-explorer/script-caspian-store';
 export default function Page() { return <AdminSettingsShell />; }
+`);
+
+// ---- Theme preview route ----
+// Lives OUTSIDE /admin on purpose: app/admin/layout.tsx wraps every admin
+// route in AdminGuard + AdminShell, and the popup preview must render a
+// clean storefront mockup — no sidebar, no topbar. `<AdminAppearancePage>`
+// opens this path via window.open() (default previewPath).
+write('src/app/admin-preview/appearance/page.tsx', `'use client';
+import { AdminAppearancePreviewPage } from '@caspian-explorer/script-caspian-store';
+export default function Page() { return <AdminAppearancePreviewPage />; }
 `);
 
 write('src/app/admin/products/new/page.tsx', `'use client';
@@ -1133,7 +1142,7 @@ npm run dev                  # http://localhost:3000
 - \`/admin/orders\`, \`/admin/reviews\`
 - \`/admin/pages\`, \`/admin/faqs\`, \`/admin/journal\`
 - \`/admin/appearance\` — theme catalog grid (preview + activate)
-- \`/admin/appearance/preview\` — dummy-data preview window
+- \`/admin-preview/appearance\` — dummy-data preview window (outside \`/admin\` so it escapes the admin shell)
 - \`/admin/settings/general\` — brand / logo / favicon / social / privacy
 - \`/admin/settings/shipping\` — install / configure shipping providers
 - \`/admin/settings/payments\` — install / configure payment providers (Stripe, …)

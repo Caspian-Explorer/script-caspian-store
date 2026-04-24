@@ -17,6 +17,12 @@ export interface AdminAppearancePreviewPageProps {
  * mockup — so an admin can eyeball a theme without seeding real products.
  * Apply writes the tokens to `scriptSettings/site.theme` and closes the
  * popup; Close just dismisses the window.
+ *
+ * Mount it at `/admin-preview/appearance` (the default `previewPath` in
+ * `<AdminAppearancePage>`). The route lives outside `/admin/**` on purpose:
+ * a route inside `app/admin/` inherits the admin layout (`AdminGuard` +
+ * `AdminShell`), which wraps the popup in a sidebar and topbar instead of
+ * showing a clean storefront mockup.
  */
 export function AdminAppearancePreviewPage({ className }: AdminAppearancePreviewPageProps) {
   const { save, saving } = useScriptSettings();

@@ -17,7 +17,13 @@ import { useToast } from '../ui/toast';
 
 export interface AdminAppearancePageProps {
   className?: string;
-  /** Route the Preview button opens in a popup window. Default: `/admin/appearance/preview`. */
+  /**
+   * Route the Preview button opens in a popup window. Default: `/admin-preview/appearance`.
+   *
+   * The default lives outside `/admin/**` so the popup escapes `app/admin/layout.tsx`
+   * (AdminGuard + AdminShell). Point it back at `/admin/appearance/preview` only if
+   * you have a custom layout that doesn't wrap admin routes in a shell.
+   */
   previewPath?: string;
 }
 
@@ -37,7 +43,7 @@ const CATEGORY_ORDER: readonly ThemeCategory[] = [
 
 export function AdminAppearancePage({
   className,
-  previewPath = '/admin/appearance/preview',
+  previewPath = '/admin-preview/appearance',
 }: AdminAppearancePageProps) {
   const { settings, saving, save } = useScriptSettings();
   const { toast } = useToast();

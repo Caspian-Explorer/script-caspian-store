@@ -16,6 +16,49 @@ Do not omit the heading, rename it, or fold it into `### Notes`. This is how
 customers tell at a glance whether an upgrade needs attention.
 -->
 
+## v4.0.0 — Theme preview escapes the admin shell (mod1190)
+
+The theme-preview popup at `/admin/appearance/preview` was rendering *inside* the admin sidebar + topbar — the popup showed nav items like Dashboard/Catalog/Products wrapped around the storefront mockup, with the underlying appearance page peeking through from behind. Root cause: the preview lived under `/admin/**`, and the example (plus scaffolded) admin layout wraps every `/admin/*` route in `<AdminGuard>` + `<AdminShell>`. In Next.js App Router, a child segment cannot opt out of a parent layout, so the popup inherited the shell whether it wanted it or not.
+
+Fix: relocate the preview route out from under `/admin/`. The new default path is `/admin-preview/appearance` — same component, same query-string, just outside the admin tree so the shell doesn't wrap it. The `previewPath` prop on `<AdminAppearancePage>` still overrides the default for consumers who mount the preview elsewhere.
+
+### Consumer action required on upgrade
+
+Existing consumers who scaffolded or hand-wired the preview at `/admin/appearance/preview` must **either**:
+
+1. **Move to the new default** (recommended — clean popup chrome):
+
+   ```bash
+   # from your consumer site root
+   mkdir -p src/app/admin-preview/appearance
+   mv src/app/admin/appearance/preview/page.tsx src/app/admin-preview/appearance/page.tsx
+   rmdir src/app/admin/appearance/preview
+   ```
+
+2. **Or keep the old URL** by passing the prop explicitly wherever you render `<AdminAppearancePage>`:
+
+   ```diff
+   - <AdminAppearancePage />
+   + <AdminAppearancePage previewPath="/admin/appearance/preview" />
+   ```
+
+   Note: option 2 preserves the bug (preview wrapped in admin shell) — only use it if your custom admin layout does *not* wrap children in `<AdminShell>`.
+
+Fresh `npm create caspian-store@latest` scaffolds get the new layout automatically. `create-caspian-store` sibling — no republish needed; the scaffolder CLI surface is unchanged.
+
+### Fixed
+
+- [src/admin/admin-appearance-page.tsx](src/admin/admin-appearance-page.tsx): `previewPath` default changed from `/admin/appearance/preview` to `/admin-preview/appearance`, so the popup opens a URL that doesn't inherit `app/admin/layout.tsx`. Closes mod1190.
+- [scaffold/create.mjs](scaffold/create.mjs): removed `['appearance/preview', 'AdminAppearancePreviewPage']` from `adminRoutes` (which writes under `src/app/admin/`) and added a one-off `write('src/app/admin-preview/appearance/page.tsx', …)` so scaffolded sites generate the preview route in the new location.
+- [examples/nextjs/app/admin-preview/appearance/page.tsx](examples/nextjs/app/admin-preview/appearance/page.tsx): new file; deleted the old [examples/nextjs/app/admin/appearance/preview/page.tsx](examples/nextjs/app/admin/appearance/preview/page.tsx). `cd examples/nextjs && npm run dev` now previews themes in a clean popup.
+- [scripts/check-scaffold-routes.mjs](scripts/check-scaffold-routes.mjs): `SUBROUTE_ALLOWLIST` cleared (the old `/admin/appearance/preview` entry was only there because the preview lived under `/admin/`; the new path is outside that tree and not part of `adminRoutes`).
+
+### Changed
+
+- [src/admin/admin-appearance-preview-page.tsx](src/admin/admin-appearance-preview-page.tsx): JSDoc updated to explain why the route lives outside `/admin/**`.
+
+---
+
 ## v3.1.1 — Fix admin route 404s in examples/nextjs (mod1189)
 
 The in-repo example app at [examples/nextjs/](examples/nextjs/) had drifted from the canonical scaffolder route list ([scaffold/create.mjs](scaffold/create.mjs)) since the v3.0 sidebar redesign. Nine `/admin/*` sidebar links 404'd when running `cd examples/nextjs && npm run dev` — most visibly `/admin/users`, the one that triggered the bug report. Two further example route files were stale: `app/admin/search-terms/page.tsx` imported `AdminSearchTermsPage`, removed in v3.0.0, breaking `next build` outright; and `app/admin/settings/page.tsx` rendered the pre-v3 `ScriptSettingsPage` instead of the new `AdminSettingsShell` catch-all.

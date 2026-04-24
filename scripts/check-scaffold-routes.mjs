@@ -16,8 +16,8 @@
  * same class of "add X to one side, forget the other" regression. This script
  * is cheap to run on every PR touching admin routing.
  *
- * Allowed exceptions: sub-routes (e.g. `appearance/preview`) live under an
- * existing nav item and don't need their own nav entry.
+ * Allowed exceptions: sub-routes that live under an existing nav item and
+ * don't need their own nav entry (add them to `SUBROUTE_ALLOWLIST` below).
  *
  * Usage:
  *   node scripts/check-scaffold-routes.mjs       # exit 0 on match, 1 on drift
@@ -35,10 +35,10 @@ const SCAFFOLD_FILE = join(repoRoot, 'scaffold', 'create.mjs');
 const EXAMPLE_ADMIN_DIR = join(repoRoot, 'examples', 'nextjs', 'app', 'admin');
 
 // Sub-routes that nest under a parent nav item — valid scaffolder entries
-// without their own nav link. Keep this list tiny and explicit.
-const SUBROUTE_ALLOWLIST = new Set([
-  '/admin/appearance/preview',
-]);
+// without their own nav link. Keep this list tiny and explicit. The theme
+// preview route moved to `/admin-preview/appearance` (outside `/admin/**`)
+// in v4.0.0 and is not part of `adminRoutes`, so it needs no allowlist entry.
+const SUBROUTE_ALLOWLIST = new Set([]);
 
 function extractNavHrefs(src) {
   // Match `{ href: '/admin...', label: ... }` entries inside DEFAULT_ADMIN_NAV.
