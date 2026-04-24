@@ -52,7 +52,16 @@ npm install github:Caspian-Explorer/script-caspian-store#v1.18.2 firebase
 
 For private-repo access, GitHub's `git` over HTTPS or SSH works — same credentials you use for `git clone`.
 
-Peer deps: React 18/19, `firebase` 10 or 11. Next.js consumers: install `next@14` or `next@16` separately.
+Peer deps: React 18/19, `firebase` 10, 11, or 12. Next.js consumers: install `next@14`, `next@15`, or `next@16` separately.
+
+**Upgrading from 5.x to 6.0:** v6.0.0 bumps the dev pins to React 19 and Firebase 12 and the runtime dep `tailwind-merge` to 3. Existing consumers on React 18 / Firebase 11 still work (peer ranges include both), but to upgrade your own app:
+
+```bash
+npm install react@^19 react-dom@^19 firebase@^12
+npm install github:Caspian-Explorer/script-caspian-store#v6.0.0
+```
+
+Newly scaffolded sites (`npm create caspian-store@latest`) get the new versions automatically.
 
 ---
 

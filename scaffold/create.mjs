@@ -174,7 +174,7 @@ const ourScripts = {
 };
 const ourDeps = {
   '@caspian-explorer/script-caspian-store': packageSpec,
-  firebase: '^11.0.0',
+  firebase: '^12.0.0',
   // v13 drops the transitive @tootallnate/once / older @google-cloud/* chain
   // that triggers `npm audit` noise on fresh scaffolds. APIs used by seed.mjs,
   // grant-admin.mjs, and the /api/caspian-store/update route
@@ -250,13 +250,13 @@ if (useCreateNextApp) {
     dependencies: {
       ...ourDeps,
       next: nextVersion,
-      react: '^18.3.0',
-      'react-dom': '^18.3.0',
+      react: '^19.0.0',
+      'react-dom': '^19.0.0',
     },
     devDependencies: {
       '@types/node': '^20.0.0',
-      '@types/react': '^18.3.0',
-      '@types/react-dom': '^18.3.0',
+      '@types/react': '^19.0.0',
+      '@types/react-dom': '^19.0.0',
       typescript: '^5.6.0',
       ...ourDevDeps,
     },

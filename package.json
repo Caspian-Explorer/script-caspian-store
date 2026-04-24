@@ -1,6 +1,6 @@
 {
   "name": "@caspian-explorer/script-caspian-store",
-  "version": "5.0.0",
+  "version": "6.0.0",
   "description": "Framework-agnostic React e-commerce store. Bring your own Firebase. Install into any React app (Next.js, Vite, CRA).",
   "license": "MIT",
   "author": "Caspian-Explorer",
@@ -47,7 +47,7 @@
     "test": "cd firebase && firebase emulators:exec --only firestore,storage \"cd .. && node --test firebase/rules.test.mjs\""
   },
   "peerDependencies": {
-    "firebase": "^11.0.0 || ^10.0.0",
+    "firebase": "^12.0.0 || ^11.0.0 || ^10.0.0",
     "react": "^18.0.0 || ^19.0.0",
     "react-dom": "^18.0.0 || ^19.0.0"
   },
@@ -58,18 +58,18 @@
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "^5.0.0",
-    "@types/react": "^18.3.12",
-    "@types/react-dom": "^18.3.1",
-    "firebase": "^11.0.0",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "firebase": "^12.12.1",
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5",
     "rimraf": "^6.0.1",
     "tsup": "^8.5.1",
     "typescript": "^5.6.3"
   },
   "dependencies": {
     "clsx": "^2.1.1",
-    "tailwind-merge": "^2.5.4"
+    "tailwind-merge": "^3.5.0"
   },
   "engines": {
     "node": ">=18"

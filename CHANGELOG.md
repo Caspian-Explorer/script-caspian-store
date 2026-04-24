@@ -16,6 +16,36 @@ Do not omit the heading, rename it, or fold it into `### Notes`. This is how
 customers tell at a glance whether an upgrade needs attention.
 -->
 
+## v6.0.0 — React 19 + Firebase 12 + tailwind-merge 3
+
+Coordinated major-version dep upgrade. The library compiles cleanly against React 19, Firebase 12, and tailwind-merge 3 with no source changes — `peerDependencies` ranges are widened so consumers still on React 18 or Firebase 10/11 keep working. Also hardens `.gitignore` against accidental commits of Firebase service-account JSON files.
+
+### Consumer action required on upgrade
+
+To move your own app to the React 19 + Firebase 12 stack:
+
+```bash
+npm install react@^19 react-dom@^19 firebase@^12
+npm install github:Caspian-Explorer/script-caspian-store#v6.0.0
+```
+
+Newly scaffolded sites (`npm create caspian-store@latest`) get React 19 + Firebase 12 automatically.
+
+If you intentionally stay on React 18 or Firebase 10/11, no action is required — `peerDependencies` accept `react ^18 || ^19` and `firebase ^10 || ^11 || ^12`.
+
+### Changed
+
+- [package.json](package.json): bumped devDeps `react`/`react-dom` 18→19, `@types/react`/`@types/react-dom` 18→19, `firebase` 11→12; bumped runtime dep `tailwind-merge` 2→3; expanded `peerDependencies.firebase` to `^10 || ^11 || ^12`.
+- [scaffold/create.mjs](scaffold/create.mjs): generated consumer-site `package.json` template now uses `react@^19`, `react-dom@^19`, `firebase@^12`, and matching `@types/react@^19` / `@types/react-dom@^19`.
+- [examples/nextjs/package.json](examples/nextjs/package.json): bumped to match.
+- [INSTALL.md](INSTALL.md): peer-deps line updated; added an "Upgrading from 5.x to 6.0" note with the exact commands.
+
+### Security
+
+- [.gitignore](.gitignore): added `service-account.json`, `serviceAccountKey*.json`, `credentials.json` so the [firebase/seed/grant-admin.mjs](firebase/seed/grant-admin.mjs) and [firebase/seed/seed.mjs](firebase/seed/seed.mjs) workflows can't accidentally commit a Firebase service-account JSON file (CRED007a). The repo had no committed secrets to begin with — this is forward-looking developer hygiene.
+
+---
+
 ## v5.0.0 — Plugins get their own admin page (mod1197)
 
 Shipping, payment, and email plugin management move out of Settings into a dedicated top-level admin area at `/admin/plugins`. Three changes land together:
