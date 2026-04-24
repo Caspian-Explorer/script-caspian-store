@@ -3,6 +3,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import type { SiteSettings } from '../types';
 import { useCaspianFirebase, useCaspianNavigation } from '../provider/caspian-store-provider';
+import { useAuth } from '../context/auth-context';
 import { getSiteSettings } from '../services/site-settings-service';
 import { SiteHeader, type SiteHeaderProps } from './site-header';
 import { SiteFooter, type SiteFooterProps } from './site-footer';
@@ -36,7 +37,9 @@ const PREVIEW_STORAGE_KEY = 'caspian:coming-soon-preview';
  *
  * When `SiteSettings.comingSoon.enabled` is true and the visitor is not on a
  * bypass route or preview session, the children are replaced by a branded
- * splash (`<ComingSoonSplash>`). Added in v2.7.
+ * splash (`<ComingSoonSplash>`). Signed-in admins also bypass the splash when
+ * `SiteSettings.comingSoon.allowAdminPreview` is true (the default). Added in
+ * v2.7; admin auto-bypass fixed in v4.0.1.
  */
 export function LayoutShell({
   children,
@@ -48,6 +51,7 @@ export function LayoutShell({
 }: LayoutShellProps) {
   const { db } = useCaspianFirebase();
   const nav = useCaspianNavigation();
+  const { userProfile } = useAuth();
   const pathname = pathnameOverride ?? nav.pathname;
   const stripped = stripLocalePrefix(pathname);
   const bypass = bypassPrefixes.some((p) => stripped.startsWith(p));
@@ -72,7 +76,14 @@ export function LayoutShell({
 
   if (bypass) return <>{children}</>;
 
-  if (settings?.comingSoon?.enabled && !isPreviewSession(previewQueryKey, settings)) {
+  const allowAdminPreview = settings?.comingSoon?.allowAdminPreview !== false;
+  const isAdminPreview = allowAdminPreview && userProfile?.role === 'admin';
+
+  if (
+    settings?.comingSoon?.enabled &&
+    !isAdminPreview &&
+    !isPreviewSession(previewQueryKey, settings)
+  ) {
     return <ComingSoonSplash settings={settings} />;
   }
 

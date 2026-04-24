@@ -16,6 +16,24 @@ Do not omit the heading, rename it, or fold it into `### Notes`. This is how
 customers tell at a glance whether an upgrade needs attention.
 -->
 
+## v4.0.1 — Coming Soon admin auto-bypass (mod1191)
+
+v2.7.0 shipped Coming Soon mode with a `SiteSettings.comingSoon.allowAdminPreview` flag and release notes promising that *"admins (or merchants sharing a preview link) bypass the splash"*. Only half of that ever worked — the shareable preview link (`?caspian-preview=1` → sessionStorage) was wired up, but signed-in admins were treated no differently from shoppers. When an admin enabled Coming Soon mode and reloaded the storefront, they saw their own splash and had to manually append the query string to preview the site they'd just gated.
+
+Root cause: [src/components/layout-shell.tsx](src/components/layout-shell.tsx) never called `useAuth()`. The `isPreviewSession()` helper only knew about the URL + sessionStorage; it had no way to tell the current user was an admin. The "Let signed-in admins preview" checkbox in the Coming Soon admin section was effectively decorative.
+
+Fix: `LayoutShell` now reads `userProfile` from the auth context and, when `allowAdminPreview` is true (the default), lets users with `role === 'admin'` through the gate automatically. Same source of truth as `<AdminGuard>` — no new admin signal invented. Unchecking "Let signed-in admins preview" now suppresses *both* the query-param bypass and the admin bypass, matching the name on the tin.
+
+### No consumer action required
+
+Client-side gate fix; existing installs pick it up on the next build. No API surface changes, no new settings, no migrations.
+
+### Fixed
+
+- [src/components/layout-shell.tsx](src/components/layout-shell.tsx): `LayoutShell` now imports `useAuth` and adds `userProfile?.role === 'admin'` as a bypass clause alongside the existing preview-session check, gated on `comingSoon.allowAdminPreview`. Closes mod1191.
+
+---
+
 ## v4.0.0 — Theme preview escapes the admin shell (mod1190)
 
 The theme-preview popup at `/admin/appearance/preview` was rendering *inside* the admin sidebar + topbar — the popup showed nav items like Dashboard/Catalog/Products wrapped around the storefront mockup, with the underlying appearance page peeking through from behind. Root cause: the preview lived under `/admin/**`, and the example (plus scaffolded) admin layout wraps every `/admin/*` route in `<AdminGuard>` + `<AdminShell>`. In Next.js App Router, a child segment cannot opt out of a parent layout, so the popup inherited the shell whether it wanted it or not.
