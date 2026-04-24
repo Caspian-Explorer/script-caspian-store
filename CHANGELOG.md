@@ -16,6 +16,58 @@ Do not omit the heading, rename it, or fold it into `### Notes`. This is how
 customers tell at a glance whether an upgrade needs attention.
 -->
 
+## v7.0.1 — Patch vulnerable transients under firebase-admin (npm audit cleanup)
+
+`npm audit` on fresh scaffolds was reporting 5 critical + 3 high + several moderate vulnerabilities under the `firebase-admin` tree — `@google-cloud/firestore <=6.8.0` (credential logging), `protobufjs <=7.5.4` (prototype pollution + RCE), `jsonwebtoken <=8.5.1` (signature validation bypass), `@grpc/grpc-js <1.8.22` (memory allocation), `@tootallnate/once` (control-flow), `uuid <14` (buffer bounds). All resolvable by pushing the tree past `firebase-admin@13.8.0`, which pulls patched transients.
+
+Belt **and** suspenders: floor raised everywhere the library pins `firebase-admin`, plus npm `overrides` added so vulnerable transients can't sneak back in even if a nested package still pins an old version.
+
+### Consumer action required on upgrade
+
+Library-side change protects **fresh scaffolds** automatically. Existing consumer apps still need to update their own `package.json` pins — a library bump doesn't rewrite the consumer's `node_modules`:
+
+```powershell
+# From your consumer app root (e.g. C:\Users\fuadj\GitHub\luivante)
+
+# 1. Bump your root firebase-admin pin + add overrides
+npm pkg set dependencies.firebase-admin='^13.8.0'
+npm pkg set overrides.@tootallnate/once='^3.0.1'
+npm pkg set overrides.http-proxy-agent='^7.0.2'
+npm pkg set overrides.jsonwebtoken='^9.0.2'
+npm pkg set overrides.protobufjs='^7.5.5'
+npm pkg set overrides.uuid='^14.0.0'
+
+# 2. Nuke the lockfile + node_modules so every transient re-resolves
+Remove-Item -Recurse -Force node_modules, package-lock.json -ErrorAction SilentlyContinue
+npm install
+
+# 3. Same thing in each Cloud Functions codebase you scaffolded
+foreach ($dir in 'functions-admin','functions-stripe','functions-email') {
+  if (Test-Path $dir) {
+    Push-Location $dir
+    npm pkg set dependencies.firebase-admin='^13.8.0'
+    Remove-Item -Recurse -Force node_modules, package-lock.json -ErrorAction SilentlyContinue
+    npm install
+    Pop-Location
+  }
+}
+
+npm audit    # expect: 0 vulnerabilities
+```
+
+Why the PowerShell `npm update firebase-admin` approach didn't work: it updates top-level direct deps at the tip of their pinned range, but the vulnerable packages were under `node_modules/@google-cloud/firestore/node_modules/protobufjs` etc. — deeply nested lockfile entries npm respects until you rebuild the tree. Deleting `package-lock.json` + `node_modules` forces fresh resolution of every transient.
+
+### Changed
+
+- [scaffold/create.mjs](scaffold/create.mjs): `firebase-admin` scaffold pin raised from `^13.0.0` to `^13.8.0`. New `overrides` block added to both the hand-rolled and `--use-create-next-app` package.json emission paths. The overrides force `@tootallnate/once@^3.0.1`, `http-proxy-agent@^7.0.2`, `jsonwebtoken@^9.0.2`, `protobufjs@^7.5.5`, `uuid@^14.0.0` regardless of what nested packages pin.
+- [firebase/functions-admin/package.json](firebase/functions-admin/package.json), [firebase/functions-email/package.json](firebase/functions-email/package.json), [firebase/functions-stripe/package.json](firebase/functions-stripe/package.json): `firebase-admin` bumped to `^13.8.0`, existing `overrides` block extended with `jsonwebtoken` and `protobufjs`. Each codebase's own version bumped (0.3.1 → 0.3.2, 0.1.1 → 0.1.2, 0.1.1 → 0.1.2).
+
+### Not touched
+
+- No source code changes. `npm audit` on the library itself was already clean (0 vulns) — this is scaffold + Cloud Functions template hygiene only.
+
+---
+
 ## v7.0.0 — Single-mount CaspianRoot: one file owns every page, forever
 
 Consumer admin routing has been a pain point every time the library adds a page — v5.0.0 (the Plugins page) made it concrete: add a sidebar entry, ship it, and every consumer gets a silent 404 until they create a new route file and restart `next dev`. Telling customers to edit their own app on every library upgrade is not a supportable product, so v7 moves the library to a pattern where that never has to happen again.

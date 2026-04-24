@@ -181,9 +181,30 @@ const ourDeps = {
   // (admin.initializeApp / firestore / auth) are stable from 12 → 13.
   // Kept under `dependencies` (not devDependencies) because
   // /api/caspian-store/update loads firebase-admin at runtime in production.
-  'firebase-admin': '^13.0.0',
+  // Floor raised to 13.8.0 in v7.0.1 — earlier 13.x carried a transitive
+  // chain (jsonwebtoken <=8, protobufjs <=7.5.4, @google-cloud/firestore
+  // <=6.8.0, uuid <14) flagged critical/high by `npm audit`. 13.8.0 pulls
+  // patched versions of all four.
+  'firebase-admin': '^13.8.0',
 };
 const ourDevDeps = {};
+
+// npm `overrides` force transient deps to safe versions even when nested
+// packages still pin old ones. Added in v7.0.1 after `npm audit` in
+// consumer sites (luivante) flagged critical/high vulns under the
+// firebase-admin tree — protobufjs pre-7.5.5 (RCE + prototype pollution),
+// jsonwebtoken <=8 (signature bypass), @tootallnate/once (control-flow),
+// uuid <14 (buffer bounds). These overrides are the belt that complements
+// the 13.8.0 floor (the suspenders), so a fresh scaffold passes
+// `npm audit` cleanly regardless of what the firebase-admin sub-tree
+// happens to still pin nested.
+const ourOverrides = {
+  '@tootallnate/once': '^3.0.1',
+  'http-proxy-agent': '^7.0.2',
+  jsonwebtoken: '^9.0.2',
+  protobufjs: '^7.5.5',
+  uuid: '^14.0.0',
+};
 
 // Storefronts routinely reference product images from arbitrary hosts (seeded
 // demos, Unsplash, Wikimedia, third-party CDNs). `next/image` rejects any host
@@ -225,6 +246,7 @@ if (useCreateNextApp) {
   pkg.dependencies = { ...(pkg.dependencies ?? {}), ...ourDeps };
   if (nextVersion) pkg.dependencies.next = nextVersion;
   pkg.devDependencies = { ...(pkg.devDependencies ?? {}), ...ourDevDeps };
+  pkg.overrides = { ...(pkg.overrides ?? {}), ...ourOverrides };
   writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n');
 
   // create-next-app picks the `next.config` extension based on its own Next
@@ -260,6 +282,7 @@ if (useCreateNextApp) {
       typescript: '^5.6.0',
       ...ourDevDeps,
     },
+    overrides: { ...ourOverrides },
   }, null, 2) + '\n');
 
   // ---- tsconfig.json ----
