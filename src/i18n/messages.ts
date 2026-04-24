@@ -779,6 +779,7 @@ export const DEFAULT_MESSAGES: MessageDict = {
   'admin.settings.nav.emailProviders': 'Email providers',
   'admin.settings.nav.emails': 'Emails',
   'admin.settings.nav.languages': 'Languages',
+  'admin.settings.categories': 'Categories',
 
   // Admin About — errors on this installation (mod1182)
   'admin.about.errors.title': 'Errors on this installation',

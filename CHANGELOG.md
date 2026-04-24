@@ -16,6 +16,23 @@ Do not omit the heading, rename it, or fold it into `### Notes`. This is how
 customers tell at a glance whether an upgrade needs attention.
 -->
 
+## v4.1.1 — Settings sidebar matches Appearance "Categories" styling (mod1192)
+
+The Settings shell has had its own sub-sidebar since v3.0.0, but the visuals (bordered white panel, icon+label rows, primary-colored active pill) didn't match the Appearance page's "Categories" menu right next to it in the main admin nav. Merchants who noticed the inconsistency asked for the Settings sub-nav to look and feel the same as Appearance's — single "CATEGORIES" header, plain labels, soft-grey active background.
+
+This patch brings the Settings shell into visual parity with `<AdminAppearancePage>`. No route changes, no new settings, no new exports.
+
+### No consumer action required
+
+Admin-only UI polish; existing installs pick it up on the next build. Icons in `SETTINGS_SUB_NAV` are preserved (still used by the main admin sidebar via `AdminShell`) — the sub-sidebar just no longer renders them, matching Appearance.
+
+### Changed
+
+- [src/admin/admin-settings-shell.tsx](src/admin/admin-settings-shell.tsx): sub-sidebar restyled to mirror `AdminAppearancePage`'s category menu — added a "Categories" uppercase header, removed the bordered container, switched active background from `var(--caspian-primary)` to `rgba(0,0,0,0.06)`, dropped icon rendering (label-only items), routed the page title + subtitle through `useT()` instead of the hardcoded strings that had drifted from the i18n keys in [src/i18n/messages.ts](src/i18n/messages.ts). Closes mod1192.
+- [src/i18n/messages.ts](src/i18n/messages.ts): added `'admin.settings.categories': 'Categories'` alongside the existing Settings sub-nav keys.
+
+---
+
 ## v4.1.0 — Country dropdowns list all countries (mod1193)
 
 Every country dropdown in the app now offers the full ISO 3166-1 alpha-2 list of 249 countries. Until now the library carried **three** hardcoded subsets — 90 for the admin country picker, 40 for the Localization default-country field, 6 for the unconfigured-store checkout fallback — and a merchant whose country wasn't in the 90-entry list was told in a source comment to *edit Firestore directly*. There is now one source of truth at [src/utils/countries.ts](src/utils/countries.ts) (`ALL_COUNTRIES`), and every dropdown routes through it.

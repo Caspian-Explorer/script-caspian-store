@@ -2,6 +2,7 @@
 
 import { useEffect, type ReactNode } from 'react';
 import { useCaspianLink, useCaspianNavigation } from '../provider/caspian-store-provider';
+import { useT } from '../i18n/locale-context';
 import { cn } from '../utils/cn';
 import { SETTINGS_SUB_NAV } from './admin-shell';
 import { AdminSiteSettingsPage } from './admin-site-settings-page';
@@ -16,17 +17,19 @@ export interface AdminSettingsShellProps {
 }
 
 /**
- * Settings page with an internal sub-sidebar (v3.0.0).
+ * Settings page with an internal sub-sidebar.
  *
  * Reads the current pathname from the framework-agnostic navigation adapter
  * and renders the matching sub-page. Landing on `/admin/settings` (no slug)
  * redirects to `/admin/settings/general` so the URL always names the active
  * panel. The individual page components are unchanged — this shell just wraps
- * them in a two-column layout modeled on AdminAppearancePage.
+ * them in a two-column layout modeled on AdminAppearancePage. Sidebar visual
+ * styling was aligned with AdminAppearancePage's "Categories" menu in v4.1.1.
  */
 export function AdminSettingsShell({ className }: AdminSettingsShellProps) {
   const nav = useCaspianNavigation();
   const Link = useCaspianLink();
+  const t = useT();
 
   const slug = deriveSlug(nav.pathname);
 
@@ -41,10 +44,10 @@ export function AdminSettingsShell({ className }: AdminSettingsShellProps) {
   return (
     <div className={className}>
       <header style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0 }}>Settings</h1>
-        <p style={{ color: '#666', marginTop: 4 }}>
-          Configure how your store processes orders, delivers email, and renders content.
-        </p>
+        <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0 }}>
+          {t('admin.settings.title')}
+        </h1>
+        <p style={{ color: '#666', marginTop: 4 }}>{t('admin.settings.subtitle')}</p>
       </header>
 
       <div
@@ -56,17 +59,19 @@ export function AdminSettingsShell({ className }: AdminSettingsShellProps) {
         }}
       >
         <aside style={{ position: 'sticky', top: 16 }}>
-          <nav
+          <div
             style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 2,
-              padding: 4,
-              border: '1px solid #eee',
-              borderRadius: 'var(--caspian-radius, 8px)',
-              background: '#fff',
+              fontSize: 11,
+              fontWeight: 600,
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+              color: '#999',
+              padding: '0 12px 8px',
             }}
           >
+            {t('admin.settings.categories')}
+          </div>
+          <nav style={{ display: 'flex', flexDirection: 'column' }}>
             {SETTINGS_SUB_NAV.map((item) => {
               const active = nav.pathname === item.href;
               return (
@@ -79,19 +84,17 @@ export function AdminSettingsShell({ className }: AdminSettingsShellProps) {
                     style={{
                       display: 'flex',
                       alignItems: 'center',
-                      gap: 10,
                       padding: '10px 12px',
-                      borderRadius: 6,
-                      background: active ? 'var(--caspian-primary, #111)' : 'transparent',
-                      color: active ? 'var(--caspian-primary-foreground, #fff)' : '#444',
+                      background: active ? 'rgba(0,0,0,0.06)' : 'transparent',
+                      borderRadius: 8,
+                      color: active ? '#111' : '#444',
                       fontSize: 14,
                       fontWeight: active ? 600 : 400,
                       textDecoration: 'none',
+                      width: '100%',
+                      boxSizing: 'border-box',
                     }}
                   >
-                    {item.icon && (
-                      <span style={{ display: 'inline-flex', flexShrink: 0 }}>{item.icon}</span>
-                    )}
                     {item.label}
                   </span>
                 </Link>
