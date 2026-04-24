@@ -64,6 +64,15 @@ export interface AdminNavGroup {
   label: string;
   icon?: ReactNode;
   children: AdminNavLeaf[];
+  /**
+   * Optional URL the group's label navigates to when clicked. When set, the
+   * label + icon become a link; the chevron on the right still toggles
+   * expand/collapse independently. When omitted, clicking anywhere on the
+   * header row toggles — the legacy behavior for container-only groups.
+   * Added in v7.1.1 so the Plugins group's header opens the unified page
+   * at `/admin/plugins` instead of only expanding.
+   */
+  href?: string;
 }
 
 export type AdminNavItem = AdminNavLeaf | AdminNavGroup;
@@ -131,6 +140,7 @@ export const DEFAULT_ADMIN_NAV: AdminNavItem[] = [
     id: 'plugins',
     label: 'Plugins',
     icon: <PlugIcon size={ICON_SIZE} />,
+    href: '/admin/plugins',
     children: [],
   },
   { href: '/admin/settings', label: 'Settings', icon: <SettingsIcon size={ICON_SIZE} /> },
@@ -578,43 +588,83 @@ function GroupNode({
   isActive: (href: string) => boolean;
   Link: ReturnType<typeof useCaspianLink>;
 }) {
-  const groupActive = group.children.some((c) => isActive(c.href));
+  const groupActive =
+    (group.href && isActive(group.href)) ||
+    group.children.some((c) => isActive(c.href));
+
+  const rowStyle: CSSProperties = {
+    display: 'flex',
+    alignItems: 'center',
+    borderRadius: 'var(--caspian-radius, 6px)',
+    color: groupActive ? '#111' : '#444',
+    fontSize: 14,
+    fontWeight: groupActive ? 600 : 500,
+  };
+
+  const labelInnerStyle: CSSProperties = {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 10,
+    padding: '8px 12px',
+    flex: 1,
+    minWidth: 0,
+    textDecoration: 'none',
+    color: 'inherit',
+    cursor: 'pointer',
+    background: 'transparent',
+    border: 0,
+    textAlign: 'left',
+    font: 'inherit',
+  };
+
+  const labelContent = (
+    <>
+      {group.icon && <span style={{ display: 'inline-flex', flexShrink: 0 }}>{group.icon}</span>}
+      <span style={{ flex: 1 }}>{group.label}</span>
+    </>
+  );
+
   return (
     <div>
-      <button
-        type="button"
-        onClick={onToggle}
-        aria-expanded={expanded}
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 10,
-          padding: '8px 12px',
-          width: '100%',
-          border: 0,
-          borderRadius: 'var(--caspian-radius, 6px)',
-          background: 'transparent',
-          color: groupActive ? '#111' : '#444',
-          fontSize: 14,
-          fontWeight: groupActive ? 600 : 500,
-          cursor: 'pointer',
-          textAlign: 'left',
-        }}
-      >
-        {group.icon && <span style={{ display: 'inline-flex', flexShrink: 0 }}>{group.icon}</span>}
-        <span style={{ flex: 1 }}>{group.label}</span>
-        <span
-          aria-hidden
+      <div style={rowStyle}>
+        {group.href ? (
+          <Link href={group.href} style={labelInnerStyle}>
+            {labelContent}
+          </Link>
+        ) : (
+          <button type="button" onClick={onToggle} style={labelInnerStyle} aria-expanded={expanded}>
+            {labelContent}
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-label={expanded ? 'Collapse group' : 'Expand group'}
+          aria-expanded={expanded}
           style={{
             display: 'inline-flex',
-            transform: expanded ? 'rotate(0deg)' : 'rotate(-90deg)',
-            transition: 'transform 0.15s ease',
+            alignItems: 'center',
+            justifyContent: 'center',
+            border: 0,
+            background: 'transparent',
+            cursor: 'pointer',
+            padding: '8px 10px',
+            borderRadius: 'var(--caspian-radius, 6px)',
             color: '#999',
           }}
         >
-          <ChevronDownIcon size={14} />
-        </span>
-      </button>
+          <span
+            aria-hidden
+            style={{
+              display: 'inline-flex',
+              transform: expanded ? 'rotate(0deg)' : 'rotate(-90deg)',
+              transition: 'transform 0.15s ease',
+            }}
+          >
+            <ChevronDownIcon size={14} />
+          </span>
+        </button>
+      </div>
 
       {expanded && (
         <div

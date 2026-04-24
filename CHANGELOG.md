@@ -16,6 +16,22 @@ Do not omit the heading, rename it, or fold it into `### Notes`. This is how
 customers tell at a glance whether an upgrade needs attention.
 -->
 
+## v7.1.1 — Plugins sidebar header navigates to the unified list
+
+v7.1.0 turned the Plugins sidebar entry into an `AdminNavGroup` so enabled installs could appear as dynamic children. The regression: clicking the `Plugins` header itself only toggled the submenu — it no longer navigated to `/admin/plugins`. Merchants with zero plugins enabled hit a dead click (no children to expand *and* no navigation).
+
+Fix: `AdminNavGroup` gains an optional `href` field. When set, the group's label + icon become a link (click navigates), while the chevron on the right remains a separate button (click toggles). Existing container-only groups (`Catalog`, `People`, `Sales`, `Content`) stay click-to-toggle — backwards compatible. The `Plugins` group in `DEFAULT_ADMIN_NAV` now sets `href: '/admin/plugins'` so clicking the label opens the unified list.
+
+### No consumer action required
+
+Pure UX patch; single-mount `<CaspianRoot />` dispatches the URL the same way as before. Consumers who built custom `navItems` with their own groups are untouched.
+
+### Changed
+
+- [src/admin/admin-shell.tsx](src/admin/admin-shell.tsx): `AdminNavGroup` extended with optional `href`. `GroupNode` renders a `<Link>` for the label row when `href` is set, with the chevron in a sibling `<button>` so toggle and navigate are independent surfaces. `DEFAULT_ADMIN_NAV`'s `Plugins` group gains `href: '/admin/plugins'`. `groupActive` highlighting now also considers the group's own href, not just its children's.
+
+---
+
 ## v7.1.0 — Plugins consolidation + dynamic sidebar (mod1197 follow-up)
 
 Four coordinated admin-UX changes, all internal to CaspianRoot + the library's single-mount dispatcher. No consumer route edits — upgrading the library picks up every change automatically.
