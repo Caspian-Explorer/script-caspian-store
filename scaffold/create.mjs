@@ -432,8 +432,13 @@ export function Providers({ children }: { children: ReactNode }) {
 `);
 
 // ---- src/app/layout.tsx ----
+//
+// LayoutShell is NOT mounted here — CaspianRoot owns the shell for every
+// storefront path ([src/components/caspian-root.tsx] line 126). Wrapping
+// {children} in <LayoutShell> at the root layout double-wraps every page,
+// producing two stacked headers and two stacked footers (v7.0.2 fix).
 write('src/app/layout.tsx', `import type { ReactNode } from 'react';
-import { LayoutShell, DynamicFavicon } from '@caspian-explorer/script-caspian-store';
+import { DynamicFavicon } from '@caspian-explorer/script-caspian-store';
 import '@caspian-explorer/script-caspian-store/styles.css';
 import { Providers } from './providers';
 
@@ -447,7 +452,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html lang="en">
       <body>
         <Providers>
-          <LayoutShell>{children}</LayoutShell>
+          {children}
           <DynamicFavicon />
         </Providers>
       </body>

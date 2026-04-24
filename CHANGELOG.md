@@ -16,6 +16,47 @@ Do not omit the heading, rename it, or fold it into `### Notes`. This is how
 customers tell at a glance whether an upgrade needs attention.
 -->
 
+## v7.0.2 — Fix duplicate header/footer in scaffolded consumer sites
+
+v7.0.0's scaffolder shipped with a double-mount bug in the generated root layout. Every page of a freshly scaffolded store — storefront, PDP, cart, checkout, account — rendered the site chrome twice: two stacked headers (logo + nav + search + cart icons), two stacked footers (LUIVANTE + ABOUT + CUSTOMER CARE + NEWSLETTER). The library's `CaspianRoot` already wraps every storefront path in `<LayoutShell>` internally ([src/components/caspian-root.tsx:126](src/components/caspian-root.tsx#L126)), but the scaffolder's `src/app/layout.tsx` template was *also* wrapping `{children}` in `<LayoutShell>`, producing the double mount.
+
+The first-party example at [examples/nextjs/app/layout.tsx](examples/nextjs/app/layout.tsx) was already correct — this was purely the scaffolder template having drifted from the intended v7.0.0 design ("one file owns every page, forever"). The regression test at [scripts/check-scaffold-routes.mjs](scripts/check-scaffold-routes.mjs) now asserts that the generated `layout.tsx` does not mount `<LayoutShell>`, so this specific drift cannot regress silently again.
+
+### Consumer action required on upgrade
+
+Sites scaffolded with v7.0.0 or v7.0.1 already have the buggy `src/app/layout.tsx` on disk. Upgrading the library does not rewrite your existing file, so apply this one-line fix by hand:
+
+```tsx
+// src/app/layout.tsx — BEFORE (buggy)
+import { LayoutShell, DynamicFavicon } from '@caspian-explorer/script-caspian-store';
+// ...
+<Providers>
+  <LayoutShell>{children}</LayoutShell>
+  <DynamicFavicon />
+</Providers>
+
+// src/app/layout.tsx — AFTER (correct)
+import { DynamicFavicon } from '@caspian-explorer/script-caspian-store';
+// ...
+<Providers>
+  {children}
+  <DynamicFavicon />
+</Providers>
+```
+
+No Firebase redeploy, no dependency bump, no Cloud Functions work. Just the one file.
+
+### Changed
+
+- [scaffold/create.mjs](scaffold/create.mjs): `src/app/layout.tsx` template no longer imports or wraps children in `<LayoutShell>`. `CaspianRoot` owns the shell for every storefront path, so the root layout stays a plain `<Providers>{children}<DynamicFavicon /></Providers>`.
+- [scripts/check-scaffold-routes.mjs](scripts/check-scaffold-routes.mjs): added a regression guard that fails the smoke test if the scaffolder's generated `layout.tsx` ever wraps children in `<LayoutShell>` again.
+
+### Not touched
+
+- No source code changes in `src/` beyond the version bump. `CaspianRoot` and `LayoutShell` were already correct — this was a scaffolder template bug.
+
+---
+
 ## v7.0.1 — Patch vulnerable transients under firebase-admin (npm audit cleanup)
 
 `npm audit` on fresh scaffolds was reporting 5 critical + 3 high + several moderate vulnerabilities under the `firebase-admin` tree — `@google-cloud/firestore <=6.8.0` (credential logging), `protobufjs <=7.5.4` (prototype pollution + RCE), `jsonwebtoken <=8.5.1` (signature validation bypass), `@grpc/grpc-js <1.8.22` (memory allocation), `@tootallnate/once` (control-flow), `uuid <14` (buffer bounds). All resolvable by pushing the tree past `firebase-admin@13.8.0`, which pulls patched transients.

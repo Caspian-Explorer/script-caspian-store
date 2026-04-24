@@ -16,6 +16,13 @@
  * until they added a route file (mod1197 follow-up). All the same class
  * of bug — nav added on one side, dispatch forgotten on the other.
  *
+ * v7.0.2 added a second check to the same script: the scaffolder's
+ * generated `src/app/layout.tsx` must NOT wrap children in <LayoutShell>,
+ * because CaspianRoot already mounts it for every storefront path.
+ * v7.0.0 and v7.0.1 shipped with the double-wrap; every consumer site saw
+ * two stacked headers and two stacked footers until the template was
+ * fixed. The guard below catches any future regression.
+ *
  * Usage:
  *   node scripts/check-scaffold-routes.mjs       # exit 0 on match, 1 on drift
  */
@@ -29,6 +36,7 @@ const repoRoot = resolve(__dirname, '..');
 
 const SHELL_FILE = join(repoRoot, 'src', 'admin', 'admin-shell.tsx');
 const ROOT_FILE = join(repoRoot, 'src', 'admin', 'admin-root.tsx');
+const SCAFFOLD_FILE = join(repoRoot, 'scaffold', 'create.mjs');
 
 function extractNavHrefs(src) {
   const match = src.match(/export const DEFAULT_ADMIN_NAV[^=]*=\s*\[([\s\S]*?)\];/);
@@ -88,7 +96,34 @@ if (missing.length > 0) {
   process.exit(1);
 }
 
+// v7.0.2 regression guard — only CaspianRoot may mount <LayoutShell>. The
+// scaffolded root layout must NOT wrap children in it, or every storefront
+// page renders two headers and two footers (the exact bug v7.0.2 fixed).
+const scaffoldSrc = readFileSync(SCAFFOLD_FILE, 'utf8');
+const layoutBlockMatch = scaffoldSrc.match(
+  /write\(\s*['"]src\/app\/layout\.tsx['"]\s*,\s*`([\s\S]*?)`\s*\)/,
+);
+if (!layoutBlockMatch) {
+  console.error(
+    "\n[check-scaffold-routes] Could not locate the `write('src/app/layout.tsx', ...)` block in scaffold/create.mjs.\n" +
+      '  If the scaffolder shape changed, update scripts/check-scaffold-routes.mjs.\n',
+  );
+  process.exit(1);
+}
+if (/<LayoutShell\b/.test(layoutBlockMatch[1])) {
+  console.error(
+    '\n[check-scaffold-routes] DRIFT — scaffolded src/app/layout.tsx wraps children in <LayoutShell>.\n\n' +
+      '  CaspianRoot already mounts LayoutShell for every storefront path\n' +
+      '  (src/components/caspian-root.tsx line 126). Wrapping again at the root\n' +
+      '  layout produces duplicate headers and duplicate footers on every page.\n\n' +
+      '  Fix: remove the <LayoutShell> wrapper from the template in scaffold/create.mjs\n' +
+      "  so the root layout renders `<Providers>{children}<DynamicFavicon /></Providers>`.\n",
+  );
+  process.exit(1);
+}
+
 console.log(
   `[check-scaffold-routes] OK — ${navHrefs.length} nav entries, ` +
-    `${dispatched.size} cases dispatched in AdminRoot.`,
+    `${dispatched.size} cases dispatched in AdminRoot; ` +
+    'scaffolded layout.tsx does not double-wrap in LayoutShell.',
 );
