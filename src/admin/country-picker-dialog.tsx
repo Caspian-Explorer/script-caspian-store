@@ -4,112 +4,16 @@ import { useEffect, useMemo, useState } from 'react';
 import { Button } from '../ui/button';
 import { Dialog } from '../ui/dialog';
 import { useT } from '../i18n/locale-context';
+import { ALL_COUNTRIES, type IsoCountry } from '../utils/countries';
+
+export type { IsoCountry } from '../utils/countries';
 
 /**
- * Static subset of ISO 3166-1 alpha-2 codes covering the ~90 most common
- * storefront markets. Not exhaustive — admins with needs beyond this list
- * can still edit `supportedCountries` in Firestore directly until we grow
- * the set. Ordered by rough region for visual browsing in the dialog.
+ * Re-export of the full ISO 3166-1 alpha-2 list. Kept under the historical
+ * `ISO_COUNTRIES` name so existing imports in shipping / site-settings admin
+ * pages keep compiling without churn.
  */
-export interface IsoCountry {
-  code: string;
-  name: string;
-}
-
-export const ISO_COUNTRIES: readonly IsoCountry[] = [
-  // North America
-  { code: 'US', name: 'United States' },
-  { code: 'CA', name: 'Canada' },
-  { code: 'MX', name: 'Mexico' },
-  // Europe — UK + Ireland
-  { code: 'GB', name: 'United Kingdom' },
-  { code: 'IE', name: 'Ireland' },
-  // Europe — EU / EEA
-  { code: 'DE', name: 'Germany' },
-  { code: 'FR', name: 'France' },
-  { code: 'ES', name: 'Spain' },
-  { code: 'IT', name: 'Italy' },
-  { code: 'NL', name: 'Netherlands' },
-  { code: 'BE', name: 'Belgium' },
-  { code: 'PT', name: 'Portugal' },
-  { code: 'LU', name: 'Luxembourg' },
-  { code: 'AT', name: 'Austria' },
-  { code: 'CH', name: 'Switzerland' },
-  { code: 'SE', name: 'Sweden' },
-  { code: 'NO', name: 'Norway' },
-  { code: 'DK', name: 'Denmark' },
-  { code: 'FI', name: 'Finland' },
-  { code: 'IS', name: 'Iceland' },
-  { code: 'PL', name: 'Poland' },
-  { code: 'CZ', name: 'Czech Republic' },
-  { code: 'SK', name: 'Slovakia' },
-  { code: 'HU', name: 'Hungary' },
-  { code: 'RO', name: 'Romania' },
-  { code: 'BG', name: 'Bulgaria' },
-  { code: 'HR', name: 'Croatia' },
-  { code: 'SI', name: 'Slovenia' },
-  { code: 'GR', name: 'Greece' },
-  { code: 'CY', name: 'Cyprus' },
-  { code: 'MT', name: 'Malta' },
-  { code: 'EE', name: 'Estonia' },
-  { code: 'LV', name: 'Latvia' },
-  { code: 'LT', name: 'Lithuania' },
-  { code: 'TR', name: 'Türkiye' },
-  { code: 'UA', name: 'Ukraine' },
-  // Oceania
-  { code: 'AU', name: 'Australia' },
-  { code: 'NZ', name: 'New Zealand' },
-  // Asia
-  { code: 'JP', name: 'Japan' },
-  { code: 'KR', name: 'South Korea' },
-  { code: 'CN', name: 'China' },
-  { code: 'HK', name: 'Hong Kong SAR' },
-  { code: 'TW', name: 'Taiwan' },
-  { code: 'SG', name: 'Singapore' },
-  { code: 'MY', name: 'Malaysia' },
-  { code: 'TH', name: 'Thailand' },
-  { code: 'ID', name: 'Indonesia' },
-  { code: 'PH', name: 'Philippines' },
-  { code: 'VN', name: 'Vietnam' },
-  { code: 'IN', name: 'India' },
-  { code: 'PK', name: 'Pakistan' },
-  { code: 'BD', name: 'Bangladesh' },
-  { code: 'LK', name: 'Sri Lanka' },
-  // Middle East
-  { code: 'AE', name: 'United Arab Emirates' },
-  { code: 'SA', name: 'Saudi Arabia' },
-  { code: 'QA', name: 'Qatar' },
-  { code: 'KW', name: 'Kuwait' },
-  { code: 'BH', name: 'Bahrain' },
-  { code: 'OM', name: 'Oman' },
-  { code: 'JO', name: 'Jordan' },
-  { code: 'LB', name: 'Lebanon' },
-  { code: 'IL', name: 'Israel' },
-  // Africa
-  { code: 'ZA', name: 'South Africa' },
-  { code: 'EG', name: 'Egypt' },
-  { code: 'MA', name: 'Morocco' },
-  { code: 'TN', name: 'Tunisia' },
-  { code: 'DZ', name: 'Algeria' },
-  { code: 'KE', name: 'Kenya' },
-  { code: 'NG', name: 'Nigeria' },
-  { code: 'GH', name: 'Ghana' },
-  // Latin America
-  { code: 'BR', name: 'Brazil' },
-  { code: 'AR', name: 'Argentina' },
-  { code: 'CL', name: 'Chile' },
-  { code: 'CO', name: 'Colombia' },
-  { code: 'PE', name: 'Peru' },
-  { code: 'UY', name: 'Uruguay' },
-  { code: 'PY', name: 'Paraguay' },
-  { code: 'EC', name: 'Ecuador' },
-  { code: 'VE', name: 'Venezuela' },
-  { code: 'BO', name: 'Bolivia' },
-  { code: 'CR', name: 'Costa Rica' },
-  { code: 'PA', name: 'Panama' },
-  { code: 'DO', name: 'Dominican Republic' },
-  { code: 'PR', name: 'Puerto Rico' },
-];
+export const ISO_COUNTRIES = ALL_COUNTRIES;
 
 export interface CountryPickerDialogProps {
   open: boolean;

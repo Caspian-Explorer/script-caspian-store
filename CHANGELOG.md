@@ -16,6 +16,35 @@ Do not omit the heading, rename it, or fold it into `### Notes`. This is how
 customers tell at a glance whether an upgrade needs attention.
 -->
 
+## v4.1.0 — Country dropdowns list all countries (mod1193)
+
+Every country dropdown in the app now offers the full ISO 3166-1 alpha-2 list of 249 countries. Until now the library carried **three** hardcoded subsets — 90 for the admin country picker, 40 for the Localization default-country field, 6 for the unconfigured-store checkout fallback — and a merchant whose country wasn't in the 90-entry list was told in a source comment to *edit Firestore directly*. There is now one source of truth at [src/utils/countries.ts](src/utils/countries.ts) (`ALL_COUNTRIES`), and every dropdown routes through it.
+
+The customer Address Book also moves from a freeform text input to a searchable dropdown. Existing freeform country values (e.g. `"United States"` typed by a user) keep rendering in the address list as-is; the next time the user edits the address they'll pick an ISO-2 code from the dropdown. No migration is required.
+
+The Localization tab's default-country field and (already) the Store Address field now use `SearchableSelect` so 249 options stay usable — type "ger" to jump to Germany. Checkout keeps its native `<select>` and continues to respect `SiteSettings.supportedCountries` — the admin's shipping-destinations list is unchanged; only the *unconfigured-store* fallback grew from 6 countries to the full set.
+
+### No consumer action required
+
+Library-internal consolidation — existing installs pick up the full country list on the next rebuild with no code changes. Public exports `ISO_COUNTRIES` and `IsoCountry` still resolve (now re-exported from the new utility), so any consumer code that imports them keeps compiling.
+
+### Fixed
+
+- [src/admin/country-picker-dialog.tsx](src/admin/country-picker-dialog.tsx) no longer hardcodes a 90-entry regional subset — `ISO_COUNTRIES` now re-exports the full ISO 3166-1 alpha-2 set from [src/utils/countries.ts](src/utils/countries.ts). Admins managing supported-countries or shipping eligibility can now pick any country without editing Firestore manually.
+- [src/admin/admin-site-settings-page.tsx](src/admin/admin-site-settings-page.tsx) Localization tab's 40-entry `COUNTRY_OPTIONS` is gone; the "Default country" field is a searchable combobox over all 249 countries.
+- [src/components/checkout-page.tsx](src/components/checkout-page.tsx) `DEFAULT_COUNTRIES` fallback expanded from 6 to the full list. Stores that haven't configured `supportedCountries` no longer silently reject checkouts from unlisted countries.
+
+### Changed
+
+- [src/components/auth/address-book.tsx](src/components/auth/address-book.tsx): the Country field in the My Account address dialog is now a `SearchableSelect` backed by the full country list, replacing the freeform `<Input>`. New saves store ISO-2 codes; legacy freeform values continue to display untouched.
+
+### Added
+
+- [src/utils/countries.ts](src/utils/countries.ts): `ALL_COUNTRIES`, `toCountryOptions()`, and `countryName()` — single source of truth for country data across the library. Closes mod1193.
+- New i18n key `addresses.countrySelect` → `"— Select country —"` for the address-book dropdown placeholder.
+
+---
+
 ## v4.0.1 — Coming Soon admin auto-bypass (mod1191)
 
 v2.7.0 shipped Coming Soon mode with a `SiteSettings.comingSoon.allowAdminPreview` flag and release notes promising that *"admins (or merchants sharing a preview link) bypass the splash"*. Only half of that ever worked — the shareable preview link (`?caspian-preview=1` → sessionStorage) was wired up, but signed-in admins were treated no differently from shoppers. When an admin enabled Coming Soon mode and reloaded the storefront, they saw their own splash and had to manually append the query string to preview the site they'd just gated.

@@ -10,6 +10,7 @@ import { getSiteSettings } from '../services/site-settings-service';
 import { calculateShippingRates } from '../services/shipping-calculator';
 import { addAddress } from '../services/user-service';
 import { subscribeEmail } from '../services/subscriber-service';
+import { ALL_COUNTRIES } from '../utils/countries';
 import type { SiteSettings, SupportedCountry, UserAddress } from '../types';
 import type { ShippingRate } from '../shipping/types';
 import { Button } from '../ui/button';
@@ -784,14 +785,12 @@ const h2Style: React.CSSProperties = {
 };
 
 /**
- * Minimal fallback country list used before the admin configures
- * `SiteSettings.supportedCountries`. Keeps checkout usable on fresh installs.
+ * Fallback country list used before the admin configures
+ * `SiteSettings.supportedCountries`. Full ISO 3166-1 alpha-2 set — a real
+ * storefront will narrow this with `supportedCountries`, but a fresh install
+ * should still let a shopper pick any country rather than fail the form.
  */
-const DEFAULT_COUNTRIES: SupportedCountry[] = [
-  { code: 'US', name: 'United States' },
-  { code: 'CA', name: 'Canada' },
-  { code: 'GB', name: 'United Kingdom' },
-  { code: 'AU', name: 'Australia' },
-  { code: 'DE', name: 'Germany' },
-  { code: 'FR', name: 'France' },
-];
+const DEFAULT_COUNTRIES: SupportedCountry[] = ALL_COUNTRIES.map((c) => ({
+  code: c.code,
+  name: c.name,
+}));

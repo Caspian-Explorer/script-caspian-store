@@ -14,8 +14,16 @@ import { Button } from '../../ui/button';
 import { Input, Label } from '../../ui/input';
 import { Badge } from '../../ui/misc';
 import { Dialog } from '../../ui/dialog';
+import { SearchableSelect, type SearchableSelectOption } from '../../ui/searchable-select';
 import { useToast } from '../../ui/toast';
 import { useT } from '../../i18n/locale-context';
+import { ALL_COUNTRIES } from '../../utils/countries';
+
+const COUNTRY_OPTIONS: SearchableSelectOption[] = ALL_COUNTRIES.map((c) => ({
+  value: c.code,
+  label: c.name,
+  hint: c.code,
+}));
 
 const emptyAddress: Omit<UserAddress, 'id'> = {
   name: '',
@@ -200,7 +208,12 @@ export function AddressBook({ className }: { className?: string }) {
           </div>
           <div>
             <Label>{t('addresses.country')}</Label>
-            <Input value={form.country} onChange={(e) => setForm((f) => ({ ...f, country: e.target.value }))} required />
+            <SearchableSelect
+              value={form.country}
+              onChange={(v) => setForm((f) => ({ ...f, country: v }))}
+              options={COUNTRY_OPTIONS}
+              placeholder={t('addresses.countrySelect')}
+            />
           </div>
           <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 14 }}>
             <input

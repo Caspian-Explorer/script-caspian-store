@@ -87,6 +87,7 @@ export const DEFAULT_MESSAGES: MessageDict = {
   'addresses.city': 'City',
   'addresses.zip': 'ZIP',
   'addresses.country': 'Country',
+  'addresses.countrySelect': '— Select country —',
   'addresses.makeDefault': 'Set as default address',
   'addresses.added': 'Address added',
   'addresses.updated': 'Address updated',

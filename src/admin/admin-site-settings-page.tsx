@@ -37,6 +37,7 @@ import { FieldDescription } from '../ui/field-description';
 import { SearchableSelect, type SearchableSelectOption } from '../ui/searchable-select';
 import { defaultCurrencyDisplay, formatCurrency } from '../utils/format-currency';
 import { getSubdivisions } from '../data/subdivisions';
+import { ALL_COUNTRIES } from '../utils/countries';
 import { CountryPickerDialog, ISO_COUNTRIES } from './country-picker-dialog';
 
 const emptySettings: SiteSettings = {
@@ -85,54 +86,6 @@ const CURRENCY_OPTIONS: { value: string; label: string }[] = [
   { value: 'MYR', label: 'MYR — Malaysian Ringgit' },
   { value: 'IDR', label: 'IDR — Indonesian Rupiah' },
   { value: 'PHP', label: 'PHP — Philippine Peso' },
-];
-
-/** ISO 3166-1 alpha-2 subset — the 40 most common storefront countries. */
-const COUNTRY_OPTIONS: { value: string; label: string }[] = [
-  { value: '', label: '— Select country —' },
-  { value: 'US', label: 'United States' },
-  { value: 'CA', label: 'Canada' },
-  { value: 'GB', label: 'United Kingdom' },
-  { value: 'IE', label: 'Ireland' },
-  { value: 'AU', label: 'Australia' },
-  { value: 'NZ', label: 'New Zealand' },
-  { value: 'DE', label: 'Germany' },
-  { value: 'FR', label: 'France' },
-  { value: 'ES', label: 'Spain' },
-  { value: 'IT', label: 'Italy' },
-  { value: 'PT', label: 'Portugal' },
-  { value: 'NL', label: 'Netherlands' },
-  { value: 'BE', label: 'Belgium' },
-  { value: 'CH', label: 'Switzerland' },
-  { value: 'AT', label: 'Austria' },
-  { value: 'SE', label: 'Sweden' },
-  { value: 'NO', label: 'Norway' },
-  { value: 'DK', label: 'Denmark' },
-  { value: 'FI', label: 'Finland' },
-  { value: 'PL', label: 'Poland' },
-  { value: 'CZ', label: 'Czech Republic' },
-  { value: 'GR', label: 'Greece' },
-  { value: 'TR', label: 'Türkiye' },
-  { value: 'RO', label: 'Romania' },
-  { value: 'HU', label: 'Hungary' },
-  { value: 'JP', label: 'Japan' },
-  { value: 'CN', label: 'China' },
-  { value: 'HK', label: 'Hong Kong SAR' },
-  { value: 'KR', label: 'South Korea' },
-  { value: 'SG', label: 'Singapore' },
-  { value: 'MY', label: 'Malaysia' },
-  { value: 'TH', label: 'Thailand' },
-  { value: 'ID', label: 'Indonesia' },
-  { value: 'PH', label: 'Philippines' },
-  { value: 'IN', label: 'India' },
-  { value: 'AE', label: 'United Arab Emirates' },
-  { value: 'SA', label: 'Saudi Arabia' },
-  { value: 'IL', label: 'Israel' },
-  { value: 'ZA', label: 'South Africa' },
-  { value: 'BR', label: 'Brazil' },
-  { value: 'MX', label: 'Mexico' },
-  { value: 'AR', label: 'Argentina' },
-  { value: 'CL', label: 'Chile' },
 ];
 
 const PLATFORM_LABELS: Record<SocialPlatform, string> = {
@@ -203,6 +156,11 @@ export function AdminSiteSettingsPage({ className }: { className?: string }) {
       { value: '', label: '— Select timezone —' },
       ...supportedTimezones().map((tz) => ({ value: tz, label: tz })),
     ],
+    [],
+  );
+
+  const localizationCountryOptions: SearchableSelectOption[] = useMemo(
+    () => ALL_COUNTRIES.map((c) => ({ value: c.code, label: c.name, hint: c.code })),
     [],
   );
 
@@ -419,11 +377,11 @@ export function AdminSiteSettingsPage({ className }: { className?: string }) {
             </div>
             <div>
               <Label>Country</Label>
-              <Select
+              <SearchableSelect
                 value={draft.country ?? ''}
-                onChange={(e) => patch({ country: e.target.value })}
-                options={COUNTRY_OPTIONS}
-                style={{ width: '100%' }}
+                onChange={(v) => patch({ country: v })}
+                options={localizationCountryOptions}
+                placeholder="— Select country —"
               />
             </div>
           </div>
