@@ -43,6 +43,11 @@ import { cn } from '../utils/cn';
 import { CASPIAN_STORE_VERSION } from '../version';
 import { AdminNotificationsBell } from './admin-notifications-bell';
 import { AdminOnboardingProgress } from './admin-onboarding-progress';
+import {
+  useEnabledPluginInstalls,
+  type EnabledPluginCategory,
+  type EnabledPluginInstall,
+} from './use-enabled-plugin-installs';
 
 export interface AdminNavLeaf {
   kind?: 'leaf';
@@ -114,30 +119,37 @@ export const DEFAULT_ADMIN_NAV: AdminNavItem[] = [
       { href: '/admin/journal', label: 'Journal', icon: <BookOpenIcon size={ICON_SIZE} /> },
     ],
   },
-  { href: '/admin/appearance', label: 'Appearance', icon: <PaletteIcon size={ICON_SIZE} /> },
-  { href: '/admin/plugins', label: 'Plugins', icon: <PlugIcon size={ICON_SIZE} /> },
+  {
+    // Plugins became an AdminNavGroup in v7.1.0. Children are populated at
+    // runtime inside <AdminShell> from enabled installs across the three
+    // plugin collections — the group renders childless until a merchant
+    // enables their first plugin. Keeping the id `plugins` matters: the
+    // runtime injection finds its target by id, so consumers who pass
+    // their own `navItems` prop still get dynamic children as long as the
+    // group's id is `plugins`.
+    kind: 'group',
+    id: 'plugins',
+    label: 'Plugins',
+    icon: <PlugIcon size={ICON_SIZE} />,
+    children: [],
+  },
   { href: '/admin/settings', label: 'Settings', icon: <SettingsIcon size={ICON_SIZE} /> },
   { href: '/admin/about', label: 'About', icon: <InfoIcon size={ICON_SIZE} /> },
 ];
 
 // Settings sub-sidebar items. Exported for use by AdminSettingsShell so both
-// surfaces share the same ordering and icon set.
+// surfaces share the same ordering and icon set. Appearance + Shipping
+// options moved under Settings in v7.1.0.
 export const SETTINGS_SUB_NAV: AdminNavLeaf[] = [
   { href: '/admin/settings/general', label: 'General', icon: <SlidersIcon size={ICON_SIZE} /> },
+  { href: '/admin/settings/appearance', label: 'Appearance', icon: <PaletteIcon size={ICON_SIZE} /> },
+  {
+    href: '/admin/settings/shipping-options',
+    label: 'Shipping options',
+    icon: <TruckIcon size={ICON_SIZE} />,
+  },
   { href: '/admin/settings/emails', label: 'Emails', icon: <InboxIcon size={ICON_SIZE} /> },
   { href: '/admin/settings/languages', label: 'Languages', icon: <GlobeIcon size={ICON_SIZE} /> },
-];
-
-// Plugins sub-sidebar items. Split out from SETTINGS_SUB_NAV in v5.0.0
-// (mod1197) when plugin management became its own top-level admin area.
-export const PLUGINS_SUB_NAV: AdminNavLeaf[] = [
-  { href: '/admin/plugins/shipping', label: 'Shipping', icon: <TruckIcon size={ICON_SIZE} /> },
-  { href: '/admin/plugins/payments', label: 'Payments', icon: <CreditCardIcon size={ICON_SIZE} /> },
-  {
-    href: '/admin/plugins/email-providers',
-    label: 'Email providers',
-    icon: <AtSignIcon size={ICON_SIZE} />,
-  },
 ];
 
 export interface AdminShellProps {
@@ -205,6 +217,15 @@ export function AdminShell({
   const [sidebarOpen, setSidebarOpen] = useState(defaultSidebarOpen);
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
 
+  // v7.1.0 dynamic sidebar: enabled plugin installs appear as children
+  // under any AdminNavGroup with id `plugins`. Re-fetches on window focus.
+  const { installs: enabledInstalls } = useEnabledPluginInstalls();
+
+  const navItemsWithDynamicPlugins = useMemo<AdminNavItem[]>(
+    () => injectPluginChildren(navItems, enabledInstalls),
+    [navItems, enabledInstalls],
+  );
+
   const isActive = (href: string) =>
     nav.pathname === href || (href !== '/admin' && nav.pathname.startsWith(href));
 
@@ -223,7 +244,7 @@ export function AdminShell({
       const raw = window.localStorage.getItem(GROUPS_STATE_KEY);
       const parsed = raw ? (JSON.parse(raw) as Record<string, boolean>) : {};
       const seeded: Record<string, boolean> = { ...parsed };
-      for (const item of navItems) {
+      for (const item of navItemsWithDynamicPlugins) {
         if (isGroup(item)) {
           const containsActive = item.children.some((c) => isActive(c.href));
           if (containsActive) seeded[item.id] = true;
@@ -266,8 +287,8 @@ export function AdminShell({
   const railItems = useMemo<Array<AdminNavLeaf | { kind: 'divider'; id: string }>>(() => {
     const out: Array<AdminNavLeaf | { kind: 'divider'; id: string }> = [];
     let prevWasGroup = false;
-    for (let i = 0; i < navItems.length; i++) {
-      const item = navItems[i];
+    for (let i = 0; i < navItemsWithDynamicPlugins.length; i++) {
+      const item = navItemsWithDynamicPlugins[i];
       if (isGroup(item)) {
         if (i > 0) out.push({ kind: 'divider', id: `div-before-${item.id}` });
         for (const c of item.children) out.push(c);
@@ -279,7 +300,7 @@ export function AdminShell({
       }
     }
     return out;
-  }, [navItems]);
+  }, [navItemsWithDynamicPlugins]);
 
   const sidebarWidth = sidebarOpen ? EXPANDED_SIDEBAR_WIDTH : COLLAPSED_SIDEBAR_WIDTH;
 
@@ -357,7 +378,7 @@ export function AdminShell({
               flex: 1,
             }}
           >
-            {navItems.map((item) =>
+            {navItemsWithDynamicPlugins.map((item) =>
               isGroup(item) ? (
                 <GroupNode
                   key={item.id}
@@ -651,4 +672,36 @@ function AdminUpdateBadge({ owner, repo }: { owner: string; repo: string }) {
       </span>
     </Link>
   );
+}
+
+/**
+ * Returns a copy of `items` where any AdminNavGroup with id `plugins` has
+ * its `children` replaced with a leaf per enabled install. Called on every
+ * render of AdminShell so enabling/disabling a plugin updates the sidebar
+ * without a page reload. Keeps other groups untouched.
+ */
+function injectPluginChildren(
+  items: AdminNavItem[],
+  installs: EnabledPluginInstall[],
+): AdminNavItem[] {
+  return items.map((item) => {
+    if (!isGroup(item) || item.id !== 'plugins') return item;
+    const children: AdminNavLeaf[] = installs.map((x) => ({
+      href: `/admin/plugins/${x.pluginId}/${x.installId}`,
+      label: x.name,
+      icon: iconForPluginCategory(x.category),
+    }));
+    return { ...item, children };
+  });
+}
+
+function iconForPluginCategory(category: EnabledPluginCategory): ReactNode {
+  switch (category) {
+    case 'shipping':
+      return <TruckIcon size={ICON_SIZE} />;
+    case 'payment':
+      return <CreditCardIcon size={ICON_SIZE} />;
+    case 'email':
+      return <AtSignIcon size={ICON_SIZE} />;
+  }
 }

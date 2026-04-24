@@ -801,10 +801,28 @@ export const DEFAULT_MESSAGES: MessageDict = {
   'admin.settings.categories': 'Categories',
 
   // Admin plugins (v5.0.0, mod1197) — separate page for pluggable providers
+  // v7.1.0 reshuffle: unified list + search + filter chips + per-install
+  // sidebar children (mod1197 follow-up).
   'admin.plugins.title': 'Plugins',
   'admin.plugins.subtitle':
     'Manage shipping carriers, payment gateways, and email providers.',
   'admin.plugins.categories': 'Categories',
+  'admin.plugins.search.placeholder': 'Search plugins…',
+  'admin.plugins.filter.all': 'All',
+  'admin.plugins.filter.shipping': 'Shipping',
+  'admin.plugins.filter.payment': 'Payments',
+  'admin.plugins.filter.email': 'Email',
+  'admin.plugins.installed.title': 'Installed',
+  'admin.plugins.installed.empty':
+    'No plugins enabled yet. Install one from the catalog below.',
+  'admin.plugins.catalog.title': 'Available plugins',
+  'admin.plugins.catalog.empty': 'No plugins match this search.',
+  'admin.plugins.col.category': 'Category',
+  'admin.plugins.col.name': 'Name',
+  'admin.plugins.col.plugin': 'Plugin',
+  'admin.plugins.col.actions': 'Actions',
+  'admin.plugins.configure': 'Configure',
+  'admin.plugins.install': 'Install',
 
   // Admin About — errors on this installation (mod1182)
   'admin.about.errors.title': 'Errors on this installation',

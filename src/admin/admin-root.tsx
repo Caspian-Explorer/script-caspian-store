@@ -1,6 +1,6 @@
 'use client';
 
-import type { ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import { useCaspianNavigation } from '../provider/caspian-store-provider';
 import { AdminDashboard } from './admin-dashboard';
 import { AdminProductsList } from './admin-products-list';
@@ -16,20 +16,27 @@ import { AdminSubscribersPage } from './admin-subscribers-page';
 import { AdminUsersPage } from './admin-users-page';
 import { AdminProductCategoriesPage } from './admin-product-categories-page';
 import { AdminProductCollectionsPage } from './admin-product-collections-page';
-import { AdminAppearancePage } from './admin-appearance-page';
 import { AdminAboutPage } from './admin-about-page';
 import { AdminSettingsShell } from './admin-settings-shell';
-import { AdminPluginsShell } from './admin-plugins-shell';
+import { AdminPluginsPage } from './admin-plugins-page';
+import { AdminPluginInstallPage } from './admin-plugin-install-page';
+import { AdminShippingPluginsPage } from './admin-shipping-plugins-page';
+import { AdminPaymentPluginsPage } from './admin-payment-plugins-page';
+import { AdminEmailPluginsPage } from './admin-email-plugins-page';
 
 /**
  * Dispatcher for every /admin/** route. Parses pathname from the navigation
- * adapter and renders the matching admin page or delegates to a subshell
- * (Settings, Plugins) that owns its own sub-tree. CaspianRoot mounts this
- * when the incoming pathname falls under /admin/** and wraps it in
- * AdminGuard + AdminShell externally.
+ * adapter and renders the matching admin page or delegates to a subshell.
  *
  * New admin pages land by adding a switch case here — never by asking the
  * consumer to add a route file. That is the v7 contract.
+ *
+ * v7.1.0 reshuffle:
+ *  - `/admin/appearance` → moved under Settings; redirects to `/admin/settings/appearance`.
+ *  - `/admin/plugins` → unified `<AdminPluginsPage>` (search + filter + catalog).
+ *  - `/admin/plugins/manage/<category>` → the old per-category page (for installing new plugins).
+ *  - `/admin/plugins/<pluginId>/<installId>` → `<AdminPluginInstallPage>` per-install configure.
+ *  - Legacy `/admin/plugins/shipping|payments|email-providers` redirect to the unified list.
  */
 export function AdminRoot(): ReactNode {
   const { pathname } = useCaspianNavigation();
@@ -63,14 +70,52 @@ export function AdminRoot(): ReactNode {
     case 'journal':
       return <AdminJournalPage />;
     case 'appearance':
-      return <AdminAppearancePage />;
+      // Moved under Settings in v7.1.0. Redirect for one release.
+      return <LegacyRedirect to="/admin/settings/appearance" />;
     case 'about':
       return <AdminAboutPage />;
     case 'settings':
       return <AdminSettingsShell />;
     case 'plugins':
-      return <AdminPluginsShell />;
+      return <PluginsDispatch segments={[a, b]} />;
     default:
       return <AdminDashboard />;
   }
+}
+
+function PluginsDispatch({ segments }: { segments: [string | undefined, string | undefined] }): ReactNode {
+  const [a, b] = segments;
+
+  // Bare /admin/plugins — the unified list.
+  if (!a) return <AdminPluginsPage />;
+
+  // /admin/plugins/manage/<category> — legacy per-category install surface.
+  // Kept so "Install" buttons on the unified catalog open the category page
+  // that owns the install flow for that category's plugins.
+  if (a === 'manage') {
+    if (b === 'shipping') return <AdminShippingPluginsPage />;
+    if (b === 'payments') return <AdminPaymentPluginsPage />;
+    if (b === 'email-providers') return <AdminEmailPluginsPage />;
+    return <AdminPluginsPage />;
+  }
+
+  // Legacy v5 category-root URLs redirect to the unified list with a
+  // preselected filter. One release of grace, then remove.
+  if (a === 'shipping') return <LegacyRedirect to="/admin/plugins?filter=shipping" />;
+  if (a === 'payments') return <LegacyRedirect to="/admin/plugins?filter=payment" />;
+  if (a === 'email-providers') return <LegacyRedirect to="/admin/plugins?filter=email" />;
+
+  // /admin/plugins/:pluginId/:installId — per-install configure.
+  if (b) return <AdminPluginInstallPage pluginId={a} installId={b} />;
+
+  // /admin/plugins/:something unexpected — fall back to the unified list.
+  return <AdminPluginsPage />;
+}
+
+function LegacyRedirect({ to }: { to: string }): ReactNode {
+  const nav = useCaspianNavigation();
+  useEffect(() => {
+    nav.replace(to);
+  }, [nav, to]);
+  return null;
 }

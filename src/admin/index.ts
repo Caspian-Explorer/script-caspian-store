@@ -3,15 +3,27 @@ export {
   AdminShell,
   DEFAULT_ADMIN_NAV,
   SETTINGS_SUB_NAV,
-  PLUGINS_SUB_NAV,
   type AdminShellProps,
   type AdminNavItem,
   type AdminNavLeaf,
   type AdminNavGroup,
 } from './admin-shell';
 export { AdminSettingsShell, type AdminSettingsShellProps } from './admin-settings-shell';
-export { AdminPluginsShell, type AdminPluginsShellProps } from './admin-plugins-shell';
 export { AdminRoot } from './admin-root';
+export { AdminPluginsPage, type AdminPluginsPageProps } from './admin-plugins-page';
+export {
+  AdminPluginInstallPage,
+  type AdminPluginInstallPageProps,
+} from './admin-plugin-install-page';
+export {
+  AdminShippingOptionsPage,
+  type AdminShippingOptionsPageProps,
+} from './admin-shipping-options-page';
+export {
+  useEnabledPluginInstalls,
+  type EnabledPluginInstall,
+  type EnabledPluginCategory,
+} from './use-enabled-plugin-installs';
 export { AdminDashboard, type AdminDashboardProps } from './admin-dashboard';
 export {
   AdminProductsList,
@@ -36,8 +48,14 @@ export {
   AdminEmailPluginsPage,
   type AdminEmailPluginsPageProps,
 } from './admin-email-plugins-page';
-export { AdminShippingPluginsPage } from './admin-shipping-plugins-page';
-export { AdminPaymentPluginsPage } from './admin-payment-plugins-page';
+export {
+  AdminShippingPluginsPage,
+  type AdminShippingPluginsPageProps,
+} from './admin-shipping-plugins-page';
+export {
+  AdminPaymentPluginsPage,
+  type AdminPaymentPluginsPageProps,
+} from './admin-payment-plugins-page';
 export { AdminPromoCodesPage } from './admin-promo-codes-page';
 export { AdminSubscribersPage } from './admin-subscribers-page';
 export { AdminUsersPage, type AdminUsersPageProps } from './admin-users-page';

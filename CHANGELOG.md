@@ -16,6 +16,45 @@ Do not omit the heading, rename it, or fold it into `### Notes`. This is how
 customers tell at a glance whether an upgrade needs attention.
 -->
 
+## v7.1.0 — Plugins consolidation + dynamic sidebar (mod1197 follow-up)
+
+Four coordinated admin-UX changes, all internal to CaspianRoot + the library's single-mount dispatcher. No consumer route edits — upgrading the library picks up every change automatically.
+
+**1. Shipping options → Settings.** The site-wide "Hide rates until address" / "Hide paid options when free available" card moved out of `/admin/plugins/shipping` (where it was about the wrong thing — shipping-checkout behavior, not shipping plugins) into `/admin/settings/shipping-options`. Lifted verbatim into a new `<AdminShippingOptionsPage>`.
+
+**2. Appearance → Settings.** `Appearance` is no longer a top-level sidebar leaf. It's now a Settings sub-nav entry alongside General / Emails / Languages / Shipping options. The top-level sidebar shortens by one row; configuration surfaces cluster sensibly. Old `/admin/appearance` URLs keep working for one release — they redirect to `/admin/settings/appearance`.
+
+**3. Unified Plugins page.** The three plugin-category tabs (Shipping, Payments, Email providers) merge into one searchable + filterable page. Merchants no longer tab-swap to find plugins they want. Header has a search input + `All / Shipping / Payments / Email` chip filter. Two sections: Installed (live across all three categories) and Available (the merged catalog). Legacy category URLs redirect: `/admin/plugins/shipping` → `/admin/plugins?filter=shipping`, etc. The Install buttons link to per-category surfaces at `/admin/plugins/manage/<category>` so existing install flows stay unchanged.
+
+**4. Dynamic sidebar children.** The `Plugins` top-level sidebar item became an `AdminNavGroup` with children populated at runtime from enabled installs across all three collections. Before any plugin is enabled: the group renders with zero children. Enable Flat Rate + Stripe: two children appear under Plugins, each a one-click shortcut to that install's configure view at `/admin/plugins/<pluginId>/<installId>`. Clicking a child mounts the existing category page with the configure dialog auto-opened for that specific install — no duplicated dialog code, no behavior drift. Sidebar refreshes on window focus so enabling a plugin in another tab shows up when you return.
+
+### No consumer action required
+
+All changes land through the v7 single-mount `<CaspianRoot />` dispatcher — consumer route files are untouched. Old URLs redirect for one release, then the redirects drop in the next major. Scaffold output is unchanged (still one catch-all route + server API routes).
+
+### Added
+
+- [src/admin/admin-plugins-page.tsx](src/admin/admin-plugins-page.tsx): new `<AdminPluginsPage>` — unified list + search + filter chips + merged catalog grid. Mounted at `/admin/plugins`.
+- [src/admin/admin-plugin-install-page.tsx](src/admin/admin-plugin-install-page.tsx): new `<AdminPluginInstallPage>` — per-install configure view at `/admin/plugins/:pluginId/:installId`. Dispatches to the right category page with `autoConfigureInstallId` set so the existing configure dialog opens for the named install. Thin router; reuses every line of existing configure UX.
+- [src/admin/admin-shipping-options-page.tsx](src/admin/admin-shipping-options-page.tsx): new `<AdminShippingOptionsPage>` — the site-wide shipping toggles, lifted verbatim from `<AdminShippingPluginsPage>` and mounted at `/admin/settings/shipping-options`.
+- [src/admin/use-enabled-plugin-installs.ts](src/admin/use-enabled-plugin-installs.ts): new `useEnabledPluginInstalls()` hook. Parallel-fetches enabled installs from shipping + payment + email collections, merges them, sorts by category+order, re-fetches on window focus. Powers both the unified page's Installed section and the dynamic sidebar children in `<AdminShell>`.
+- Public exports: `AdminPluginsPage`, `AdminPluginInstallPage`, `AdminShippingOptionsPage`, `useEnabledPluginInstalls`, `EnabledPluginInstall`, `EnabledPluginCategory`, `AdminShippingPluginsPageProps`, `AdminPaymentPluginsPageProps`.
+- i18n keys: `admin.plugins.search.placeholder`, `admin.plugins.filter.{all,shipping,payment,email}`, `admin.plugins.installed.{title,empty}`, `admin.plugins.catalog.{title,empty}`, `admin.plugins.col.{category,name,plugin,actions}`, `admin.plugins.{configure,install}`.
+
+### Changed
+
+- [src/admin/admin-shell.tsx](src/admin/admin-shell.tsx): `Appearance` leaf removed from `DEFAULT_ADMIN_NAV`; `Plugins` converted from leaf to `AdminNavGroup` with `id: 'plugins'` + empty initial children. `SETTINGS_SUB_NAV` gains `Appearance` + `Shipping options` entries. New `injectPluginChildren()` helper + `iconForPluginCategory()` inside the component body replace the group's children at render time with enabled installs. Consumers passing a custom `navItems` prop get the same behavior as long as they include a group with `id: 'plugins'`.
+- [src/admin/admin-settings-shell.tsx](src/admin/admin-settings-shell.tsx): dispatches `appearance` → `<AdminAppearancePage>` and `shipping-options` → `<AdminShippingOptionsPage>`. `SettingsSlug` union + `KNOWN_SLUGS` updated.
+- [src/admin/admin-root.tsx](src/admin/admin-root.tsx): `appearance` case now redirects to `/admin/settings/appearance`. `plugins` case dispatches via new `PluginsDispatch` helper: bare → unified list; `manage/<category>` → per-category page; legacy `shipping|payments|email-providers` → redirect-with-filter; `<pluginId>/<installId>` → per-install page.
+- [src/admin/admin-shipping-plugins-page.tsx](src/admin/admin-shipping-plugins-page.tsx): shipping-options card + supporting state + `saveSiteSettings` import removed (moved to `<AdminShippingOptionsPage>`). New `autoConfigureInstallId` prop opens the configure dialog on mount for a named install.
+- [src/admin/admin-payment-plugins-page.tsx](src/admin/admin-payment-plugins-page.tsx), [src/admin/admin-email-plugins-page.tsx](src/admin/admin-email-plugins-page.tsx): same new `autoConfigureInstallId` prop.
+
+### Removed
+
+- `<AdminPluginsShell>` + `AdminPluginsShellProps` type + `PLUGINS_SUB_NAV` export. These were v5 internals — the three-tab shell has no purpose under the unified list, and the scaffold stopped mounting it independently in v7. Any consumer still importing them was working against the v5 layout; migrate to `<AdminPluginsPage>` or the individual category pages.
+
+---
+
 ## v7.0.2 — Fix duplicate header/footer in scaffolded consumer sites
 
 v7.0.0's scaffolder shipped with a double-mount bug in the generated root layout. Every page of a freshly scaffolded store — storefront, PDP, cart, checkout, account — rendered the site chrome twice: two stacked headers (logo + nav + search + cart icons), two stacked footers (LUIVANTE + ABOUT + CUSTOMER CARE + NEWSLETTER). The library's `CaspianRoot` already wraps every storefront path in `<LayoutShell>` internally ([src/components/caspian-root.tsx:126](src/components/caspian-root.tsx#L126)), but the scaffolder's `src/app/layout.tsx` template was *also* wrapping `{children}` in `<LayoutShell>`, producing the double mount.

@@ -79,9 +79,14 @@ function coerceConfig(raw: DraftConfig): Record<string, unknown> {
 
 export interface AdminEmailPluginsPageProps {
   className?: string;
+  /** v7.1.0 deep-link — see AdminShippingPluginsPageProps.autoConfigureInstallId. */
+  autoConfigureInstallId?: string;
 }
 
-export function AdminEmailPluginsPage({ className }: AdminEmailPluginsPageProps) {
+export function AdminEmailPluginsPage({
+  className,
+  autoConfigureInstallId,
+}: AdminEmailPluginsPageProps) {
   const { db } = useCaspianFirebase();
   const { toast } = useToast();
   const t = useT();
@@ -91,6 +96,7 @@ export function AdminEmailPluginsPage({ className }: AdminEmailPluginsPageProps)
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState<DraftState | null>(null);
   const [saving, setSaving] = useState(false);
+  const [autoConfigureHandled, setAutoConfigureHandled] = useState(false);
 
   const load = async () => {
     try {
@@ -127,6 +133,15 @@ export function AdminEmailPluginsPage({ className }: AdminEmailPluginsPageProps)
     setDraft(draftFromInstall(install));
     setConfigOpen(true);
   };
+
+  useEffect(() => {
+    if (autoConfigureHandled || !autoConfigureInstallId || !installs) return;
+    const target = installs.find((x) => x.id === autoConfigureInstallId);
+    if (target) {
+      openConfigure(target);
+      setAutoConfigureHandled(true);
+    }
+  }, [autoConfigureHandled, autoConfigureInstallId, installs]);
 
   const handleSave = async () => {
     if (!draft) return;

@@ -99,7 +99,16 @@ function coerceConfig(raw: DraftConfig): Record<string, unknown> {
   return out;
 }
 
-export function AdminPaymentPluginsPage({ className }: { className?: string }) {
+export interface AdminPaymentPluginsPageProps {
+  className?: string;
+  /** v7.1.0 deep-link — see AdminShippingPluginsPageProps.autoConfigureInstallId. */
+  autoConfigureInstallId?: string;
+}
+
+export function AdminPaymentPluginsPage({
+  className,
+  autoConfigureInstallId,
+}: AdminPaymentPluginsPageProps) {
   const { db } = useCaspianFirebase();
   const { toast } = useToast();
   const t = useT();
@@ -109,6 +118,7 @@ export function AdminPaymentPluginsPage({ className }: { className?: string }) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState<DraftState | null>(null);
   const [saving, setSaving] = useState(false);
+  const [autoConfigureHandled, setAutoConfigureHandled] = useState(false);
 
   const load = async () => {
     try {
@@ -145,6 +155,15 @@ export function AdminPaymentPluginsPage({ className }: { className?: string }) {
     setDraft(draftFromInstall(install));
     setConfigOpen(true);
   };
+
+  useEffect(() => {
+    if (autoConfigureHandled || !autoConfigureInstallId || !installs) return;
+    const target = installs.find((x) => x.id === autoConfigureInstallId);
+    if (target) {
+      openConfigure(target);
+      setAutoConfigureHandled(true);
+    }
+  }, [autoConfigureHandled, autoConfigureInstallId, installs]);
 
   const handleSave = async () => {
     if (!draft) return;

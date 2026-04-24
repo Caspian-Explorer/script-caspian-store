@@ -8,6 +8,8 @@ import { SETTINGS_SUB_NAV } from './admin-shell';
 import { AdminSiteSettingsPage } from './admin-site-settings-page';
 import { AdminEmailsPage } from './admin-emails-page';
 import { AdminLanguagesPage } from './admin-languages-page';
+import { AdminAppearancePage } from './admin-appearance-page';
+import { AdminShippingOptionsPage } from './admin-shipping-options-page';
 
 export interface AdminSettingsShellProps {
   className?: string;
@@ -119,6 +121,10 @@ function SettingsPanel({ slug }: { slug: SettingsSlug }): ReactNode {
   switch (slug) {
     case 'general':
       return <AdminSiteSettingsPage />;
+    case 'appearance':
+      return <AdminAppearancePage />;
+    case 'shipping-options':
+      return <AdminShippingOptionsPage />;
     case 'emails':
       return <AdminEmailsPage />;
     case 'languages':
@@ -126,10 +132,16 @@ function SettingsPanel({ slug }: { slug: SettingsSlug }): ReactNode {
   }
 }
 
-type SettingsSlug = 'general' | 'emails' | 'languages';
+type SettingsSlug = 'general' | 'appearance' | 'shipping-options' | 'emails' | 'languages';
 type LegacyPluginSlug = 'shipping' | 'payments' | 'email-providers';
 
-const KNOWN_SLUGS: readonly SettingsSlug[] = ['general', 'emails', 'languages'];
+const KNOWN_SLUGS: readonly SettingsSlug[] = [
+  'general',
+  'appearance',
+  'shipping-options',
+  'emails',
+  'languages',
+];
 const LEGACY_PLUGIN_SLUGS: readonly LegacyPluginSlug[] = [
   'shipping',
   'payments',
