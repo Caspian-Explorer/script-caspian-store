@@ -16,6 +16,28 @@ Do not omit the heading, rename it, or fold it into `### Notes`. This is how
 customers tell at a glance whether an upgrade needs attention.
 -->
 
+## v3.1.1 — Fix admin route 404s in examples/nextjs (mod1189)
+
+The in-repo example app at [examples/nextjs/](examples/nextjs/) had drifted from the canonical scaffolder route list ([scaffold/create.mjs](scaffold/create.mjs)) since the v3.0 sidebar redesign. Nine `/admin/*` sidebar links 404'd when running `cd examples/nextjs && npm run dev` — most visibly `/admin/users`, the one that triggered the bug report. Two further example route files were stale: `app/admin/search-terms/page.tsx` imported `AdminSearchTermsPage`, removed in v3.0.0, breaking `next build` outright; and `app/admin/settings/page.tsx` rendered the pre-v3 `ScriptSettingsPage` instead of the new `AdminSettingsShell` catch-all.
+
+This patch syncs the example tree to the scaffolder and extends the existing drift-check script to catch the next regression of this shape.
+
+### No consumer action required
+
+Example-app-only fix. The shipped tarball, scaffolder, sidebar, and library exports are unchanged. Existing scaffolded sites are unaffected.
+
+### Fixed
+
+- [examples/nextjs/](examples/nextjs/): added the 9 admin route files the v3.0 sidebar links to — `users`, `subscribers`, `faqs`, `journal`, `pages`, `promo-codes`, `categories`, `collections`, `about`. Closes mod1189.
+- [examples/nextjs/app/admin/search-terms/](examples/nextjs/app/admin/search-terms/): removed; the export it imported was deleted in v3.0.0 and the search-terms surface now lives on the Dashboard.
+- [examples/nextjs/app/admin/settings/](examples/nextjs/app/admin/settings/): replaced the pre-v3 `page.tsx` with `[[...slug]]/page.tsx` rendering `AdminSettingsShell`, matching the scaffolder.
+
+### Changed
+
+- [scripts/check-scaffold-routes.mjs](scripts/check-scaffold-routes.mjs) now also verifies that every entry in `adminRoutes` has a corresponding `app/admin/.../page.tsx` file under `examples/nextjs/`. The next "added a sidebar link, forgot the example route" PR fails the check instead of waiting for a 404 report.
+
+---
+
 ## v3.1.0 — Fix search results stuck on previous query (#43 / mod1183)
 
 When a visitor was already on `/search?q=foo` and submitted a new term from the
