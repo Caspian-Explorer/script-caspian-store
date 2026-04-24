@@ -83,9 +83,9 @@ See [INSTALL.md](./INSTALL.md) for the **one-command scaffolder**, **Vite** / **
 | **Checkout:** `useCheckout()` + `<CheckoutPage />` — delegates to the active payment plugin (Stripe ships today) | ✅ |
 | **Order confirmation:** `<OrderConfirmationPage />` — polls Firestore for the webhook-created order | ✅ |
 | **Order history:** `<OrderHistoryList />` | ✅ |
-| **Wishlist:** `useWishlist()` + `<WishlistButton />` | ✅ |
+| **Wishlist:** `useWishlist()` + `<WishlistButton />` + `<WishlistPanel />` (account page section) | ✅ |
 | **Admin:** `<AdminGuard />`, `<AdminShell />`, `<AdminDashboard />`, product CRUD, orders + status, reviews moderation, `<AdminAboutPage />` (installed version + GitHub release feed + one-click self-update) | ✅ |
-| **Auth:** `<LoginPage />`, `<RegisterPage />`, `<ForgotPasswordPage />`, `<AccountPage />` (profile, password, addresses, orders) | ✅ |
+| **Auth:** `<LoginPage />`, `<RegisterPage />`, `<ForgotPasswordPage />`, `<AccountPage />` — sidebar-driven: profile (name/email/phone/photo), orders, addresses, wishlist, security | ✅ |
 | **i18n:** `<LocaleProvider>` + `useT()` + `DEFAULT_MESSAGES` + `<LocaleSwitcher />` (all surfaces migrated) | ✅ |
 | **Theming:** 10-theme `THEME_CATALOG` + Avada-style `<AdminAppearancePage>` grid + popup `<AdminAppearancePreviewPage>` with dummy-data storefront | ✅ |
 | **Profile photo:** `<ProfilePhotoCard />` (Firebase Storage, JPEG/PNG/WebP ≤5 MB) | ✅ |
@@ -131,8 +131,10 @@ triggerSelfUpdate
 
 // Auth + account
 LoginPage, RegisterPage, ForgotPasswordPage,
-AccountPage, ProfileCard, AddressBook, ChangePasswordCard,
-ProfilePhotoCard, DeleteAccountCard
+AccountPage, AccountSidebar, ACCOUNT_SECTION_ICONS,
+ProfileCard, AddressBook, ChangePasswordCard,
+ProfilePhotoCard, DeleteAccountCard, WishlistPanel,
+StorefrontProfileMenu
 
 // i18n
 LocaleProvider, LocaleSwitcher, useT, useLocale,

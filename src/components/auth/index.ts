@@ -7,3 +7,11 @@ export { ChangePasswordCard } from './change-password-card';
 export { ProfilePhotoCard } from './profile-photo-card';
 export { DeleteAccountCard } from './delete-account-card';
 export { AccountPage, type AccountPageProps } from './account-page';
+export { WishlistPanel, type WishlistPanelProps } from './wishlist-panel';
+export {
+  AccountSidebar,
+  ACCOUNT_SECTION_ICONS,
+  type AccountSidebarProps,
+  type AccountSidebarItem,
+  type AccountSection,
+} from './account-sidebar';

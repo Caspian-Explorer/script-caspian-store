@@ -169,11 +169,24 @@ export {
   ProfilePhotoCard,
   DeleteAccountCard,
   AccountPage,
+  WishlistPanel,
+  AccountSidebar,
+  ACCOUNT_SECTION_ICONS,
   type LoginPageProps,
   type RegisterPageProps,
   type ForgotPasswordPageProps,
   type AccountPageProps,
+  type WishlistPanelProps,
+  type AccountSidebarProps,
+  type AccountSidebarItem,
+  type AccountSection,
 } from './components/auth';
+
+// Storefront profile menu (v3.2) — avatar + dropdown for signed-in header
+export {
+  StorefrontProfileMenu,
+  type StorefrontProfileMenuProps,
+} from './components/storefront-profile-menu';
 
 // i18n
 export {
@@ -322,6 +335,8 @@ export { loadUserCart, saveUserCart } from './services/cart-service';
 export { addToWishlist, removeFromWishlist } from './services/wishlist-service';
 export {
   updateDisplayName,
+  updatePhone,
+  updateProfileFields,
   addAddress,
   updateAddress,
   deleteAddress,
@@ -699,6 +714,12 @@ export {
   resolveStockBadge,
   type StockBadgeKind,
 } from './utils/inventory';
+export {
+  ALL_COUNTRIES,
+  toCountryOptions,
+  countryName,
+  findCountryCode,
+} from './utils/countries';
 export {
   DEFAULT_TAX_CONFIG,
   resolveTaxCountryCode,

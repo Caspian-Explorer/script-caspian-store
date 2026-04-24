@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useAuth } from '../../context/auth-context';
 import { useCaspianFirebase } from '../../provider/caspian-store-provider';
-import { updateDisplayName } from '../../services/user-service';
+import { updateProfileFields } from '../../services/user-service';
 import { useT } from '../../i18n/locale-context';
 import { Button } from '../../ui/button';
 import { Input, Label } from '../../ui/input';
@@ -16,9 +16,16 @@ export function ProfileCard({ className }: { className?: string }) {
   const t = useT();
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(userProfile?.displayName ?? '');
+  const [phone, setPhone] = useState(userProfile?.phone ?? '');
   const [saving, setSaving] = useState(false);
 
   if (!user || !userProfile) return null;
+
+  const startEdit = () => {
+    setName(userProfile.displayName ?? '');
+    setPhone(userProfile.phone ?? '');
+    setEditing(true);
+  };
 
   const handleSave = async () => {
     if (!name.trim()) {
@@ -27,7 +34,10 @@ export function ProfileCard({ className }: { className?: string }) {
     }
     setSaving(true);
     try {
-      await updateDisplayName(db, user.uid, name.trim());
+      await updateProfileFields(db, user.uid, {
+        displayName: name.trim(),
+        phone: phone.trim(),
+      });
       await refreshProfile();
       toast({ title: t('profile.updated') });
       setEditing(false);
@@ -40,7 +50,8 @@ export function ProfileCard({ className }: { className?: string }) {
   };
 
   const handleCancel = () => {
-    setName(userProfile.displayName);
+    setName(userProfile.displayName ?? '');
+    setPhone(userProfile.phone ?? '');
     setEditing(false);
   };
 
@@ -52,7 +63,7 @@ export function ProfileCard({ className }: { className?: string }) {
       <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
         <h2 style={{ fontSize: 16, fontWeight: 600, margin: 0 }}>{t('profile.title')}</h2>
         {!editing && (
-          <Button variant="outline" size="sm" onClick={() => setEditing(true)}>
+          <Button variant="outline" size="sm" onClick={startEdit}>
             {t('common.edit')}
           </Button>
         )}
@@ -63,6 +74,22 @@ export function ProfileCard({ className }: { className?: string }) {
           <div>
             <Label>{t('profile.displayName')}</Label>
             <Input value={name} onChange={(e) => setName(e.target.value)} />
+          </div>
+          <div>
+            <Label>{t('profile.email')}</Label>
+            <Input value={userProfile.email} disabled readOnly />
+            <p style={{ fontSize: 12, color: '#888', margin: '4px 0 0' }}>
+              {t('profile.emailReadonly')}
+            </p>
+          </div>
+          <div>
+            <Label>{t('profile.phone')}</Label>
+            <Input
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder={t('profile.phonePlaceholder')}
+              type="tel"
+            />
           </div>
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
             <Button variant="outline" onClick={handleCancel} disabled={saving}>
@@ -77,6 +104,7 @@ export function ProfileCard({ className }: { className?: string }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           <Row label={t('profile.displayName')} value={userProfile.displayName || '—'} />
           <Row label={t('profile.email')} value={userProfile.email} />
+          <Row label={t('profile.phone')} value={userProfile.phone || '—'} />
         </div>
       )}
     </section>

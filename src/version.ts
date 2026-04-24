@@ -1,2 +1,2 @@
 // Auto-generated from package.json by tsup.config.ts. Do not edit.
-export const CASPIAN_STORE_VERSION = '4.1.1';
+export const CASPIAN_STORE_VERSION = '4.2.0';

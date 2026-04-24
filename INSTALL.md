@@ -452,7 +452,7 @@ export default function Page() { return <AccountPage />; }
 `<AccountPage>` is a composed view; swap for individual cards if you want a custom layout:
 
 ```tsx
-import { ProfileCard, AddressBook, ChangePasswordCard, OrderHistoryList, ProfilePhotoCard, DeleteAccountCard } from '@caspian-explorer/script-caspian-store';
+import { ProfileCard, AddressBook, ChangePasswordCard, OrderHistoryList, ProfilePhotoCard, DeleteAccountCard, WishlistPanel, AccountSidebar } from '@caspian-explorer/script-caspian-store';
 ```
 
 ### Editorial / content

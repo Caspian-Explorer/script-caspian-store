@@ -11,6 +11,13 @@ import { AddressBook } from './address-book';
 import { ChangePasswordCard } from './change-password-card';
 import { ProfilePhotoCard } from './profile-photo-card';
 import { DeleteAccountCard } from './delete-account-card';
+import { WishlistPanel } from './wishlist-panel';
+import {
+  AccountSidebar,
+  ACCOUNT_SECTION_ICONS,
+  type AccountSection,
+  type AccountSidebarItem,
+} from './account-sidebar';
 
 export interface AccountPageProps {
   signInHref?: string;
@@ -20,7 +27,23 @@ export interface AccountPageProps {
   hidePassword?: boolean;
   hidePhoto?: boolean;
   hideDeleteAccount?: boolean;
+  hideWishlist?: boolean;
+  /** Base path for the account page. Default: `/account`. */
+  basePath?: string;
   className?: string;
+}
+
+const VALID_SECTIONS: AccountSection[] = [
+  'profile',
+  'orders',
+  'addresses',
+  'wishlist',
+  'security',
+];
+
+function resolveSection(searchParams: URLSearchParams | undefined): AccountSection {
+  const raw = searchParams?.get('section') ?? '';
+  return (VALID_SECTIONS as string[]).includes(raw) ? (raw as AccountSection) : 'profile';
 }
 
 export function AccountPage({
@@ -30,6 +53,8 @@ export function AccountPage({
   hidePassword,
   hidePhoto,
   hideDeleteAccount,
+  hideWishlist,
+  basePath = '/account',
   className,
 }: AccountPageProps) {
   const { user, userProfile, loading, signOut } = useAuth();
@@ -59,9 +84,47 @@ export function AccountPage({
   };
 
   const displayedName = userProfile?.displayName || user.email;
+  const active = resolveSection(nav.searchParams);
+
+  const sidebarItems: AccountSidebarItem[] = [
+    { id: 'profile', label: t('account.menu.profile'), icon: ACCOUNT_SECTION_ICONS.profile },
+    ...(!hideOrders
+      ? [{ id: 'orders' as const, label: t('account.menu.orders'), icon: ACCOUNT_SECTION_ICONS.orders }]
+      : []),
+    ...(!hideAddresses
+      ? [
+          {
+            id: 'addresses' as const,
+            label: t('account.menu.addresses'),
+            icon: ACCOUNT_SECTION_ICONS.addresses,
+          },
+        ]
+      : []),
+    ...(!hideWishlist
+      ? [
+          {
+            id: 'wishlist' as const,
+            label: t('account.menu.wishlist'),
+            icon: ACCOUNT_SECTION_ICONS.wishlist,
+          },
+        ]
+      : []),
+    ...(!hidePassword || !hideDeleteAccount
+      ? [
+          {
+            id: 'security' as const,
+            label: t('account.menu.security'),
+            icon: ACCOUNT_SECTION_ICONS.security,
+          },
+        ]
+      : []),
+  ];
 
   return (
-    <div className={className} style={{ maxWidth: 960, margin: '0 auto', padding: '32px 24px' }}>
+    <div
+      className={`caspian-account-page${className ? ` ${className}` : ''}`}
+      style={{ maxWidth: 1200, margin: '0 auto', padding: '32px 24px' }}
+    >
       <header
         style={{
           display: 'flex',
@@ -95,18 +158,30 @@ export function AccountPage({
         </Button>
       </header>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        {!hidePhoto && <ProfilePhotoCard />}
-        <ProfileCard />
-        {!hideAddresses && <AddressBook />}
-        {!hidePassword && <ChangePasswordCard />}
-        {!hideOrders && (
-          <section style={sectionStyle}>
-            <h2 style={h2Style}>{t('account.sections.recentOrders')}</h2>
-            <OrderHistoryList />
-          </section>
-        )}
-        {!hideDeleteAccount && <DeleteAccountCard />}
+      <div className="caspian-account-grid">
+        <AccountSidebar items={sidebarItems} active={active} basePath={basePath} />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, minWidth: 0 }}>
+          {active === 'profile' && (
+            <>
+              {!hidePhoto && <ProfilePhotoCard />}
+              <ProfileCard />
+            </>
+          )}
+          {active === 'orders' && !hideOrders && (
+            <section style={sectionStyle}>
+              <h2 style={h2Style}>{t('account.sections.recentOrders')}</h2>
+              <OrderHistoryList />
+            </section>
+          )}
+          {active === 'addresses' && !hideAddresses && <AddressBook />}
+          {active === 'wishlist' && !hideWishlist && <WishlistPanel />}
+          {active === 'security' && (
+            <>
+              {!hidePassword && <ChangePasswordCard />}
+              {!hideDeleteAccount && <DeleteAccountCard />}
+            </>
+          )}
+        </div>
       </div>
     </div>
   );

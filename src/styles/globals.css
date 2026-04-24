@@ -36,3 +36,33 @@
   outline-offset: 2px;
   border-radius: 2px;
 }
+
+.caspian-account-grid {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: 16px;
+  align-items: start;
+}
+
+.caspian-account-sidebar__item:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+.caspian-account-sidebar__item[aria-current="page"]:hover {
+  background: var(--caspian-primary, #111);
+}
+
+@media (max-width: 720px) {
+  .caspian-account-grid {
+    grid-template-columns: 1fr;
+  }
+  .caspian-account-sidebar {
+    flex-direction: row !important;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 6px !important;
+    gap: 4px !important;
+  }
+  .caspian-account-sidebar__item {
+    flex: 0 0 auto;
+  }
+}

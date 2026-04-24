@@ -17,7 +17,7 @@ import { Dialog } from '../../ui/dialog';
 import { SearchableSelect, type SearchableSelectOption } from '../../ui/searchable-select';
 import { useToast } from '../../ui/toast';
 import { useT } from '../../i18n/locale-context';
-import { ALL_COUNTRIES } from '../../utils/countries';
+import { ALL_COUNTRIES, countryName, findCountryCode } from '../../utils/countries';
 
 const COUNTRY_OPTIONS: SearchableSelectOption[] = ALL_COUNTRIES.map((c) => ({
   value: c.code,
@@ -61,7 +61,7 @@ export function AddressBook({ className }: { className?: string }) {
       address: addr.address,
       city: addr.city,
       zip: addr.zip,
-      country: addr.country,
+      country: findCountryCode(addr.country) ?? '',
       isDefault: addr.isDefault,
     });
     setDialogOpen(true);
@@ -151,7 +151,7 @@ export function AddressBook({ className }: { className?: string }) {
                   <br />
                   {addr.city} {addr.zip}
                   <br />
-                  {addr.country}
+                  {countryName(addr.country)}
                 </p>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-end' }}>

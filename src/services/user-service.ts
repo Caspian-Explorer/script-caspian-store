@@ -12,6 +12,28 @@ export async function updateDisplayName(
   });
 }
 
+export async function updatePhone(
+  db: Firestore,
+  uid: string,
+  phone: string,
+): Promise<void> {
+  await updateDoc(doc(db, 'users', uid), {
+    phone,
+    updatedAt: Timestamp.now(),
+  });
+}
+
+export async function updateProfileFields(
+  db: Firestore,
+  uid: string,
+  fields: { displayName?: string; phone?: string },
+): Promise<void> {
+  const payload: Record<string, unknown> = { updatedAt: Timestamp.now() };
+  if (fields.displayName !== undefined) payload.displayName = fields.displayName;
+  if (fields.phone !== undefined) payload.phone = fields.phone;
+  await updateDoc(doc(db, 'users', uid), payload);
+}
+
 async function readAddresses(db: Firestore, uid: string): Promise<UserAddress[]> {
   const snap = await getDoc(doc(db, 'users', uid));
   if (!snap.exists()) return [];

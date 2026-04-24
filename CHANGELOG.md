@@ -16,6 +16,46 @@ Do not omit the heading, rename it, or fold it into `### Notes`. This is how
 customers tell at a glance whether an upgrade needs attention.
 -->
 
+## v4.2.0 — Account page redesign: avatar dropdown, sidebar, wishlist section (mod1194)
+
+The signed-in storefront experience gets a cohesive redesign. Three user-visible changes, one schema addition, and one helper utility — all additive. Closes mod1194.
+
+**Header avatar dropdown.** The old header rendered a single-letter initials button that linked to `/account` and, for admins, a separate `[Admin]` button next to it. Both are replaced by a single avatar button that opens a dropdown with `My account`, `Orders`, `Admin` (admins only), and `Sign out`. The header's heart/wishlist icon is untouched. Structurally a close sibling of `AdminProfileMenu` so admins and shoppers get a consistent pattern on either side of the /admin boundary.
+
+**Account page sidebar layout.** `<AccountPage>` was a long vertical scroll of cards — Profile Photo, Profile, Addresses, Password, Orders, Delete. It's now a two-column layout (240px sidebar + content pane) with five sections: **Profile**, **Orders**, **Addresses**, **Wishlist**, **Security**. Navigation is URL-driven (`?section=xxx`), so the header dropdown can link directly to a section and browser back/forward works. Below 720px the sidebar collapses to a horizontal scrollable tab strip. All existing `hide*` props still hide their respective sections; a new `hideWishlist` prop joins them.
+
+**Wishlist section.** The library already had a wishlist engine (`useWishlist`, `WishlistButton`, `UserProfile.wishlist: string[]`) but no place for signed-in shoppers to actually see what they'd saved. The new `<WishlistPanel>` is mounted as the Wishlist sidebar section and renders saved products as a grid with per-item **Add to cart** and **Remove** actions. Empty state links to `/shop`.
+
+**Inline editing gains phone.** `<ProfileCard>` now covers display name, email (read-only — changing it requires a password reset + re-auth, out of scope), and a new optional **phone** field. `UserProfile.phone?: string` is new and optional so existing Firestore docs continue to load without migration. The Firestore rules on `/users/{uid}` already allow the owner to write any non-role field, so no rules change is needed.
+
+**Address book legacy handling.** The country field is already a `SearchableSelect` (v4.1.0). Two small follow-ups: (1) the address list now renders `countryName(addr.country)` instead of the raw value, so stored ISO codes like `"US"` display as `"United States"`; (2) when editing a legacy address whose country is a free-form name (e.g. `"United States"` from pre-v4.1.0), the Select now pre-selects the matching code via the new `findCountryCode()` helper, so saving converts the legacy string to a code without the user having to re-pick.
+
+### No consumer action required
+
+Additive release — existing installs pick up the new UI on the next build. All previous `AccountPage` props keep working; `StorefrontProfileMenu` and `WishlistPanel` are consumed automatically by `SiteHeader` and `AccountPage` and don't need to be wired in explicitly. If a consumer was passing a custom `userMenu` slot to `SiteHeader`, their slot still wins.
+
+### Added
+
+- [src/components/storefront-profile-menu.tsx](src/components/storefront-profile-menu.tsx): new `StorefrontProfileMenu` component — avatar trigger + dropdown with name/email header, `My account`, `Orders`, conditional `Admin`, `Sign out`. Mirrors `AdminProfileMenu`'s pattern using `DropdownMenu` + `Avatar`.
+- [src/components/auth/account-sidebar.tsx](src/components/auth/account-sidebar.tsx): new `AccountSidebar` component + `AccountSection` type + `ACCOUNT_SECTION_ICONS` record. URL-driven section switching via `useCaspianNavigation().searchParams`.
+- [src/components/auth/wishlist-panel.tsx](src/components/auth/wishlist-panel.tsx): new `WishlistPanel` component. Uses `useWishlist()` + `getProductsByIds()` + `useCart().addToCart()` to render a responsive grid with Add-to-cart + Remove actions.
+- [src/utils/countries.ts](src/utils/countries.ts): new `findCountryCode(input)` helper — returns the ISO-2 code for a known code (case-normalized) or a case-insensitive name match, else `null`. Enables the address-book legacy-name prefill.
+- [src/services/user-service.ts](src/services/user-service.ts): new `updatePhone(db, uid, phone)` and `updateProfileFields(db, uid, { displayName?, phone? })` functions.
+- [src/types.ts](src/types.ts): new optional `phone?: string` on `UserProfile`.
+- [src/ui/icons.tsx](src/ui/icons.tsx): added `HeartIcon`, `LockIcon`, `MapPinIcon` for the account sidebar.
+- New i18n keys: `account.menu.{profile,orders,addresses,wishlist,security,viewStorefront,myAccount,admin,ariaLabel}`, `profile.{email.readonly,phone,phonePlaceholder}`, `wishlist.panel.{title,subtitle,empty,emptyCta,addToCart,remove,signInRequired}`.
+- Public exports: `StorefrontProfileMenu`, `WishlistPanel`, `AccountSidebar`, `ACCOUNT_SECTION_ICONS`, `AccountSection`, `AccountSidebarItem`, `updatePhone`, `updateProfileFields`, `ALL_COUNTRIES`, `toCountryOptions`, `countryName`, `findCountryCode`.
+
+### Changed
+
+- [src/components/auth/account-page.tsx](src/components/auth/account-page.tsx): refactored from a vertical stack into a `.caspian-account-grid` layout with `AccountSidebar` on the left and section content on the right. Section is resolved from `?section=<id>`. New `hideWishlist` prop.
+- [src/components/auth/profile-card.tsx](src/components/auth/profile-card.tsx): edit form now covers display name + email (read-only with "reset your password" hint) + optional phone. Save goes through new `updateProfileFields` to batch both mutable fields.
+- [src/components/site-header.tsx](src/components/site-header.tsx): the signed-in branch's initials-button + inline Admin-link pair is replaced by `<StorefrontProfileMenu />`. Heart/wishlist and cart buttons are untouched.
+- [src/components/auth/address-book.tsx](src/components/auth/address-book.tsx): the address list now routes through `countryName(addr.country)` so stored ISO codes render as English names. `openEdit` prefills via `findCountryCode` so legacy free-form name values map to the correct Select option.
+- [src/styles/globals.css](src/styles/globals.css): added `.caspian-account-grid` (two-column desktop, single-column below 720px) and `.caspian-account-sidebar` hover/active + horizontal-scroll mobile rules.
+
+---
+
 ## v4.1.1 — Settings sidebar matches Appearance "Categories" styling (mod1192)
 
 The Settings shell has had its own sub-sidebar since v3.0.0, but the visuals (bordered white panel, icon+label rows, primary-colored active pill) didn't match the Appearance page's "Categories" menu right next to it in the main admin nav. Merchants who noticed the inconsistency asked for the Settings sub-nav to look and feel the same as Appearance's — single "CATEGORIES" header, plain labels, soft-grey active background.

@@ -16,6 +16,7 @@ import type { SiteSettings } from '../types';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/misc';
 import { CartSheet } from './cart-sheet';
+import { StorefrontProfileMenu } from './storefront-profile-menu';
 
 export interface SiteHeaderNavItem {
   href: string;
@@ -72,7 +73,7 @@ export function SiteHeader({
   const Link = useCaspianLink();
   const navigation = useCaspianNavigation();
   const { db } = useCaspianFirebase();
-  const { user, userProfile, loading } = useAuth();
+  const { user, loading } = useAuth();
   const { count: cartCount } = useCart();
   const { wishlist } = useWishlist();
   const wishlistCount = wishlist.length;
@@ -253,26 +254,7 @@ export function SiteHeader({
             {languageSwitcher}
 
             {!loading && user ? (
-              userMenu ?? (
-                <>
-                  {userProfile?.role === 'admin' && (
-                    <Link
-                      href="/admin"
-                      style={{ textDecoration: 'none' }}
-                      aria-label={t('navigation.admin')}
-                    >
-                      <Button variant="outline" size="sm">
-                        {t('navigation.admin')}
-                      </Button>
-                    </Link>
-                  )}
-                  <Link href="/account">
-                    <Button variant="outline" size="sm">
-                      {(user.displayName ?? user.email ?? '?').slice(0, 1).toUpperCase()}
-                    </Button>
-                  </Link>
-                </>
-              )
+              userMenu ?? <StorefrontProfileMenu />
             ) : (
               <Link href={accountHref}>
                 <Button variant="outline" size="sm">

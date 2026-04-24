@@ -284,7 +284,27 @@ const NAME_BY_CODE: Record<string, string> = Object.fromEntries(
   ALL_COUNTRIES.map((c) => [c.code, c.name]),
 );
 
+const CODE_BY_NAME_LOWER: Record<string, string> = Object.fromEntries(
+  ALL_COUNTRIES.map((c) => [c.name.toLowerCase(), c.code]),
+);
+
 /** Look up a country's English name by ISO-2 code. Returns the code unchanged if unknown. */
 export function countryName(code: string): string {
   return NAME_BY_CODE[code] ?? code;
+}
+
+/**
+ * Resolve a possibly-legacy country string to an ISO-2 code. Accepts either a
+ * known 2-letter code (returned as-is) or an English name (case-insensitive
+ * match against `ALL_COUNTRIES.name`). Returns `null` when the input doesn't
+ * match anything — caller decides whether to keep the raw string or clear the
+ * field.
+ */
+export function findCountryCode(input: string | null | undefined): string | null {
+  if (!input) return null;
+  const trimmed = input.trim();
+  if (!trimmed) return null;
+  if (NAME_BY_CODE[trimmed.toUpperCase()]) return trimmed.toUpperCase();
+  const byName = CODE_BY_NAME_LOWER[trimmed.toLowerCase()];
+  return byName ?? null;
 }

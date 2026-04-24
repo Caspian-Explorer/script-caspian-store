@@ -145,6 +145,7 @@ export interface UserProfile {
   email: string;
   displayName: string;
   photoURL: string | null;
+  phone?: string;
   role: 'customer' | 'admin';
   addresses: UserAddress[];
   wishlist: string[];
