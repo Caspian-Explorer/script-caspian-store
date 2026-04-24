@@ -15,52 +15,65 @@ npm run dev                  # http://localhost:3000
 
 `npm create caspian-store@latest` generates a Next.js 14 App Router project with every storefront, auth, content, and admin route pre-mounted, real deployable Firestore rules, and optional Stripe Cloud Functions (`--with-functions`). See [INSTALL.md](./INSTALL.md) for the full first-run checklist, or the manual-install path below for embedding into an existing app.
 
-### Manual install
+### Manual install (v7.0.0 — one route file owns every page)
 
 ```bash
 npm install github:Caspian-Explorer/script-caspian-store#vX.Y.Z firebase
 ```
 
-```tsx
-// app/providers.tsx (Next.js)
-'use client';
+Two files are all you ever need. **No per-page route files, ever, for any library version.** New library pages land automatically.
 
-import Link from 'next/link';
-import Image from 'next/image';
-import { useRouter, usePathname } from 'next/navigation';
+```tsx
+// app/layout.tsx — Providers + global CSS
+import type { ReactNode } from 'react';
 import { CaspianStoreProvider } from '@caspian-explorer/script-caspian-store';
 import '@caspian-explorer/script-caspian-store/styles.css';
+import Link from 'next/link';
+import Image from 'next/image';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 
-const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY!,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN!,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID!,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID!,
-};
-
-export function Providers({ children }: { children: React.ReactNode }) {
-  const router = useRouter();
-  const pathname = usePathname();
-
+export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <CaspianStoreProvider
-      firebaseConfig={firebaseConfig}
-      adapters={{
-        Link: ({ href, children, ...rest }) => <Link href={href} {...rest}>{children}</Link>,
-        Image: (props) => <Image {...(props as any)} />,
-        useNavigation: () => ({
-          pathname: pathname ?? '/',
-          push: (href) => router.push(href),
-          replace: (href) => router.replace(href),
-          back: () => router.back(),
-        }),
-      }}
-    >
-      {children}
-    </CaspianStoreProvider>
+    <html lang="en"><body>
+      <CaspianStoreProvider
+        firebaseConfig={{
+          apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY!,
+          authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN!,
+          projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID!,
+          appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID!,
+        }}
+        adapters={{
+          Link: ({ href, children, ...rest }) => <Link href={href as any} {...rest}>{children}</Link>,
+          Image: (props) => <Image {...(props as any)} />,
+          useNavigation: () => {
+            const r = useRouter();
+            const p = usePathname();
+            const sp = useSearchParams();
+            return {
+              pathname: p ?? '/',
+              searchParams: new URLSearchParams(sp?.toString() ?? ''),
+              push: (h) => r.push(h as any),
+              replace: (h) => r.replace(h as any),
+              back: () => r.back(),
+            };
+          },
+        }}
+      >
+        {children}
+      </CaspianStoreProvider>
+    </body></html>
   );
 }
 ```
+
+```tsx
+// app/[[...slug]]/page.tsx — one file, every page
+'use client';
+import { CaspianRoot } from '@caspian-explorer/script-caspian-store';
+export default function Page() { return <CaspianRoot />; }
+```
+
+That's it. `<CaspianRoot />` dispatches every library URL — storefront, admin, account, auth, journal, checkout, setup wizard — via pathname. To replace the homepage, pass `<CaspianRoot homepage={<MyHomepage />} />`. To handle custom paths, pass a `fallback={({ pathname }) => <MyCustomPage path={pathname} />}` render prop. Admin `app/api/**/route.ts` endpoints (setup/write-env, self-update) still live as separate files because they're server-side.
 
 See [INSTALL.md](./INSTALL.md) for the **one-command scaffolder**, **Vite** / **CRA** snippets, Firebase rules deployment, and Cloud Functions setup.
 

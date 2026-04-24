@@ -11,6 +11,7 @@ export {
 } from './admin-shell';
 export { AdminSettingsShell, type AdminSettingsShellProps } from './admin-settings-shell';
 export { AdminPluginsShell, type AdminPluginsShellProps } from './admin-plugins-shell';
+export { AdminRoot } from './admin-root';
 export { AdminDashboard, type AdminDashboardProps } from './admin-dashboard';
 export {
   AdminProductsList,

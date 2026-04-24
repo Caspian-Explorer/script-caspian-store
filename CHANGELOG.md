@@ -16,6 +16,66 @@ Do not omit the heading, rename it, or fold it into `### Notes`. This is how
 customers tell at a glance whether an upgrade needs attention.
 -->
 
+## v7.0.0 — Single-mount CaspianRoot: one file owns every page, forever
+
+Consumer admin routing has been a pain point every time the library adds a page — v5.0.0 (the Plugins page) made it concrete: add a sidebar entry, ship it, and every consumer gets a silent 404 until they create a new route file and restart `next dev`. Telling customers to edit their own app on every library upgrade is not a supportable product, so v7 moves the library to a pattern where that never has to happen again.
+
+**One dispatcher, one mount, every URL.** New `<CaspianRoot />` is a top-level pathname dispatcher that owns every library URL — storefront (`/`, `/cart`, `/checkout`, `/product/:id`, `/collections`, `/collections/:slug`, `/journal`, `/journal/:id`, `/search`, `/faqs`, `/contact`, `/about`, `/privacy`, `/terms`, `/sustainability`, `/shipping-returns`, `/size-guide`), account + auth (`/account`, `/auth/login`, `/auth/register`, `/auth/forgot-password`), orders confirmation, admin-gated setup wizard, the admin-preview theme popup, and the entire `/admin/**` tree (via a delegated `<AdminRoot>` that internally wraps in `<AdminGuard>` + `<AdminShell>`). Consumers mount it once at `app/[[...slug]]/page.tsx` and stop touching routes.
+
+**Scaffolder collapses from 20+ route files to 1.** Fresh scaffolds now emit `src/app/[[...slug]]/page.tsx` plus the two server-side API routes that can't be client-dispatched. Every future library page lands as an internal case in `<CaspianRoot>` or `<AdminRoot>` — no scaffolder bump, no consumer code change.
+
+**Customizing the single mount.** `<CaspianRoot>` accepts `homepage` (override `<HomePage />`), `fallback({ pathname })` (render custom pages for unknown paths), `header` / `footer` (pass-through to the storefront `LayoutShell`), `checkoutSuccessUrl` / `checkoutCancelUrl`, `setupFinishHref`, `adminHeaderRight`. Full admin + storefront page components stay public exports, so hand-rolled custom routing is still available if a consumer wants it.
+
+### Consumer action required on upgrade
+
+One-time route collapse. After this, no library version will ever ask you to touch routes again.
+
+```bash
+# 1. Bump
+npm install github:Caspian-Explorer/script-caspian-store#v7.0.0
+
+# 2. Delete the old per-page tree
+rm -rf src/app/admin src/app/admin-preview src/app/cart src/app/checkout \
+       src/app/collections src/app/product src/app/search src/app/shop \
+       src/app/wishlist src/app/journal src/app/orders src/app/account \
+       src/app/auth src/app/login src/app/register src/app/forgot-password \
+       src/app/contact src/app/faqs src/app/shipping-returns src/app/size-guide \
+       src/app/about src/app/privacy src/app/terms src/app/sustainability \
+       src/app/settings src/app/setup src/app/page.tsx
+
+# 3. Add the one catch-all that replaces them all
+mkdir -p "src/app/[[...slug]]"
+cat > "src/app/[[...slug]]/page.tsx" <<'EOF'
+'use client';
+import { CaspianRoot } from '@caspian-explorer/script-caspian-store';
+export default function Page() { return <CaspianRoot />; }
+EOF
+
+# 4. Fully stop `next dev` (Ctrl+C, not just save) and restart
+npm run dev
+```
+
+Keep your `src/app/layout.tsx` with `<Providers>` + global CSS import as-is. Keep any `src/app/api/**/route.ts` server routes you have. If you want a custom homepage, pass `<CaspianRoot homepage={<MyHomepage />} />`. If you have custom client-side routes (a `/blog` page you wrote), they keep working — Next.js prefers a more specific route over the catch-all — or pass a `fallback` render prop to plug them into CaspianRoot.
+
+### Added
+
+- [src/components/caspian-root.tsx](src/components/caspian-root.tsx): new `<CaspianRoot>` top-level dispatcher + `CaspianRootProps`. Owns every library URL via pathname-based routing. Wraps `/admin/**` in `AdminGuard` + `AdminShell`, `/admin-preview` without, storefront paths in `LayoutShell`, and `/setup` + `/setup/init` in `AdminGuard` for the admin-gated wizard.
+- [src/admin/admin-root.tsx](src/admin/admin-root.tsx): new `<AdminRoot>` — internal switch that `<CaspianRoot>` delegates to for `/admin/**`. Dispatches to every admin page component and delegates `/admin/settings/**` + `/admin/plugins/**` to their existing subshells. The v5 legacy-slug redirect from `/admin/settings/{shipping,payments,email-providers}` to `/admin/plugins/*` keeps working end-to-end.
+- Public exports: `CaspianRoot`, `CaspianRootProps`, `AdminRoot`.
+
+### Changed
+
+- [scaffold/create.mjs](scaffold/create.mjs): the 20+ per-page client-route writes are replaced with one `write('src/app/[[...slug]]/page.tsx', …)` emitting `<CaspianRoot />`. Server API routes (`src/app/api/setup/write-env/route.ts`, `src/app/api/caspian-store/update/route.ts`) are unchanged. The `admin/layout.tsx` write is gone — CaspianRoot handles the wrapping.
+- [examples/nextjs/app/](examples/nextjs/app/): the entire per-route tree is deleted and replaced by a single `[[...slug]]/page.tsx` catch-all. The example app now contains exactly three files: `layout.tsx`, `providers.tsx`, `[[...slug]]/page.tsx`.
+- [scripts/check-scaffold-routes.mjs](scripts/check-scaffold-routes.mjs): repurposed. The nav-vs-scaffolder-vs-example three-way drift check is obsolete under a single catch-all. The script now verifies every href in `DEFAULT_ADMIN_NAV` has a matching `case '<head>':` in `AdminRoot`'s switch — the real invariant going forward. Same failure class as before (nav entry without dispatch) caught at the same CI step.
+- [README.md](README.md), [INSTALL.md](INSTALL.md): the "Mount routes" section rewrites around the single-file install — no more 20-example per-page block.
+
+### Tradeoff
+
+All client-side pages ship in one Next.js route bundle rather than per-route chunks. For small-to-medium stores this is fine (total JS is similar, just delivered up front). If bundle size grows painful, `React.lazy` + `Suspense` inside `CaspianRoot` restores per-page splitting without changing the public contract.
+
+---
+
 ## v6.0.0 — React 19 + Firebase 12 + tailwind-merge 3
 
 Coordinated major-version dep upgrade. The library compiles cleanly against React 19, Firebase 12, and tailwind-merge 3 with no source changes — `peerDependencies` ranges are widened so consumers still on React 18 or Firebase 10/11 keep working. Also hardens `.gitignore` against accidental commits of Firebase service-account JSON files.

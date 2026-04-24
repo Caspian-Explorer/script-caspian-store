@@ -32,6 +32,12 @@ export {
   useDefaultCaspianNavigation,
 } from './primitives';
 
+// --- Single-mount root (v7.0.0) ---
+// Mount `<CaspianRoot />` once at `app/[[...slug]]/page.tsx` and the
+// library owns every storefront, admin, account, auth, and content URL.
+// New library pages land without consumers touching their route tree.
+export { CaspianRoot, type CaspianRootProps } from './components/caspian-root';
+
 // --- Storefront components ---
 export { StarIcon } from './components/star-icon';
 export { StarRatingInput, type StarRatingInputProps } from './components/star-rating-input';
@@ -536,6 +542,7 @@ export {
   AdminShell,
   AdminSettingsShell,
   AdminPluginsShell,
+  AdminRoot,
   DEFAULT_ADMIN_NAV,
   SETTINGS_SUB_NAV,
   PLUGINS_SUB_NAV,

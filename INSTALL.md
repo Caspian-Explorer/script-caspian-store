@@ -378,143 +378,43 @@ Admin pages gate on `role === 'admin'`; without it `<AdminGuard>` renders an acc
 
 ---
 
-## 8. Mount routes
+## 8. Mount routes (v7.0.0 — one file)
 
-Every route is a one-liner re-export of the matching package component.
-
-### Storefront
+As of v7.0.0 the library ships a single dispatcher, `<CaspianRoot />`, that owns every library URL — storefront, admin, account, auth, journal, checkout, setup — via pathname-based routing. You mount it **once** and never touch routes again when the library adds pages.
 
 ```tsx
-// src/app/page.tsx
-import { HomePage } from '@caspian-explorer/script-caspian-store';
-export default function Home() { return <HomePage />; }
-
-// src/app/product/[id]/page.tsx
+// src/app/[[...slug]]/page.tsx
 'use client';
-import { useParams } from 'next/navigation';
-import { ProductDetailPage } from '@caspian-explorer/script-caspian-store';
-export default function Page() {
-  const { id } = useParams<{ id: string }>();
-  return <ProductDetailPage productId={id} />;
-}
-
-// src/app/shop/page.tsx
-import { ProductListPage } from '@caspian-explorer/script-caspian-store';
-export default function Page() { return <ProductListPage title="Shop" />; }
-
-// src/app/collections/page.tsx
-import { CollectionsPage } from '@caspian-explorer/script-caspian-store';
-export default function Page() { return <CollectionsPage />; }
-
-// src/app/collections/[slug]/page.tsx
-'use client';
-import { useParams } from 'next/navigation';
-import { CollectionDetailPage } from '@caspian-explorer/script-caspian-store';
-export default function Page() {
-  const { slug } = useParams<{ slug: string }>();
-  return <CollectionDetailPage slug={slug} />;
-}
-
-// src/app/cart/page.tsx — full-page cart (<SiteHeader> already shows a cart drawer too)
-import { useState } from 'react';
-import { CartSheet } from '@caspian-explorer/script-caspian-store';
-export default function Page() {
-  const [open, setOpen] = useState(true);
-  return <CartSheet open={open} onOpenChange={setOpen} />;
-}
-
-// src/app/checkout/page.tsx
-'use client';
-import { CheckoutPage } from '@caspian-explorer/script-caspian-store';
-export default function Page() {
-  const origin = typeof window !== 'undefined' ? window.location.origin : '';
-  return (
-    <CheckoutPage
-      successUrl={`${origin}/orders/success?session_id={CHECKOUT_SESSION_ID}`}
-      cancelUrl={`${origin}/checkout`}
-    />
-  );
-}
-
-// src/app/orders/success/page.tsx
-'use client';
-import { useSearchParams } from 'next/navigation';
-import { OrderConfirmationPage } from '@caspian-explorer/script-caspian-store';
-export default function Page() {
-  const sessionId = useSearchParams().get('session_id');
-  return sessionId ? <OrderConfirmationPage orderId={sessionId} /> : null;
-}
+import { CaspianRoot } from '@caspian-explorer/script-caspian-store';
+export default function Page() { return <CaspianRoot />; }
 ```
 
-### Auth + account
+That's the whole consumer-side routing. Server-side Next.js endpoints (`app/api/**/route.ts`) stay as separate files because they're not client pages.
 
-```tsx
-// src/app/auth/login/page.tsx, register/page.tsx, forgot-password/page.tsx
-import { LoginPage, RegisterPage, ForgotPasswordPage } from '@caspian-explorer/script-caspian-store';
-// (one file per route, export default the matching component)
+### Customizing
 
-// src/app/account/page.tsx
-import { AccountPage } from '@caspian-explorer/script-caspian-store';
-export default function Page() { return <AccountPage />; }
-```
+- **Custom homepage.** Pass a `homepage` prop: `<CaspianRoot homepage={<MyHomepage />} />`.
+- **Custom routes.** Add them alongside — Next.js routes a more specific file (e.g. `app/blog/page.tsx`) over the catch-all, so your custom pages keep working. Or plug into the fallback: `<CaspianRoot fallback={({ pathname }) => <MyCustomPage path={pathname} />} />`.
+- **Custom storefront header/footer.** Pass through: `<CaspianRoot header={{ showSearch: true }} footer={null} />`.
 
-`<AccountPage>` is a composed view; swap for individual cards if you want a custom layout:
+### What CaspianRoot dispatches
 
-```tsx
-import { ProfileCard, AddressBook, ChangePasswordCard, OrderHistoryList, ProfilePhotoCard, DeleteAccountCard, WishlistPanel, AccountSidebar } from '@caspian-explorer/script-caspian-store';
-```
+Every route the old per-page scaffold used to write, now an internal switch:
 
-### Editorial / content
+- `/` — `<HomePage />` (or your `homepage` prop)
+- `/cart`, `/checkout`, `/orders/success` — storefront purchase flow
+- `/product/:id`, `/shop`, `/collections`, `/collections/:slug`, `/search`, `/wishlist` — product discovery
+- `/account`, `/auth/login`, `/auth/register`, `/auth/forgot-password` — account + auth
+- `/journal`, `/journal/:id` — editorial
+- `/faqs`, `/contact`, `/shipping-returns`, `/size-guide` — support
+- `/about`, `/privacy`, `/terms`, `/sustainability` — editable content pages (`<PageContentView>`)
+- `/setup`, `/setup/init` — admin-gated configuration wizard
+- `/admin-preview/appearance` — theme preview (escapes admin shell)
+- `/admin/**` — the whole admin tree, auto-wrapped in `<AdminGuard>` + `<AdminShell>` + `<AdminProfileMenu>` — no `app/admin/layout.tsx` needed
 
-```tsx
-// journal + detail
-import { JournalListPage, JournalDetailPage } from '@caspian-explorer/script-caspian-store';
+Every page component (`<HomePage>`, `<ProductDetailPage>`, `<AdminDashboard>`, etc.) is still a public export, so if you want a fully hand-rolled route tree you can still do that — CaspianRoot is the convenience layer, not a cage.
 
-// any /about, /privacy, /terms, /sustainability, etc.
-import { PageContentView } from '@caspian-explorer/script-caspian-store';
-export default function About() {
-  return <PageContentView pageKey="about" fallback={{ title: 'About', content: 'Edit in /admin/pages.' }} />;
-}
-
-// /contact — public contact form (v2.13). Submissions land in /admin/users.
-import { ContactPage } from '@caspian-explorer/script-caspian-store';
-export default function Contact() { return <ContactPage />; }
-
-// FAQ + shipping + size
-import { FaqsPage, ShippingReturnsPage, SizeGuidePage } from '@caspian-explorer/script-caspian-store';
-```
-
-### Admin (gate on role = 'admin')
-
-```tsx
-// src/app/admin/layout.tsx
-'use client';
-import { AdminGuard, AdminShell } from '@caspian-explorer/script-caspian-store';
-export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  return <AdminGuard><AdminShell>{children}</AdminShell></AdminGuard>;
-}
-
-// One file per route, each exporting the matching package component:
-import {
-  AdminDashboard,
-  AdminProductsList, AdminProductEditor,
-  AdminOrdersList, AdminOrderDetail,
-  AdminReviewsModeration,
-  AdminJournalPage,
-  AdminPagesPage,
-  AdminFaqsPage,
-  AdminShippingPage,
-  AdminPromoCodesPage,
-  AdminSubscribersPage,
-  AdminUsersPage,              // v2.13+ — tabbed inbox; contacts today, more tabs later
-  AdminProductCategoriesPage,
-  AdminProductCollectionsPage,
-  AdminLanguagesPage,
-  AdminSiteSettingsPage,
-} from '@caspian-explorer/script-caspian-store';
-```
-
-See [`scaffold/create.mjs`](./scaffold/create.mjs) for the full 48-file mount list.
+See [`scaffold/create.mjs`](./scaffold/create.mjs) for the current minimal scaffolder output.
 
 ---
 
