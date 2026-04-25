@@ -76,6 +76,16 @@ export function CartProvider({ db, children }: { db: Firestore; children: ReactN
         } else {
           setRefs(readLocal());
         }
+      } catch (error) {
+        // Firestore can throw "Failed to get document because the client is
+        // offline" when the consumer's Firebase config is incomplete (e.g.
+        // missing `projectId`) or the user is genuinely offline. Either way,
+        // the cart shouldn't take the page down with an unhandled rejection
+        // — fall back to localStorage so the shopper at least keeps their
+        // session-local cart, and log via reportServiceError so the admin
+        // sees it on /admin/about.
+        reportServiceError(db, 'cart-context.hydrateRefs', error);
+        if (alive) setRefs(readLocal());
       } finally {
         if (alive) setLoading(false);
       }

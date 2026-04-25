@@ -16,6 +16,22 @@ Do not omit the heading, rename it, or fold it into `### Notes`. This is how
 customers tell at a glance whether an upgrade needs attention.
 -->
 
+## v7.3.3 — Cart hydration no longer crashes when Firestore is offline
+
+`<CartProvider>` hydrates the user's cart on auth change by calling `loadUserCart(db, uid)`. The hydration block was wrapped in `try { … } finally { setLoading(false) }` — no `catch`. When Firestore threw (most often *"Failed to get document because the client is offline"*, which happens any time the consumer's Firebase config is incomplete — e.g. missing `projectId` — or the user is genuinely offline), the rejection escaped as an unhandled promise rejection: `Uncaught (in promise) FirebaseError: Failed to get document because the client is offline.` Visible in the console, but otherwise silent — and on a clean dev session it could mask broken Firebase config behind a noisy log instead of surfacing it as a user-facing error.
+
+Added a `catch` that logs via `reportServiceError(db, 'cart-context.hydrateRefs', error)` (so the failure surfaces on `/admin/about`'s error log) and falls back to `readLocal()` — the same path a signed-out shopper takes. Result: the cart degrades gracefully instead of throwing an unhandled rejection, and an admin can see the underlying Firestore error on the about page.
+
+### No consumer action required
+
+Pure resilience patch. No API change, no behavior change for the happy path.
+
+### Fixed
+
+- [src/context/cart-context.tsx](src/context/cart-context.tsx): wrap `loadUserCart` hydration in a `catch` that reports via the existing `reportServiceError` channel and falls back to the localStorage cart so the page keeps rendering. Same recovery shape the second effect at line 89-109 already used for `getProductsByIds` failures.
+
+---
+
 ## v7.3.2 — Self-update "How to fix" covers localhost dev too
 
 The `<AdminAboutPage>` self-update flow shows a "How to fix" panel when the API route fails because `firebase-admin` can't detect a project id (`Unable to detect a Project Id in the current environment`). The panel told consumers how to fix this on Vercel / Firebase App Hosting / self-hosted Node — but it never mentioned **localhost Next.js dev**, which is where most consumers hit the error first while smoke-testing the update flow.
