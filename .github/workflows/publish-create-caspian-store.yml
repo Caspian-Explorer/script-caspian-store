@@ -38,11 +38,16 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
 
       # npm Trusted Publishing requires npm >= 11.5.1. Node 22 ships with
-      # npm 10.x; force-upgrade to the latest 11.x. Without this, the
-      # publish PUT 404s after a successful provenance signature because
-      # the CLI doesn't speak the OIDC trust handshake.
-      - name: Upgrade npm to a version that supports OIDC trusted publishing
-        run: npm install -g npm@latest
+      # npm 10.x. Self-upgrading via `npm install -g npm@latest` is
+      # fragile: npm modifies its own running files mid-install and
+      # frequently fails with `Cannot find module 'promise-retry'`. Volta
+      # is preinstalled on GitHub-hosted Ubuntu runners and installs the
+      # new npm to a clean toolchain location atomically.
+      - name: Install npm 11+ via Volta (atomic, doesn't self-modify)
+        run: |
+          volta install npm@latest
+          echo "$VOLTA_HOME/bin" >> "$GITHUB_PATH"
+          "$VOLTA_HOME/bin/npm" --version
 
       - name: Verify the tagged version matches package.json
         if: startsWith(github.ref, 'refs/tags/create-caspian-store/v')
