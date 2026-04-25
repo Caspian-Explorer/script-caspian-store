@@ -1,0 +1,53 @@
+name: Publish create-caspian-store
+
+# Publishes the sibling `create-caspian-store/` package to npmjs.com via
+# OIDC trusted publishing — no NPM_TOKEN secret needed. The npm-side trust
+# config (npmjs.com → package → Settings → Trusted Publishers) must point
+# at this workflow filename, this repo, and this org.
+#
+# Triggers:
+#   - Push a tag matching `create-caspian-store/v*` (e.g. v0.2.0). This is
+#     the normal release path — the same tag the main package's release
+#     cycle pushes per CLAUDE.md step 13.
+#   - Manual workflow_dispatch from the Actions tab. Useful for re-running
+#     a failed publish or shipping a tag that was created before this
+#     workflow existed.
+
+on:
+  push:
+    tags:
+      - 'create-caspian-store/v*'
+  workflow_dispatch: {}
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      # Required for OIDC trusted publishing — npm verifies the request
+      # came from this exact workflow on this exact repo via the OIDC
+      # token, instead of accepting an NPM_TOKEN secret.
+      id-token: write
+      # Read-only checkout.
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Verify the tagged version matches package.json
+        if: startsWith(github.ref, 'refs/tags/create-caspian-store/v')
+        working-directory: create-caspian-store
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#create-caspian-store/v}"
+          PKG_VERSION="$(node -p "require('./package.json').version")"
+          if [ "$TAG_VERSION" != "$PKG_VERSION" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match create-caspian-store/package.json version $PKG_VERSION"
+            exit 1
+          fi
+
+      - name: Publish to npm with provenance
+        working-directory: create-caspian-store
+        run: npm publish --provenance --access public
