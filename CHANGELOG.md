@@ -16,6 +16,22 @@ Do not omit the heading, rename it, or fold it into `### Notes`. This is how
 customers tell at a glance whether an upgrade needs attention.
 -->
 
+## v7.3.2 — Self-update "How to fix" covers localhost dev too
+
+The `<AdminAboutPage>` self-update flow shows a "How to fix" panel when the API route fails because `firebase-admin` can't detect a project id (`Unable to detect a Project Id in the current environment`). The panel told consumers how to fix this on Vercel / Firebase App Hosting / self-hosted Node — but it never mentioned **localhost Next.js dev**, which is where most consumers hit the error first while smoke-testing the update flow.
+
+The localhost case has a specific gotcha: Next.js reads `.env.local` only at server startup, so adding the variable while `next dev` is running doesn't help — the dev server has to be fully stopped (Ctrl+C, not just hot-reload) and restarted. The help bullet now spells that out.
+
+### No consumer action required
+
+UX-only patch to a help message in the admin About page. No API change, no consumer code change. Existing scaffolds pick up the new bullet on the next library upgrade.
+
+### Changed
+
+- [src/admin/admin-about-page.tsx](src/admin/admin-about-page.tsx): the "How to fix" `<ul>` for the missing-Project-Id error gains a `Local development (Next.js)` bullet pointing at `.env.local` plus the dev-server restart requirement. Vercel / App Hosting / Self-hosted Node bullets unchanged.
+
+---
+
 ## v7.3.1 — Unified plugins grid + filter dropdowns
 
 The v7.1.0 `/admin/plugins` page split the list into two sections — an **Installed** table above an **Available plugins** card grid — and offered a chip row (`All / Shipping / Payments / Email`) for filtering. A merchant searching for "stripe" had to visually scan both sections and re-run the chip filter to know the result set.

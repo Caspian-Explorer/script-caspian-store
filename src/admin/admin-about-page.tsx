@@ -501,6 +501,12 @@ function ProjectIdRemediation() {
       </pre>
       <ul style={{ margin: '0 0 0 18px', padding: 0 }}>
         <li>
+          <strong>Local development (Next.js)</strong>: add the line to{' '}
+          <code>.env.local</code> at your project root, then fully stop and restart{' '}
+          <code>next dev</code> (Ctrl+C, then <code>npm run dev</code>) — Next reads{' '}
+          <code>.env.local</code> only at server startup.
+        </li>
+        <li>
           <strong>Vercel</strong>: Project Settings → Environment Variables → add for
           Production + Preview, then redeploy.
         </li>
