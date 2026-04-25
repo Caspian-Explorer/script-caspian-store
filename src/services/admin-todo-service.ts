@@ -1,6 +1,5 @@
 import {
   addDoc,
-  collection,
   deleteDoc,
   doc,
   getDocs,
@@ -15,6 +14,7 @@ import {
   type QueryDocumentSnapshot,
   type Unsubscribe,
 } from 'firebase/firestore';
+import { caspianCollections } from '../firebase/collections';
 import type { AdminTodo } from '../types';
 import { stripUndefined } from '../utils/strip-undefined';
 
@@ -33,7 +33,7 @@ function docToAdminTodo(snap: QueryDocumentSnapshot): AdminTodo {
 }
 
 export async function listAdminTodos(db: Firestore): Promise<AdminTodo[]> {
-  const q = query(collection(db, 'adminTodos'), orderBy('order', 'asc'));
+  const q = query(caspianCollections(db).adminTodos, orderBy('order', 'asc'));
   const snap = await getDocs(q);
   return snap.docs.map(docToAdminTodo);
 }
@@ -49,7 +49,7 @@ export function listenAdminTodos(
   callback: (todos: AdminTodo[]) => void,
   onError?: (err: Error) => void,
 ): Unsubscribe {
-  const q = query(collection(db, 'adminTodos'), orderBy('order', 'asc'));
+  const q = query(caspianCollections(db).adminTodos, orderBy('order', 'asc'));
   return onSnapshot(
     q,
     (snap) => callback(snap.docs.map(docToAdminTodo)),
@@ -84,7 +84,7 @@ export async function createAdminTodo(
     await setDoc(doc(db, 'adminTodos', id), payload);
     return id;
   }
-  const ref = await addDoc(collection(db, 'adminTodos'), payload);
+  const ref = await addDoc(caspianCollections(db).adminTodos, payload);
   return ref.id;
 }
 

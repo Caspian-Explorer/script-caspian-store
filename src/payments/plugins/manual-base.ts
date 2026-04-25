@@ -1,10 +1,10 @@
 import {
   addDoc,
-  collection,
   getFirestore,
   serverTimestamp,
   type Timestamp,
 } from 'firebase/firestore';
+import { caspianCollections } from '../../firebase/collections';
 import type {
   PaymentPluginCheckoutCtx,
   PaymentPluginStartResult,
@@ -89,7 +89,7 @@ export async function startManualCheckout(
     createdAt: serverTimestamp() as unknown as Timestamp,
   };
 
-  const ref = await addDoc(collection(db, 'orders'), payload);
+  const ref = await addDoc(caspianCollections(db).orders, payload);
 
   return {
     redirectUrl: resolveSuccessUrl(options.successUrl, ref.id),

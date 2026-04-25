@@ -57,6 +57,11 @@ function draftFromInstall(install: EmailPluginInstall): DraftState {
 }
 
 function isInstallConfigured(install: EmailPluginInstall): boolean {
+  // v8.0.0: configuration lives in Google Secret Manager and is invisible
+  // from the browser. The install is always considered "configured" once it
+  // exists in Firestore — the dispatcher logs a clear warning at send-time
+  // if the secret is unset, which surfaces in Cloud Logs and the admin
+  // can view via /admin/error-logs.
   const plugin = getEmailPlugin(install.pluginId);
   if (!plugin) return false;
   try {
@@ -416,25 +421,41 @@ export function AdminEmailPluginsPage({
                 }
               />
             </div>
-            <div>
-              <Label>{t('admin.emailPlugins.field.apiKey')}</Label>
-              <Input
-                type="password"
-                value={draft.config.apiKey ?? ''}
-                onChange={(e) =>
-                  setDraft((d) =>
-                    d ? { ...d, config: { ...d.config, apiKey: e.target.value } } : d,
-                  )
-                }
-                placeholder={draft.pluginId === 'sendgrid' ? 'SG.…' : 'xkeysib-…'}
-                autoComplete="off"
-              />
-              <p style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
-                {draft.pluginId === 'sendgrid'
-                  ? t('admin.emailPlugins.field.apiKeyHint.sendgrid')
-                  : t('admin.emailPlugins.field.apiKeyHint.brevo')}
-              </p>
-            </div>
+            {activePlugin?.secretName && (
+              <div
+                style={{
+                  background: '#f7f8fa',
+                  border: '1px solid #e1e4e8',
+                  borderRadius: 'var(--caspian-radius, 8px)',
+                  padding: 12,
+                  fontSize: 13,
+                }}
+              >
+                <strong style={{ display: 'block', marginBottom: 6 }}>
+                  {t('admin.emailPlugins.secretSetup.title')}
+                </strong>
+                <p style={{ margin: '0 0 8px', color: '#555' }}>
+                  {t('admin.emailPlugins.secretSetup.body')}
+                </p>
+                <code
+                  style={{
+                    display: 'block',
+                    background: '#0d1117',
+                    color: '#e6edf3',
+                    padding: '8px 10px',
+                    borderRadius: 6,
+                    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+                    fontSize: 12,
+                    overflowX: 'auto',
+                  }}
+                >
+                  firebase functions:secrets:set {activePlugin.secretName}
+                </code>
+                <p style={{ margin: '8px 0 0', color: '#666', fontSize: 12 }}>
+                  {t('admin.emailPlugins.secretSetup.deployHint')}
+                </p>
+              </div>
+            )}
           </div>
         </Dialog>
       )}

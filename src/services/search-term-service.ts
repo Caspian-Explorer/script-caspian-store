@@ -1,5 +1,4 @@
 import {
-  collection,
   deleteDoc,
   doc,
   getDoc,
@@ -14,6 +13,7 @@ import {
   type Firestore,
   type QueryDocumentSnapshot,
 } from 'firebase/firestore';
+import { caspianCollections } from '../firebase/collections';
 import type { SearchTerm } from '../types';
 
 const MAX_TERM_LENGTH = 120;
@@ -77,7 +77,7 @@ export async function listSearchTerms(
   options: { sortBy?: SearchTermSortBy } = {},
 ): Promise<SearchTerm[]> {
   const sortBy: SearchTermSortBy = options.sortBy ?? 'count';
-  const q = query(collection(db, 'searchTerms'), orderBy(sortBy, 'desc'));
+  const q = query(caspianCollections(db).searchTerms, orderBy(sortBy, 'desc'));
   const snap = await getDocs(q);
   return snap.docs.map(docToSearchTerm);
 }
@@ -87,7 +87,7 @@ export async function deleteSearchTerm(db: Firestore, id: string): Promise<void>
 }
 
 export async function clearAllSearchTerms(db: Firestore): Promise<number> {
-  const snap = await getDocs(collection(db, 'searchTerms'));
+  const snap = await getDocs(caspianCollections(db).searchTerms);
   if (snap.empty) return 0;
   const batch = writeBatch(db);
   snap.docs.forEach((d) => batch.delete(d.ref));

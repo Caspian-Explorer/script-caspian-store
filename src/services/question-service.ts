@@ -1,6 +1,5 @@
 import {
   addDoc,
-  collection,
   deleteDoc,
   doc,
   getDocs,
@@ -12,6 +11,7 @@ import {
   type Firestore,
   type QueryDocumentSnapshot,
 } from 'firebase/firestore';
+import { caspianCollections } from '../firebase/collections';
 import type { FirestoreQuestion, ModerationStatus } from '../types';
 
 function docToQuestion(docSnap: QueryDocumentSnapshot): FirestoreQuestion {
@@ -36,7 +36,7 @@ export async function getApprovedQuestionsForProduct(
   productId: string,
 ): Promise<FirestoreQuestion[]> {
   const q = query(
-    collection(db, 'questions'),
+    caspianCollections(db).questions,
     where('productId', '==', productId),
     where('status', '==', 'approved'),
     orderBy('createdAt', 'desc'),
@@ -74,7 +74,7 @@ export async function createQuestion(
     answeredByUid: null,
     status: 'pending' as ModerationStatus,
   };
-  const ref = await addDoc(collection(db, 'questions'), payload);
+  const ref = await addDoc(caspianCollections(db).questions, payload);
   return ref.id;
 }
 
@@ -85,7 +85,7 @@ export async function listAllQuestions(
   const constraints = statusFilter
     ? [where('status', '==', statusFilter), orderBy('createdAt', 'desc')]
     : [orderBy('createdAt', 'desc')];
-  const q = query(collection(db, 'questions'), ...constraints);
+  const q = query(caspianCollections(db).questions, ...constraints);
   const snap = await getDocs(q);
   return snap.docs.map(docToQuestion);
 }

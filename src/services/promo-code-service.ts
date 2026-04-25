@@ -1,6 +1,5 @@
 import {
   addDoc,
-  collection,
   deleteDoc,
   doc,
   getDocs,
@@ -14,6 +13,7 @@ import {
   type Firestore,
   type QueryDocumentSnapshot,
 } from 'firebase/firestore';
+import { caspianCollections } from '../firebase/collections';
 import type { AppliedPromoCode, PromoCode } from '../types';
 import { stripUndefined } from '../utils/strip-undefined';
 
@@ -32,7 +32,7 @@ function docToPromoCode(snap: QueryDocumentSnapshot): PromoCode {
 }
 
 export async function listPromoCodes(db: Firestore): Promise<PromoCode[]> {
-  const q = query(collection(db, 'promoCodes'), orderBy('createdAt', 'desc'));
+  const q = query(caspianCollections(db).promoCodes, orderBy('createdAt', 'desc'));
   const snap = await getDocs(q);
   return snap.docs.map(docToPromoCode);
 }
@@ -53,7 +53,7 @@ export async function createPromoCode(
     await setDoc(doc(db, 'promoCodes', id), payload);
     return id;
   }
-  const ref = await addDoc(collection(db, 'promoCodes'), payload);
+  const ref = await addDoc(caspianCollections(db).promoCodes, payload);
   return ref.id;
 }
 
@@ -88,7 +88,7 @@ export async function validatePromoCode(
 
   const snap = await getDocs(
     query(
-      collection(db, 'promoCodes'),
+      caspianCollections(db).promoCodes,
       where('code', '==', code.trim().toUpperCase()),
       where('isActive', '==', true),
       limit(1),

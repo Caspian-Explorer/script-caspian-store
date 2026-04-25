@@ -6,15 +6,31 @@
  * That meant every fix to project-ID detection, credential fallback, or
  * npm-spawn quoting required consumers to re-scaffold or hand-edit their
  * route.ts — exactly the friction the v7 single-mount architecture was
- * supposed to eliminate everywhere else.
+ * supposed to eliminate everywhere else. v7.4.0 moves the logic into the
+ * library; v8.0.0 hardens it.
  *
- * v7.4.0 moves the logic into the library. The scaffold now emits a
- * five-line route.ts that just calls `caspianHandleSelfUpdate(req)`.
- * Future fixes here land via `npm install` — no consumer code changes.
+ * Threat model: this endpoint is, by design, an arbitrary-code-execution
+ * path — it shells out to `npm install <github-tarball>`. We mitigate with
+ * five layers (any of which is a hard refusal):
+ *   1. `CASPIAN_ALLOW_SELF_UPDATE=true` env var must be set. Opt-in in *all*
+ *      environments, not just production. Stops accidental enablement.
+ *   2. Caller must present a valid Firebase Auth ID token with the `admin`
+ *      custom claim. Tokens are short-lived (1h) and rotated.
+ *   3. The `version` field is restricted to `X.Y.Z` (no slashes, no
+ *      protocol injection, no `..`).
+ *   4. The GitHub owner/repo allowlist is regex-validated; the default
+ *      points at `Caspian-Explorer/script-caspian-store`. Forks may
+ *      override but cannot inject special characters.
+ *   5. npm runs with `--ignore-scripts` so a compromised tarball cannot
+ *      run a postinstall hook. We also rate-limit to 1 install per
+ *      10 minutes per process.
+ *
+ * Stderr returned to the caller is redacted of patterns that look like
+ * environment-variable references, since npm errors sometimes include
+ * tokens like `$GITHUB_TOKEN` in the message.
  *
  * This module is server-only (uses `node:child_process`, `firebase-admin`,
- * `process.exit`). Don't import from client/storefront code; tree-shaking
- * won't help if `firebase-admin` ends up in the browser bundle.
+ * `process.exit`). Don't import from client/storefront code.
  */
 
 import { spawn } from 'node:child_process';
@@ -22,22 +38,25 @@ import { spawn } from 'node:child_process';
 const ALLOWED_OWNER = 'Caspian-Explorer';
 const ALLOWED_REPO = 'script-caspian-store';
 const VERSION_RE = /^[0-9]+\.[0-9]+\.[0-9]+$/;
+// GitHub's documented owner/repo character class — alphanumerics, dot,
+// hyphen, underscore. We use this to validate consumer-provided overrides
+// so a fork can self-update against its own GitHub repo without opening a
+// shell-injection or path-traversal hole.
+const GITHUB_NAME_RE = /^[A-Za-z0-9._-]{1,100}$/;
+
+const RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
+let lastInvocationAt = 0;
 
 export interface CaspianHandleSelfUpdateOptions {
   /**
    * Override the GitHub owner/repo the route is allowed to install from.
    * Defaults to `Caspian-Explorer/script-caspian-store`. Useful for forks
    * that ship their own derivative library — set this and consumers can
-   * self-update against your fork rather than the upstream.
+   * self-update against your fork rather than upstream. Both fields must
+   * match `[A-Za-z0-9._-]{1,100}` or the request is rejected with a 400.
    */
   allowedOwner?: string;
   allowedRepo?: string;
-  /**
-   * Disable the production self-update guard. By default the route refuses
-   * POSTs in production unless `CASPIAN_ALLOW_SELF_UPDATE=true`. Set this
-   * to `true` if you have a different gating mechanism (e.g. a feature flag).
-   */
-  disableProductionGuard?: boolean;
 }
 
 /**
@@ -118,6 +137,16 @@ async function requireAdmin(req: Request): Promise<AuthOk | AuthFail> {
 }
 
 /**
+ * Redact patterns that look like env-var references from a captured stream
+ * before returning it in an HTTP response. Examples redacted: `$FOO`,
+ * `${BAR}`, `$BAZ_QUX`. npm errors occasionally echo unset tokens; this
+ * stops the route from acting as an env-var oracle.
+ */
+function redactEnvRefs(s: string): string {
+  return s.replace(/\$\{?[A-Z_][A-Z0-9_]*\}?/g, '[REDACTED_ENV_REF]');
+}
+
+/**
  * The whole route. Mount from a Next.js App Router route handler:
  *
  * ```ts
@@ -130,26 +159,55 @@ async function requireAdmin(req: Request): Promise<AuthOk | AuthFail> {
  *   return caspianHandleSelfUpdate(req);
  * }
  * ```
+ *
+ * Requires `CASPIAN_ALLOW_SELF_UPDATE=true` on the server — opt-in in all
+ * environments, not just production. Without it, every POST is a 403.
  */
 export async function caspianHandleSelfUpdate(
   req: Request,
   opts: CaspianHandleSelfUpdateOptions = {},
 ): Promise<Response> {
-  const allowedOwner = opts.allowedOwner ?? ALLOWED_OWNER;
-  const allowedRepo = opts.allowedRepo ?? ALLOWED_REPO;
-
-  if (
-    !opts.disableProductionGuard &&
-    process.env.NODE_ENV === 'production' &&
-    process.env.CASPIAN_ALLOW_SELF_UPDATE !== 'true'
-  ) {
+  if (process.env.CASPIAN_ALLOW_SELF_UPDATE !== 'true') {
     return jsonResponse(
       {
         ok: false,
         error:
-          'Self-update is disabled in production. Set CASPIAN_ALLOW_SELF_UPDATE=true on the server to enable.',
+          'Self-update is disabled. Set CASPIAN_ALLOW_SELF_UPDATE=true on the server to enable.',
       },
       403,
+    );
+  }
+
+  // Per-process rate limit: at most one install per 10 minutes. Serverless
+  // platforms (Vercel, Firebase App Hosting) may run multiple warm instances
+  // concurrently — each gets its own counter. That's acceptable for an
+  // admin operation; the alternative (Firestore-backed counter) adds
+  // round-trip latency to every request and a new failure mode if Firestore
+  // is unavailable.
+  const now = Date.now();
+  if (now - lastInvocationAt < RATE_LIMIT_WINDOW_MS) {
+    const retryInSec = Math.ceil(
+      (RATE_LIMIT_WINDOW_MS - (now - lastInvocationAt)) / 1000,
+    );
+    return jsonResponse(
+      {
+        ok: false,
+        error: `Self-update rate limited. Try again in ${retryInSec}s.`,
+      },
+      429,
+    );
+  }
+
+  const allowedOwner = opts.allowedOwner ?? ALLOWED_OWNER;
+  const allowedRepo = opts.allowedRepo ?? ALLOWED_REPO;
+  if (!GITHUB_NAME_RE.test(allowedOwner) || !GITHUB_NAME_RE.test(allowedRepo)) {
+    return jsonResponse(
+      {
+        ok: false,
+        error:
+          'Invalid allowedOwner/allowedRepo override — must match GitHub naming rules.',
+      },
+      400,
     );
   }
 
@@ -169,15 +227,24 @@ export async function caspianHandleSelfUpdate(
     );
   }
 
+  // Claim the rate-limit slot before spawning npm. If the install crashes
+  // we still want to block another caller from immediately retrying.
+  lastInvocationAt = now;
+
   const spec = `github:${allowedOwner}/${allowedRepo}#v${version}`;
   const npmCmd = process.platform === 'win32' ? 'npm.cmd' : 'npm';
 
   let stdout = '';
   let stderr = '';
   const exitCode: number | null = await new Promise((resolve) => {
+    // `--ignore-scripts` blocks any pre/post/install scripts in the fetched
+    // tarball or its transitive deps from running. Without it, a
+    // compromised dep could execute arbitrary code under the server's
+    // process identity. Our own package has no install scripts that need
+    // to run on consumer sites, so this is safe.
     const child = spawn(
       npmCmd,
-      ['install', spec, '--no-audit', '--no-fund'],
+      ['install', spec, '--ignore-scripts', '--no-audit', '--no-fund'],
       {
         cwd: process.cwd(),
         env: process.env,
@@ -198,8 +265,8 @@ export async function caspianHandleSelfUpdate(
       {
         ok: false,
         error: `npm install exited with code ${exitCode}`,
-        stdout,
-        stderr,
+        stdout: redactEnvRefs(stdout),
+        stderr: redactEnvRefs(stderr),
       },
       500,
     );
@@ -217,7 +284,15 @@ export async function caspianHandleSelfUpdate(
     }
   }, 500);
 
-  return jsonResponse({ ok: true, stdout, stderr, restarting: true }, 200);
+  return jsonResponse(
+    {
+      ok: true,
+      stdout: redactEnvRefs(stdout),
+      stderr: redactEnvRefs(stderr),
+      restarting: true,
+    },
+    200,
+  );
 }
 
 function jsonResponse(payload: unknown, status: number): Response {

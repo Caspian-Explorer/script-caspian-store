@@ -1,6 +1,5 @@
 import {
   addDoc,
-  collection,
   deleteDoc,
   doc,
   getDocs,
@@ -13,6 +12,7 @@ import {
   type Firestore,
   type QueryDocumentSnapshot,
 } from 'firebase/firestore';
+import { caspianCollections } from '../firebase/collections';
 import type { PaymentPluginInstall } from '../types';
 import { stripUndefined } from '../utils/strip-undefined';
 
@@ -37,7 +37,7 @@ export async function listPaymentPluginInstalls(
   const constraints = opts.onlyEnabled
     ? [where('enabled', '==', true), orderBy('order', 'asc')]
     : [orderBy('order', 'asc')];
-  const snap = await getDocs(query(collection(db, 'paymentPluginInstalls'), ...constraints));
+  const snap = await getDocs(query(caspianCollections(db).paymentPluginInstalls, ...constraints));
   return snap.docs.map(docToInstall);
 }
 
@@ -53,7 +53,7 @@ export async function createPaymentPluginInstall(
     await setDoc(doc(db, 'paymentPluginInstalls', id), payload);
     return id;
   }
-  const ref = await addDoc(collection(db, 'paymentPluginInstalls'), payload);
+  const ref = await addDoc(caspianCollections(db).paymentPluginInstalls, payload);
   return ref.id;
 }
 

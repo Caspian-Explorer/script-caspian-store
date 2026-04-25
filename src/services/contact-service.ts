@@ -1,6 +1,5 @@
 import {
   addDoc,
-  collection,
   deleteDoc,
   doc,
   getCountFromServer,
@@ -14,6 +13,7 @@ import {
   type Firestore,
   type QueryDocumentSnapshot,
 } from 'firebase/firestore';
+import { caspianCollections } from '../firebase/collections';
 import type { ContactStatus, ContactSubmission } from '../types';
 
 function docToContact(snap: QueryDocumentSnapshot): ContactSubmission {
@@ -64,7 +64,7 @@ export async function createContact(
   };
   if (subject) payload.subject = subject;
   if (input.userId) payload.userId = input.userId;
-  const ref = await addDoc(collection(db, 'contacts'), payload);
+  const ref = await addDoc(caspianCollections(db).contacts, payload);
   return ref.id;
 }
 
@@ -75,7 +75,7 @@ export async function listAllContacts(
   const constraints = opts?.status
     ? [where('status', '==', opts.status), orderBy('createdAt', 'desc')]
     : [orderBy('createdAt', 'desc')];
-  const q = query(collection(db, 'contacts'), ...constraints);
+  const q = query(caspianCollections(db).contacts, ...constraints);
   const snap = await getDocs(q);
   return snap.docs.map(docToContact);
 }
@@ -84,13 +84,13 @@ export async function listRecentContacts(
   db: Firestore,
   n = 5,
 ): Promise<ContactSubmission[]> {
-  const q = query(collection(db, 'contacts'), orderBy('createdAt', 'desc'), limit(n));
+  const q = query(caspianCollections(db).contacts, orderBy('createdAt', 'desc'), limit(n));
   const snap = await getDocs(q);
   return snap.docs.map(docToContact);
 }
 
 export async function countNewContacts(db: Firestore): Promise<number> {
-  const q = query(collection(db, 'contacts'), where('status', '==', 'new'));
+  const q = query(caspianCollections(db).contacts, where('status', '==', 'new'));
   const snap = await getCountFromServer(q);
   return snap.data().count;
 }

@@ -1,6 +1,5 @@
 import {
   addDoc,
-  collection,
   deleteDoc,
   doc,
   getDocs,
@@ -11,6 +10,7 @@ import {
   type Firestore,
   type QueryDocumentSnapshot,
 } from 'firebase/firestore';
+import { caspianCollections } from '../firebase/collections';
 import type { FaqItem } from '../types';
 import { stripUndefined } from '../utils/strip-undefined';
 
@@ -26,7 +26,7 @@ function docToFaq(snap: QueryDocumentSnapshot): FaqItem {
 }
 
 export async function listFaqs(db: Firestore): Promise<FaqItem[]> {
-  const q = query(collection(db, 'faqs'), orderBy('order', 'asc'));
+  const q = query(caspianCollections(db).faqs, orderBy('order', 'asc'));
   const snap = await getDocs(q);
   return snap.docs.map(docToFaq);
 }
@@ -39,7 +39,7 @@ export async function createFaq(db: Firestore, input: FaqWriteInput, id?: string
     await setDoc(doc(db, 'faqs', id), payload);
     return id;
   }
-  const ref = await addDoc(collection(db, 'faqs'), payload);
+  const ref = await addDoc(caspianCollections(db).faqs, payload);
   return ref.id;
 }
 

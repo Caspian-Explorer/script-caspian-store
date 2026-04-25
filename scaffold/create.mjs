@@ -415,6 +415,32 @@ import {
   caspianFirebaseConfig,
 } from '@/lib/caspian-adapters';
 
+// Preflight: if a required NEXT_PUBLIC_FIREBASE_* env var is missing, throw a
+// clear error rather than silently rendering a blank storefront and crashing
+// later inside Firebase auth/cart hydration. The whole \`firebaseConfig.*!\`
+// non-null assertion in caspian-adapters.tsx is what masks this otherwise.
+const REQUIRED_ENV: Array<[keyof typeof caspianFirebaseConfig, string]> = [
+  ['apiKey', 'NEXT_PUBLIC_FIREBASE_API_KEY'],
+  ['authDomain', 'NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN'],
+  ['projectId', 'NEXT_PUBLIC_FIREBASE_PROJECT_ID'],
+  ['storageBucket', 'NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET'],
+  ['messagingSenderId', 'NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID'],
+  ['appId', 'NEXT_PUBLIC_FIREBASE_APP_ID'],
+];
+
+const missing = REQUIRED_ENV.filter(([k]) => !caspianFirebaseConfig[k]).map(
+  ([, name]) => name,
+);
+if (missing.length > 0) {
+  throw new Error(
+    'Caspian Store: missing Firebase env vars: ' +
+      missing.join(', ') +
+      '. Copy .env.example to .env.local and fill in the values from ' +
+      'Firebase Console → Project settings → Your apps → Web app config, ' +
+      'then restart \`npm run dev\`.',
+  );
+}
+
 export function Providers({ children }: { children: ReactNode }) {
   return (
     <CaspianStoreProvider

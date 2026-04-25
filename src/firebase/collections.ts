@@ -28,6 +28,7 @@ export function caspianCollections(db: Firestore) {
     emailTemplates: collection(db, 'emailTemplates'),
     contacts: collection(db, 'contacts'),
     errorLogs: collection(db, 'errorLogs'),
+    adminTodos: collection(db, 'adminTodos'),
     scriptSettingsDoc: doc(db, 'scriptSettings', 'site'),
     siteSettingsDoc: doc(db, 'settings', 'site'),
     emailSettingsDoc: doc(db, 'emailSettings', 'site'),

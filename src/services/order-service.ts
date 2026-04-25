@@ -1,5 +1,4 @@
 import {
-  collection,
   doc,
   getDoc,
   getDocs,
@@ -11,6 +10,7 @@ import {
   where,
   type Firestore,
 } from 'firebase/firestore';
+import { caspianCollections } from '../firebase/collections';
 import type { Order, OrderStatus } from '../types';
 
 const PURCHASED_STATUSES: OrderStatus[] = ['paid', 'processing', 'shipped', 'delivered'];
@@ -27,7 +27,7 @@ export async function getOrdersByUser(
   max = 200,
 ): Promise<Order[]> {
   const q = query(
-    collection(db, 'orders'),
+    caspianCollections(db).orders,
     where('userId', '==', userId),
     orderBy('createdAt', 'desc'),
     firestoreLimit(max),
@@ -39,7 +39,7 @@ export async function getOrdersByUser(
 /** Admin: list all orders, newest first. */
 export async function listAllOrders(db: Firestore, max = 500): Promise<Order[]> {
   const q = query(
-    collection(db, 'orders'),
+    caspianCollections(db).orders,
     orderBy('createdAt', 'desc'),
     firestoreLimit(max),
   );
@@ -65,7 +65,7 @@ export async function hasUserPurchasedProduct(
   productId: string,
 ): Promise<boolean> {
   const q = query(
-    collection(db, 'orders'),
+    caspianCollections(db).orders,
     where('userId', '==', userId),
     where('status', 'in', PURCHASED_STATUSES),
   );

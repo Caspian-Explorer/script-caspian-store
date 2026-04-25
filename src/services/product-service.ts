@@ -1,6 +1,5 @@
 import {
   addDoc,
-  collection,
   deleteDoc,
   doc,
   getDoc,
@@ -16,6 +15,7 @@ import {
   type QueryDocumentSnapshot,
   type DocumentSnapshot,
 } from 'firebase/firestore';
+import { caspianCollections } from '../firebase/collections';
 import type { InventorySettings, Product } from '../types';
 import { isProductOutOfStock } from '../utils/inventory';
 import { stripUndefined } from '../utils/strip-undefined';
@@ -65,7 +65,7 @@ export async function getProducts(
   filters?: ProductFilters,
   max = 500,
 ): Promise<Product[]> {
-  const products = collection(db, 'products');
+  const products = caspianCollections(db).products;
   const constraints: Parameters<typeof query>[1][] = [where('isActive', '==', true)];
   if (filters?.category) constraints.push(where('category', '==', filters.category));
   if (filters?.isNew) constraints.push(where('isNew', '==', true));
@@ -98,7 +98,7 @@ export async function getProductsByIds(db: Firestore, ids: string[]): Promise<Pr
   const out: Product[] = [];
   for (const chunk of chunks) {
     const q = query(
-      collection(db, 'products'),
+      caspianCollections(db).products,
       where('__name__', 'in', chunk),
       where('isActive', '==', true),
     );
@@ -110,7 +110,7 @@ export async function getProductsByIds(db: Firestore, ids: string[]): Promise<Pr
 
 /** List every product (admin-only). */
 export async function listAllProducts(db: Firestore): Promise<Product[]> {
-  const q = query(collection(db, 'products'), orderBy('createdAt', 'desc'));
+  const q = query(caspianCollections(db).products, orderBy('createdAt', 'desc'));
   const snap = await getDocs(q);
   return snap.docs.map(docToProduct);
 }
@@ -129,7 +129,7 @@ export async function createProduct(
     await setDoc(doc(db, 'products', id), payload);
     return id;
   }
-  const ref = await addDoc(collection(db, 'products'), payload);
+  const ref = await addDoc(caspianCollections(db).products, payload);
   return ref.id;
 }
 
@@ -155,7 +155,7 @@ export async function getRelatedProducts(
   limit = 4,
 ): Promise<Product[]> {
   const q = query(
-    collection(db, 'products'),
+    caspianCollections(db).products,
     where('isActive', '==', true),
     where('category', '==', category),
     firestoreLimit(limit + 1),

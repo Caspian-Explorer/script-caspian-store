@@ -16,15 +16,15 @@ cp .env.example .env.local   # fill in Firebase web config
 npm run dev                  # http://localhost:3000
 ```
 
-This generates a Next.js 14 App Router project with every storefront / admin / content route pre-mounted, Next.js adapter code (Link/Image/useNavigation), real deployable `firestore.rules` / `firestore.indexes.json` / `storage.rules`, and a `.env.example` with Firebase + Stripe placeholders.
+This generates a **Next.js 15** App Router project with every storefront / admin / content route pre-mounted, Next.js adapter code (Link/Image/useNavigation), real deployable `firestore.rules` / `firestore.indexes.json` / `storage.rules`, and a `.env.example` with Firebase + Stripe placeholders.
 
 Flags:
 
 - `--package-tag vX.Y.Z` — pin the generated project to a specific release (default: latest)
 - `--with-stripe` — also scaffold the Stripe Cloud Functions tree into `functions-stripe/` (and add the matching `caspian-stripe` codebase to `firebase.json`). The admin codebase (`functions-admin/`, auto-promote trigger) is always scaffolded — it has no secrets and is deployable immediately.
-- `--with-email` (v3.0.0+) — also scaffold the transactional-email Cloud Functions tree into `functions-email/` (adds the `caspian-email` codebase to `firebase.json`). Ships the order + contact-form triggers and the `sendTestEmail` callable. No secrets required at deploy time — the provider API key (SendGrid or Brevo) is stored in Firestore under `emailPluginInstalls` and configured via `/admin/plugins/email-providers` after deploy.
+- `--with-email` (v3.0.0+) — also scaffold the transactional-email Cloud Functions tree into `functions-email/` (adds the `caspian-email` codebase to `firebase.json`). Ships the order + contact-form triggers and the `sendTestEmail` callable. **v8.0.0+:** the provider API key (SendGrid or Brevo) is held in Google Cloud Secret Manager — run `firebase functions:secrets:set CASPIAN_EMAIL_<PROVIDER>_API_KEY` once, then deploy. Pre-v8.0.0 stores stored the key in Firestore; see the v8.0.0 CHANGELOG entry for the migration steps.
 - `--with-functions` — deprecated alias for `--with-stripe`, kept for back-compat
-- `--no-apphosting` — suppress `apphosting.yaml` in the output. Useful for Vercel-only deployments where the file would otherwise sit unused. (v1.20.0+)
+- `--no-apphosting` — suppress `apphosting.yaml` in the output. Set this on Vercel-only deploys so the file doesn't sit unused. (v1.20.0+)
 - `--force` — scaffold into a non-empty directory (`.git`, `.gitignore`, `README.md`, `LICENSE` are preserved automatically)
 
 **If you used the scaffolder, stop here and follow the generated `my-store/README.md`** for Firebase + Stripe + seeding. The remainder of this document (§1–§12) is the manual-install path for people embedding the package into an existing React app; you don't need it after scaffolding.
@@ -33,7 +33,7 @@ If you can't use `npm create` (e.g. offline mirror, locked-down network), the sa
 
 ```bash
 git clone https://github.com/Caspian-Explorer/script-caspian-store /tmp/scs
-node /tmp/scs/scaffold/create.mjs my-store --package-tag v1.11.0
+node /tmp/scs/scaffold/create.mjs my-store --package-tag v8.0.0
 ```
 
 ---
@@ -43,8 +43,8 @@ node /tmp/scs/scaffold/create.mjs my-store --package-tag v1.11.0
 ## 1. Install the package
 
 ```bash
-npm install github:Caspian-Explorer/script-caspian-store#v1.18.2 firebase
-# Replace v1.18.2 with the latest tag — see:
+npm install github:Caspian-Explorer/script-caspian-store#v8.0.0 firebase
+# v8.0.0 is the current release. For other versions, see:
 #   https://github.com/Caspian-Explorer/script-caspian-store/releases
 # Pinning to a specific sha is also fine:
 # npm install github:Caspian-Explorer/script-caspian-store#<sha>
@@ -151,7 +151,7 @@ export function Providers({ children }: { children: ReactNode }) {
 
 ```tsx
 // src/app/layout.tsx
-import { LayoutShell, DynamicFavicon } from '@caspian-explorer/script-caspian-store';
+import { DynamicFavicon } from '@caspian-explorer/script-caspian-store';
 import '@caspian-explorer/script-caspian-store/styles.css';
 import { Providers } from './providers';
 
@@ -160,7 +160,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <body>
         <Providers>
-          <LayoutShell>{children}</LayoutShell>
+          {children}
           <DynamicFavicon />
         </Providers>
       </body>
@@ -168,6 +168,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   );
 }
 ```
+
+> ⚠️ **Do NOT wrap `{children}` in `<LayoutShell>` here.** The single-route page below (`<CaspianRoot />`) owns the storefront shell — header, footer, navigation, drawers — and rendering `<LayoutShell>` *around* it produces duplicate stacked headers and footers on every page. This is the bug v7.0.2 fixed for scaffolded sites; it's documented here so manual installs don't recreate it.
 
 #### Configure `next/image` hosts
 
@@ -266,7 +268,7 @@ If you already have a `firestore.rules`, merge the `match /<collection>/{id} { .
 v1.16.0+ ships **three codebases** so you can deploy admin triggers without having any provider configured:
 
 - `caspian-admin` — `onUserCreate` (auto-promote first user to admin), `claimAdmin`, scheduled retention cleanup. **No secrets**, no provider deps. Always deployable.
-- `caspian-email` (v3.0.0+) — transactional email triggers (`runEmailOnOrderCreate`, `runEmailOnOrderUpdate`, `runEmailOnContactCreate`) + `sendTestEmail` callable. **No secrets at deploy time**; the provider (SendGrid or Brevo) API key lives in Firestore under `emailPluginInstalls` and is configured via the `/admin/plugins/email-providers` admin page.
+- `caspian-email` (v3.0.0+) — transactional email triggers (`runEmailOnOrderCreate`, `runEmailOnOrderUpdate`, `runEmailOnContactCreate`) + `sendTestEmail` callable. **v8.0.0+ requires Cloud Secret Manager:** before deploy, run `firebase functions:secrets:set CASPIAN_EMAIL_SENDGRID_API_KEY` and/or `CASPIAN_EMAIL_BREVO_API_KEY` (you only need the secrets for providers you actually use). Functions read the keys via `defineSecret(...)` at runtime.
 - `caspian-stripe` — `createStripeCheckoutSession`, `stripeWebhook`, `getStripeSession`. Requires `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` as Functions secrets.
 
 Copy the codebases you need from `node_modules` into your project root, merge the `functions` entries into your `firebase.json`, then deploy them separately:
@@ -297,10 +299,18 @@ Raw `firebase deploy --only functions:caspian-admin` still works if you prefer i
 
 ```bash
 cd functions-email && npm install && cd ..
+
+# v8.0.0+: set the secret(s) for the providers you actually use BEFORE deploy.
+# You'll be prompted to paste the API key for each.
+firebase functions:secrets:set CASPIAN_EMAIL_SENDGRID_API_KEY     # SG.…
+firebase functions:secrets:set CASPIAN_EMAIL_BREVO_API_KEY        # xkeysib-…
+
 npm run deploy:email    # v3.0.0+ helper
 ```
 
-No `functions:secrets:set` step. Configure the provider after deploy at `/admin/plugins/email-providers`: browse the catalog (SendGrid, Brevo), install one, paste the API key, save, click **Enable**. The key is stored in `emailPluginInstalls/{id}` (admin-only read+write in `firestore.rules`), and the Cloud Function dispatcher reads it via the Admin SDK at send time. If no provider is installed, order + contact triggers log a warning and return without sending — harmless for stores that don't use email.
+After deploy, configure the provider at `/admin/plugins/email-providers`: browse the catalog (SendGrid, Brevo), install the one whose secret you set, click **Enable**. The install record in `emailPluginInstalls/{id}` only carries the merchant-facing display name + which provider is active; the actual API key never touches Firestore. If no provider is installed (or the secret value is empty), order + contact triggers log a warning and return without sending — harmless for stores that don't use email.
+
+> **Upgrading from pre-v8.0.0?** Your existing installs have `config.apiKey` in Firestore — that field is no longer read. Run the `firebase functions:secrets:set` commands above with the same key you have in Firestore, redeploy `caspian-email`, and the existing install records keep working unchanged. You can clear the legacy `config.apiKey` from Firestore at your leisure (the new dispatcher ignores it either way).
 
 **Stripe codebase (only when you have Stripe keys):**
 
@@ -528,11 +538,28 @@ firebase deploy --only firestore:rules,firestore:indexes,storage
 
 ### Self-update from `/admin/about`
 
-The admin About page can `npm install` a newer library version on the host with one click — handy for self-hosted Node deployments and dev. The button POSTs to `src/app/api/caspian-store/update/route.ts` (scaffolded into your project), which verifies your admin Firebase ID token, runs `npm install github:Caspian-Explorer/script-caspian-store#vX.Y.Z`, and exits the Node process so your process manager restarts it.
+The admin About page can `npm install` a newer library version on the host with one click — handy for self-hosted Node deployments and dev. The button POSTs to `src/app/api/caspian-store/update/route.ts` (scaffolded into your project), which verifies your admin Firebase ID token, runs `npm install github:Caspian-Explorer/script-caspian-store#vX.Y.Z` with `--ignore-scripts` (so a compromised tarball can't run a postinstall hook), and exits the Node process so your process manager restarts it.
+
+**v8.0.0 — route shape changed.** Pre-v8.0.0 sites had ~150 lines of inline route logic. v7.4.0+ moves the logic into the library; v8.0.0 hardens it. Your `src/app/api/caspian-store/update/route.ts` should now be:
+
+```ts
+import { caspianHandleSelfUpdate } from '@caspian-explorer/script-caspian-store/server';
+
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+export const maxDuration = 300;
+
+export async function POST(req: Request) {
+  return caspianHandleSelfUpdate(req);
+}
+```
+
+If you're upgrading from a pre-v7.4.0 install with the inline route still in place, replace it with the eight-line shim above. Newly scaffolded sites already get this shape.
 
 **Requirements:**
 
-- **In production**, set `CASPIAN_ALLOW_SELF_UPDATE=true` on the host. The route refuses to run without it (so the path can't be triggered accidentally on production).
+- **All environments** (not just production), set `CASPIAN_ALLOW_SELF_UPDATE=true` on the host. The route refuses to run without it. v7.x only enforced this in production; v8.0.0 closes the gap so dev / preview / staging can't be tripped accidentally either.
+- **Per-process rate limit:** the route accepts at most one install per 10 minutes per warm Node instance. Subsequent requests return a 429 with retry-in-seconds.
 - **Always**, the route needs to know your Firebase project ID to verify the admin token. It checks (in order):
   - `GOOGLE_CLOUD_PROJECT` (auto-set on Firebase App Hosting / Cloud Functions / Cloud Run)
   - `GCLOUD_PROJECT`

@@ -1,6 +1,5 @@
 import {
   addDoc,
-  collection,
   deleteDoc,
   doc,
   getDocs,
@@ -14,6 +13,7 @@ import {
   type Firestore,
   type QueryDocumentSnapshot,
 } from 'firebase/firestore';
+import { caspianCollections } from '../firebase/collections';
 import type { ProductCollectionDoc } from '../types';
 import { stripUndefined } from '../utils/strip-undefined';
 
@@ -35,7 +35,7 @@ function docToCollection(snap: QueryDocumentSnapshot): ProductCollectionDoc {
 }
 
 export async function listProductCollections(db: Firestore): Promise<ProductCollectionDoc[]> {
-  const q = query(collection(db, 'productCollections'), orderBy('order', 'asc'));
+  const q = query(caspianCollections(db).productCollections, orderBy('order', 'asc'));
   const snap = await getDocs(q);
   return snap.docs.map(docToCollection);
 }
@@ -45,7 +45,7 @@ export async function getProductCollectionBySlug(
   slug: string,
 ): Promise<ProductCollectionDoc | null> {
   const q = query(
-    collection(db, 'productCollections'),
+    caspianCollections(db).productCollections,
     where('slug', '==', slug),
     where('isActive', '==', true),
     firestoreLimit(1),
@@ -71,7 +71,7 @@ export async function createProductCollection(
     await setDoc(doc(db, 'productCollections', id), payload);
     return id;
   }
-  const ref = await addDoc(collection(db, 'productCollections'), payload);
+  const ref = await addDoc(caspianCollections(db).productCollections, payload);
   return ref.id;
 }
 

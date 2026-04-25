@@ -1,13 +1,14 @@
 import {
-  collection,
   doc,
   getDoc,
   getDocs,
   limit,
   query,
   where,
+  type CollectionReference,
   type Firestore,
 } from 'firebase/firestore';
+import { caspianCollections } from '../firebase/collections';
 import { DEFAULT_SCRIPT_SETTINGS, type AdminTodo } from '../types';
 
 /**
@@ -19,8 +20,8 @@ import { DEFAULT_SCRIPT_SETTINGS, type AdminTodo } from '../types';
  * intentionally absent — the admin ticks those manually.
  */
 
-async function hasAnyDoc(db: Firestore, collectionName: string): Promise<boolean> {
-  const snap = await getDocs(query(collection(db, collectionName), limit(1)));
+async function hasAnyDoc(ref: CollectionReference): Promise<boolean> {
+  const snap = await getDocs(query(ref, limit(1)));
   return !snap.empty;
 }
 
@@ -35,7 +36,7 @@ async function hasEditedSiteSettings(db: Firestore): Promise<boolean> {
 
 async function hasMultipleActiveLanguages(db: Firestore): Promise<boolean> {
   const snap = await getDocs(
-    query(collection(db, 'languages'), where('isActive', '==', true), limit(2)),
+    query(caspianCollections(db).languages, where('isActive', '==', true), limit(2)),
   );
   return snap.size >= 2;
 }
@@ -51,7 +52,7 @@ async function hasEditedHero(db: Firestore): Promise<boolean> {
 
 async function hasFeaturedCategory(db: Firestore): Promise<boolean> {
   const snap = await getDocs(
-    query(collection(db, 'productCategories'), where('isFeatured', '==', true), limit(1)),
+    query(caspianCollections(db).productCategories, where('isFeatured', '==', true), limit(1)),
   );
   return !snap.empty;
 }
@@ -64,9 +65,9 @@ const DETECTORS: Record<string, (db: Firestore) => Promise<boolean>> = {
   'grant-admin-role': async () => true, // Tautological: only admins reach this page.
   'edit-site-settings': hasEditedSiteSettings,
   'activate-languages': hasMultipleActiveLanguages,
-  'seed-categories': (db) => hasAnyDoc(db, 'productCategories'),
-  'seed-products': (db) => hasAnyDoc(db, 'products'),
-  'verify-shipping-plugins': (db) => hasAnyDoc(db, 'shippingPluginInstalls'),
+  'seed-categories': (db) => hasAnyDoc(caspianCollections(db).productCategories),
+  'seed-products': (db) => hasAnyDoc(caspianCollections(db).products),
+  'verify-shipping-plugins': (db) => hasAnyDoc(caspianCollections(db).shippingPluginInstalls),
   'edit-homepage-hero': hasEditedHero,
   'pin-featured-categories': hasFeaturedCategory,
 };

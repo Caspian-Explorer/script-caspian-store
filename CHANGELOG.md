@@ -16,6 +16,80 @@ Do not omit the heading, rename it, or fold it into `### Notes`. This is how
 customers tell at a glance whether an upgrade needs attention.
 -->
 
+## v8.0.0 — End the v7.x firefighting cycle: hardened deploy, Secret Manager email keys, build race fixed
+
+The v7.0–v7.3.3 release cadence was eleven patches in roughly forty-eight hours, every one of them a self-healing follow-up to a different deploy footgun. A three-perspective audit (build correctness, security, consumer experience) surfaced the three classes of problems that compound: a parallel-clean race in tsup that silently dropped `dist/firebase/index.d.ts` and `dist/server/index.d.ts` so consumer typecheck broke without a clear error; a self-update HTTP endpoint that ran `npm install` from any admin token without `--ignore-scripts` and wasn't gated outside production; email-provider API keys living in Firestore (`emailPluginInstalls.config.apiKey`) where a leaked Cloud Function or Firestore export would expose them; documentation pinning extinct version numbers and resurrecting the v7.0.2 double-header bug for manual installs. v8.0.0 ships a coordinated fix for all of them.
+
+### Consumer action required on upgrade
+
+```bash
+# 1. Bump the library version pin
+npm install github:Caspian-Explorer/script-caspian-store#v8.0.0
+
+# 2. Set CASPIAN_ALLOW_SELF_UPDATE=true on EVERY environment that should
+#    accept self-update POSTs (dev, preview, staging, production). v7.x
+#    only enforced this in production; v8.0.0 enforces it everywhere so
+#    accidental enablement isn't possible.
+#    Vercel: Project Settings → Environment Variables.
+#    Firebase App Hosting: apphosting.yaml under env.
+#    Self-hosted Node: export in your process supervisor.
+
+# 3. If you use the email Cloud Functions: move provider API keys from
+#    Firestore (config.apiKey) into Google Cloud Secret Manager. You only
+#    need the secret(s) for the providers you actually use.
+firebase functions:secrets:set CASPIAN_EMAIL_SENDGRID_API_KEY   # if SendGrid
+firebase functions:secrets:set CASPIAN_EMAIL_BREVO_API_KEY      # if Brevo
+
+# 4. Redeploy the email codebase so it picks up the new defineSecret() refs.
+firebase deploy --only functions:caspian-email
+
+# 5. (Optional, cleanup) Open /admin/plugins/email-providers, edit each
+#    install, and clear the legacy "API key" field. The new dispatcher
+#    ignores it — but removing it tightens the audit trail. Existing
+#    installs keep working unchanged either way.
+```
+
+If you do not use the email functions, only steps 1 + 2 apply. If you have a fork that overrides the self-update GitHub allowlist, the new validation requires both `allowedOwner` and `allowedRepo` to match `[A-Za-z0-9._-]{1,100}` — almost certainly already true, but confirm before deploying.
+
+The `disableProductionGuard` option on `caspianHandleSelfUpdate(req, opts)` is **removed**. Anyone who depended on it should set `CASPIAN_ALLOW_SELF_UPDATE=true` in the corresponding environment instead — same outcome, fewer foot-shaped guns.
+
+The `EmailPlugin` config types (`SendGridConfig`, `BrevoConfig`) are now empty objects (`Record<string, never>`); `defaultConfig` is `{}`. Custom code that read `install.config.apiKey` should switch to relying on the Secret Manager secret, which is what the dispatcher now uses.
+
+### Added
+
+- [src/server/self-update.ts](src/server/self-update.ts): per-process rate limit (one install per ten minutes per warm Node instance, returns HTTP 429 with `retryInSec` if invoked sooner). Stderr / stdout responses are redacted of patterns matching `/\$\{?[A-Z_][A-Z0-9_]*\}?/` so npm errors that echo unset env-var names cannot leak through. `allowedOwner` / `allowedRepo` overrides are validated against GitHub's naming rules before the npm spawn.
+- [firebase/functions-email/src/secrets.ts](firebase/functions-email/src/secrets.ts): `defineSecret('CASPIAN_EMAIL_SENDGRID_API_KEY')` and `defineSecret('CASPIAN_EMAIL_BREVO_API_KEY')`. Exported as `EMAIL_SECRETS` so every emitting trigger attaches the same list.
+- [src/email/types.ts](src/email/types.ts): `EmailPlugin.secretName` field. Plugin metadata now declares which Secret Manager name it expects.
+- Scaffolded `providers.tsx` (via [scaffold/create.mjs](scaffold/create.mjs)) now runs an env-var preflight that throws a clear, actionable error if any `NEXT_PUBLIC_FIREBASE_*` is missing on first run — saves consumers ~20 minutes of debugging a blank-page-with-no-error.
+
+### Changed
+
+- [tsup.config.ts](tsup.config.ts): consolidated three separate entries into a single config block. The split caused `clean: true` on the main entry to race against the sibling DTS writes — `dist/firebase/index.d.ts` and `dist/server/index.d.ts` would be written and immediately wiped. With one config, one clean, one DTS pass: all three entries ship `.d.ts` and `.d.mts`.
+- [src/server/self-update.ts](src/server/self-update.ts): `CASPIAN_ALLOW_SELF_UPDATE=true` required in **all** environments, not just production. npm spawn now passes `--ignore-scripts` so a compromised tarball cannot run a postinstall hook under the server's process identity.
+- [firebase/functions-email/src/email-sender.ts](firebase/functions-email/src/email-sender.ts): provider API keys read via `SENDGRID_API_KEY.value()` / `BREVO_API_KEY.value()` instead of `install.config.apiKey`. Per-provider `sendVia*` functions no longer take a `config` argument — the secret is looked up by provider id at the dispatcher layer.
+- [firebase/functions-email/src/order-email-triggers.ts](firebase/functions-email/src/order-email-triggers.ts), [firebase/functions-email/src/contact-email-triggers.ts](firebase/functions-email/src/contact-email-triggers.ts), [firebase/functions-email/src/send-test-email.ts](firebase/functions-email/src/send-test-email.ts): every trigger declares `secrets: EMAIL_SECRETS` in its options so `secret.value()` resolves at runtime.
+- [firebase/functions-email/package.json](firebase/functions-email/package.json): `@getbrevo/brevo` bumped from `^2.2.0` to `^5.0.4`. The 2.x line transitively pulled the deprecated `request` library flagged with SSRF (CVE-2024-6225); 5.x dropped it entirely. The Brevo SDK API surface changed (no more `TransactionalEmailsApi` / `SendSmtpEmail`); call sites in [email-sender.ts](firebase/functions-email/src/email-sender.ts) updated to the new `BrevoClient.transactionalEmails.sendTransacEmail({...})` shape.
+- [src/firebase/collections.ts](src/firebase/collections.ts) plus 21 service files + the admin dashboard + the admin-notifications hook + the manual-payment plugin: all 55 ad-hoc `collection(db, "name")` call sites now go through `caspianCollections(db).<name>`. Adding a new collection is one diff in one file; centralized refs make rule + index migrations tractable. Added `adminTodos` to the helper (it was used by `admin-todo-service.ts` but missing from the canonical list).
+- [src/admin/admin-email-plugins-page.tsx](src/admin/admin-email-plugins-page.tsx): API-key input replaced by a Secret Manager setup notice that prints the exact `firebase functions:secrets:set <SECRET_NAME>` command for the chosen provider.
+- [src/admin/admin-site-settings-page.tsx](src/admin/admin-site-settings-page.tsx): inline warning under the logo + favicon upload reminding admins that SVG can embed JavaScript and to upload only from trusted sources. Storefront product / journal / page-content uploads continue to reject SVG via storage rules.
+- [firebase/functions-stripe/src/stripe-webhook.ts](firebase/functions-stripe/src/stripe-webhook.ts): `JSON.parse` failures now log which metadata field (`shippingInfo` vs `items`) failed and tag `errorLogs` with the session id. HTTP response stays opaque (`Malformed metadata`) so a malicious caller cannot enumerate expected fields.
+- [README.md](README.md), [INSTALL.md](INSTALL.md), [create-caspian-store/README.md](create-caspian-store/README.md): version pins realigned from extinct `v1.18.2` / `v1.9.0` to `v8.0.0`. INSTALL §3 layout snippet drops the `<LayoutShell>` wrapper that resurrected the v7.0.2 double-header bug for manual installs; now mirrors what the scaffolder actually emits. INSTALL §5 + §12 document the Secret Manager + self-update changes.
+- [create-caspian-store/package.json](create-caspian-store/package.json): bumped to `0.2.0` for the README + flag-doc changes (Next.js 15, deprecated `--with-functions`, prominent `--no-apphosting`).
+- [firebase/functions-email/package.json](firebase/functions-email/package.json): bumped to `0.2.0` to track the Secret Manager migration.
+- [.gitignore](.gitignore) extended to cover `.vscode/`, `package-lock.json` (the main package deliberately doesn't commit a lockfile per CLAUDE.md), `examples/**/next-env.d.ts`, and `firebase/functions-email/lib/`.
+
+### Removed
+
+- `disableProductionGuard` option on `caspianHandleSelfUpdate`. Use `CASPIAN_ALLOW_SELF_UPDATE=true` in the environment instead.
+- `apiKey` field from `SendGridConfig` / `BrevoConfig` (and from the admin install dialog). Provider keys live in Cloud Secret Manager; legacy `config.apiKey` values in existing Firestore docs are ignored by the v8.0.0 dispatcher.
+
+### Fixed
+
+- `dist/firebase/index.d.ts` and `dist/server/index.d.ts` are now produced and survive the build. The previous behaviour caused `TS7016 Could not find a declaration file for module '@caspian-explorer/script-caspian-store/server'` on consumer typecheck even after a clean install.
+- Tarball hygiene: removed an empty `firebase/firestore-debug.log` that was being shipped to consumers, and confirmed via `npm pack --dry-run` that no `node_modules/`, `.env`, or service-account JSON ever reaches the published archive.
+
+---
+
 ## v7.4.0 — Self-update route moves into the library (`@caspian-explorer/script-caspian-store/server`)
 
 The scaffolded `app/api/caspian-store/update/route.ts` used to be a 150-line, hand-rolled handler that did its own `firebase-admin` init, project-ID detection, admin-token verification, and `spawn(npm install)`. Every fix to project-ID detection or credential fallback required consumers to re-scaffold or hand-edit that file — exactly the friction the v7 single-mount architecture eliminated everywhere else.

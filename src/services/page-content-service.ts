@@ -1,5 +1,4 @@
 import {
-  collection,
   doc,
   getDoc,
   getDocs,
@@ -9,6 +8,7 @@ import {
   type QueryDocumentSnapshot,
   type DocumentSnapshot,
 } from 'firebase/firestore';
+import { caspianCollections } from '../firebase/collections';
 import type { PageContent } from '../types';
 
 function docToPageContent(snap: QueryDocumentSnapshot | DocumentSnapshot): PageContent {
@@ -34,7 +34,7 @@ export async function getPageContent(
 }
 
 export async function listPageContents(db: Firestore): Promise<PageContent[]> {
-  const snap = await getDocs(collection(db, 'pageContents'));
+  const snap = await getDocs(caspianCollections(db).pageContents);
   return snap.docs.map(docToPageContent);
 }
 

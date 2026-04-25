@@ -1,6 +1,5 @@
 import {
   addDoc,
-  collection,
   deleteDoc,
   doc,
   getDocs,
@@ -14,6 +13,7 @@ import {
   type Firestore,
   type QueryDocumentSnapshot,
 } from 'firebase/firestore';
+import { caspianCollections } from '../firebase/collections';
 import type { ErrorLog, ErrorLogSource } from '../types';
 import { CASPIAN_STORE_VERSION } from '../version';
 import { redactError, redactString, MAX_MESSAGE_LENGTH, MAX_STACK_LENGTH } from '../utils/redact-error';
@@ -102,7 +102,7 @@ export async function logError(db: Firestore, input: LogErrorInput): Promise<str
       }
     }
 
-    const ref = await addDoc(collection(db, 'errorLogs'), base);
+    const ref = await addDoc(caspianCollections(db).errorLogs, base);
     return ref.id;
   } catch {
     // Logger failures must never throw into the caller.
@@ -118,7 +118,7 @@ async function findRecentMatch(
   try {
     const cutoff = Timestamp.fromMillis(Date.now() - DEDUP_WINDOW_MS);
     const q = query(
-      collection(db, 'errorLogs'),
+      caspianCollections(db).errorLogs,
       where('origin', '==', origin),
       where('message', '==', message),
       where('timestamp', '>=', cutoff),
@@ -177,7 +177,7 @@ export function reportServiceError(
 }
 
 export async function listRecentErrors(db: Firestore, max = 25): Promise<ErrorLog[]> {
-  const q = query(collection(db, 'errorLogs'), orderBy('timestamp', 'desc'), limit(max));
+  const q = query(caspianCollections(db).errorLogs, orderBy('timestamp', 'desc'), limit(max));
   const snap = await getDocs(q);
   return snap.docs.map(docToErrorLog);
 }

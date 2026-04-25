@@ -1,6 +1,5 @@
 import {
   addDoc,
-  collection,
   deleteDoc,
   doc,
   getDocs,
@@ -12,6 +11,7 @@ import {
   type Firestore,
   type QueryDocumentSnapshot,
 } from 'firebase/firestore';
+import { caspianCollections } from '../firebase/collections';
 import type { LanguageDoc } from '../types';
 import { stripUndefined } from '../utils/strip-undefined';
 
@@ -32,7 +32,7 @@ function docToLanguage(snap: QueryDocumentSnapshot): LanguageDoc {
 }
 
 export async function listLanguages(db: Firestore): Promise<LanguageDoc[]> {
-  const q = query(collection(db, 'languages'), orderBy('order', 'asc'));
+  const q = query(caspianCollections(db).languages, orderBy('order', 'asc'));
   const snap = await getDocs(q);
   return snap.docs.map(docToLanguage);
 }
@@ -49,7 +49,7 @@ export async function createLanguage(
     await setDoc(doc(db, 'languages', id), payload);
     return id;
   }
-  const ref = await addDoc(collection(db, 'languages'), payload);
+  const ref = await addDoc(caspianCollections(db).languages, payload);
   return ref.id;
 }
 

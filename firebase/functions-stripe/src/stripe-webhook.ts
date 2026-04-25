@@ -82,12 +82,29 @@ export const stripeWebhook = onRequest(
         selectedColor: string | null;
         imageUrl: string;
       }> = [];
+      // Tag each parse so Cloud Logs + the error-logs collection show
+      // exactly which metadata field was malformed. Response body stays
+      // opaque ("Malformed metadata") so a malicious caller can't enumerate
+      // expected fields by replaying webhooks with different shapes.
+      let parseField: 'shippingInfo' | 'items' | null = null;
       try {
-        shippingInfo = metadata.shippingInfo ? JSON.parse(metadata.shippingInfo) : null;
-        items = metadata.items ? JSON.parse(metadata.items) : [];
+        if (metadata.shippingInfo) {
+          parseField = 'shippingInfo';
+          shippingInfo = JSON.parse(metadata.shippingInfo);
+        }
+        if (metadata.items) {
+          parseField = 'items';
+          items = JSON.parse(metadata.items);
+        }
       } catch (err) {
-        console.error('[caspian-webhook] Malformed metadata JSON:', err);
-        void reportFunctionError('stripe-webhook.malformedMetadata', err);
+        console.error(
+          `[caspian-webhook] Malformed metadata JSON in field "${parseField}" for session ${session.id}:`,
+          err,
+        );
+        void reportFunctionError('stripe-webhook.malformedMetadata', err, {
+          field: parseField ?? 'unknown',
+          sessionId: session.id,
+        });
         res.status(400).send('Malformed metadata');
         return;
       }

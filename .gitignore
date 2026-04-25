@@ -1,8 +1,12 @@
 node_modules/
 dist/
 firebase/functions-admin/lib/
+firebase/functions-email/lib/
 firebase/functions-stripe/lib/
 .claude/
+.vscode/
+package-lock.json
+examples/**/next-env.d.ts
 *.tgz
 .DS_Store
 *.log

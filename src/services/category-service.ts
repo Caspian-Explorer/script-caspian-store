@@ -1,6 +1,5 @@
 import {
   addDoc,
-  collection,
   deleteDoc,
   doc,
   getDocs,
@@ -13,6 +12,7 @@ import {
   type Firestore,
   type QueryDocumentSnapshot,
 } from 'firebase/firestore';
+import { caspianCollections } from '../firebase/collections';
 import type { ProductCategoryDoc } from '../types';
 import { stripUndefined } from '../utils/strip-undefined';
 
@@ -37,7 +37,7 @@ function docToCategory(docSnap: QueryDocumentSnapshot): ProductCategoryDoc {
 /** Active categories ordered by their configured `order`. */
 export async function listActiveCategories(db: Firestore): Promise<ProductCategoryDoc[]> {
   const q = query(
-    collection(db, 'productCategories'),
+    caspianCollections(db).productCategories,
     where('isActive', '==', true),
     orderBy('order', 'asc'),
   );
@@ -53,7 +53,7 @@ export async function getFeaturedCategories(db: Firestore): Promise<ProductCateg
 
 /** All categories, ordered — used by the admin page. */
 export async function listAllCategories(db: Firestore): Promise<ProductCategoryDoc[]> {
-  const q = query(collection(db, 'productCategories'), orderBy('order', 'asc'));
+  const q = query(caspianCollections(db).productCategories, orderBy('order', 'asc'));
   const snap = await getDocs(q);
   return snap.docs.map(docToCategory);
 }
@@ -70,7 +70,7 @@ export async function createCategory(
     await setDoc(doc(db, 'productCategories', id), payload);
     return id;
   }
-  const ref = await addDoc(collection(db, 'productCategories'), payload);
+  const ref = await addDoc(caspianCollections(db).productCategories, payload);
   return ref.id;
 }
 

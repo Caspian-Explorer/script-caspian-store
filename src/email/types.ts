@@ -7,8 +7,13 @@
  * Unlike shipping + payments, the actual `send(message)` implementation
  * lives server-side in firebase/functions-email/src/providers/* — the library
  * only exports the metadata + config validator, because delivery happens from
- * Cloud Functions (where provider SDKs can see API keys without exposing them
- * to the browser).
+ * Cloud Functions where the API key (loaded from Cloud Secret Manager) never
+ * touches the browser.
+ *
+ * v8.0.0: API keys moved to Google Secret Manager (`firebase functions:secrets:set`).
+ * Plugin config is now empty by default — the install record exists only to
+ * tell the dispatcher *which* provider to use. The actual credentials live
+ * in well-known secrets named `CASPIAN_EMAIL_<PROVIDER>_API_KEY`.
  */
 
 export type EmailPluginId = 'sendgrid' | 'brevo';
@@ -25,17 +30,12 @@ export interface EmailPlugin<C = Record<string, unknown>> {
   defaultConfig: C;
   /** Parse raw Firestore config into the plugin's typed shape. Throws with a user-facing message on invalid input. */
   validateConfig: (config: unknown) => C;
+  /** Cloud Secret Manager name where the merchant's API key must be set. */
+  secretName: string;
 }
 
-export interface SendGridConfig {
-  /** SendGrid API key. Starts with `SG.`. */
-  apiKey: string;
-}
-
-export interface BrevoConfig {
-  /** Brevo API key. Starts with `xkeysib-`. */
-  apiKey: string;
-}
+export type SendGridConfig = Record<string, never>;
+export type BrevoConfig = Record<string, never>;
 
 // `EmailPluginInstall` is defined in src/types.ts alongside ShippingPluginInstall
 // and PaymentPluginInstall to keep all cross-cutting Firestore document types

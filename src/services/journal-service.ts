@@ -1,6 +1,5 @@
 import {
   addDoc,
-  collection,
   deleteDoc,
   doc,
   getDoc,
@@ -14,6 +13,7 @@ import {
   type QueryDocumentSnapshot,
   type DocumentSnapshot,
 } from 'firebase/firestore';
+import { caspianCollections } from '../firebase/collections';
 import type { JournalArticle } from '../types';
 import { stripUndefined } from '../utils/strip-undefined';
 
@@ -32,7 +32,7 @@ function docToArticle(snap: QueryDocumentSnapshot | DocumentSnapshot): JournalAr
 }
 
 export async function listJournalArticles(db: Firestore): Promise<JournalArticle[]> {
-  const q = query(collection(db, 'journal'), orderBy('createdAt', 'desc'));
+  const q = query(caspianCollections(db).journal, orderBy('createdAt', 'desc'));
   const snap = await getDocs(q);
   return snap.docs.map(docToArticle);
 }
@@ -55,7 +55,7 @@ export async function createJournalArticle(
     await setDoc(doc(db, 'journal', id), payload);
     return id;
   }
-  const ref = await addDoc(collection(db, 'journal'), payload);
+  const ref = await addDoc(caspianCollections(db).journal, payload);
   return ref.id;
 }
 

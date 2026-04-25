@@ -1,8 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { collection, getCountFromServer, query, where } from 'firebase/firestore';
+import { getCountFromServer, query, where } from 'firebase/firestore';
 import { useCaspianFirebase } from '../provider/caspian-store-provider';
+import { caspianCollections } from '../firebase/collections';
 import {
   DEFAULT_REPO_NAME,
   DEFAULT_REPO_OWNER,
@@ -96,8 +97,9 @@ export function useAdminNotifications(
     }
 
     if (checkModeration) {
+      const refs = caspianCollections(db);
       tasks.push(
-        getCountFromServer(query(collection(db, 'reviews'), where('status', '==', 'pending')))
+        getCountFromServer(query(refs.reviews, where('status', '==', 'pending')))
           .then((snap) => {
             const count = snap.data().count;
             if (count > 0) {
@@ -115,7 +117,7 @@ export function useAdminNotifications(
           }),
       );
       tasks.push(
-        getCountFromServer(query(collection(db, 'questions'), where('status', '==', 'pending')))
+        getCountFromServer(query(refs.questions, where('status', '==', 'pending')))
           .then((snap) => {
             const count = snap.data().count;
             if (count > 0) {
@@ -133,7 +135,7 @@ export function useAdminNotifications(
           }),
       );
       tasks.push(
-        getCountFromServer(query(collection(db, 'contacts'), where('status', '==', 'new')))
+        getCountFromServer(query(refs.contacts, where('status', '==', 'new')))
           .then((snap) => {
             const count = snap.data().count;
             if (count > 0) {

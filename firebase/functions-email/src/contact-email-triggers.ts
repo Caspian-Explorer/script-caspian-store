@@ -19,6 +19,7 @@ import { onDocumentCreated } from 'firebase-functions/v2/firestore';
 import { logger } from 'firebase-functions';
 import { getFirestore } from 'firebase-admin/firestore';
 import { send } from './email-sender';
+import { EMAIL_SECRETS } from './secrets';
 import { renderEmail, type EmailSettingsFields, type RenderContext } from './email-renderer';
 
 type ContactTemplateKey = 'new_contact_admin' | 'contact_autoreply';
@@ -41,7 +42,7 @@ interface LoadedTemplate {
 }
 
 export const runEmailOnContactCreate = onDocumentCreated(
-  { document: 'contacts/{id}' },
+  { document: 'contacts/{id}', secrets: EMAIL_SECRETS },
   async (event) => {
     const snap = event.data;
     if (!snap) return;

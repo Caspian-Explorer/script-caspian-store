@@ -11,15 +11,16 @@
  * No retry: status transitions are the event of record and one missed email
  * is recoverable by the admin resending from the order detail page later.
  *
- * Functions-email has no `defineSecret` calls — provider API keys live in
- * the install's `config` (admin-only read in firestore.rules). See
- * email-sender.ts for the dispatch logic.
+ * v8.0.0: provider API keys come from Google Secret Manager, declared in
+ * `secrets.ts`. Each emitting trigger must attach `EMAIL_SECRETS` to its
+ * options or `secret.value()` returns empty at runtime.
  */
 
 import { onDocumentCreated, onDocumentUpdated } from 'firebase-functions/v2/firestore';
 import { logger } from 'firebase-functions';
 import { getFirestore } from 'firebase-admin/firestore';
 import { send } from './email-sender';
+import { EMAIL_SECRETS } from './secrets';
 import { renderEmail, type EmailSettingsFields, type RenderContext } from './email-renderer';
 
 type AdminTemplateKey = 'new_order_admin' | 'cancelled_order_admin' | 'failed_order_admin';
@@ -78,7 +79,7 @@ function adminTemplateForStatus(status: string | undefined): AdminTemplateKey | 
 }
 
 export const runEmailOnOrderCreate = onDocumentCreated(
-  { document: 'orders/{id}' },
+  { document: 'orders/{id}', secrets: EMAIL_SECRETS },
   async (event) => {
     const snap = event.data;
     if (!snap) return;
@@ -91,7 +92,7 @@ export const runEmailOnOrderCreate = onDocumentCreated(
 );
 
 export const runEmailOnOrderUpdate = onDocumentUpdated(
-  { document: 'orders/{id}' },
+  { document: 'orders/{id}', secrets: EMAIL_SECRETS },
   async (event) => {
     const before = event.data?.before.data() as OrderDoc | undefined;
     const after = event.data?.after.data() as OrderDoc | undefined;

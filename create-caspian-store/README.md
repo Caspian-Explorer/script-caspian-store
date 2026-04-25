@@ -17,16 +17,20 @@ npm run dev                  # http://localhost:3000
 All flags are forwarded to the underlying scaffolder:
 
 - `--package-tag vX.Y.Z` — pin the generated project to a specific release (default: latest main)
-- `--with-functions` — also scaffold the Stripe Cloud Functions tree into `functions/`
+- `--with-stripe` — also scaffold the Stripe Cloud Functions tree into `functions-stripe/`
+- `--with-email` — also scaffold the transactional-email Cloud Functions tree into `functions-email/` (v8.0.0+ requires `firebase functions:secrets:set CASPIAN_EMAIL_<PROVIDER>_API_KEY` before first deploy)
+- `--with-functions` — **deprecated** alias for `--with-stripe`, kept for back-compat
+- `--no-apphosting` — suppress `apphosting.yaml` in the output. **Set this when deploying to Vercel** so the unused file doesn't sit in your repo.
 - `--force` — scaffold into a non-empty directory (`.git`, `.gitignore`, `README.md`, `LICENSE` are preserved automatically)
 
 ### What gets scaffolded
 
-- Next.js 14 App Router project with every storefront, auth, content, and admin route pre-mounted
+- **Next.js 15** App Router project with every storefront, auth, content, and admin route pre-mounted
 - Next.js adapter code (`Link`, `Image`, `useNavigation`) for the package
 - Real `firestore.rules`, `firestore.indexes.json`, `storage.rules` deployable via `firebase deploy --only firestore:rules,firestore:indexes,storage`
-- `.env.example` with Firebase web config + Stripe publishable key placeholders
-- `package.json` scripts for `dev`, `typecheck`, `firebase:seed`, `grant-admin`
+- `.env.example` with Firebase web config + Stripe publishable key placeholders, plus a runtime preflight in `providers.tsx` that throws a clear error if any `NEXT_PUBLIC_FIREBASE_*` is missing on first run
+- `package.json` scripts for `dev`, `typecheck`, `firebase:seed`, `grant-admin`, `deploy:admin`, `deploy:email`, `deploy:stripe`
+- Self-update route that POSTs to the library's hardened handler (v8.0.0+ runs `npm install` with `--ignore-scripts` and is gated by `CASPIAN_ALLOW_SELF_UPDATE=true`)
 
 ## How it works
 

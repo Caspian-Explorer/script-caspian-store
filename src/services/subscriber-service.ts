@@ -1,6 +1,5 @@
 import {
   addDoc,
-  collection,
   deleteDoc,
   doc,
   getDocs,
@@ -12,6 +11,7 @@ import {
   type Firestore,
   type QueryDocumentSnapshot,
 } from 'firebase/firestore';
+import { caspianCollections } from '../firebase/collections';
 import type { Subscriber } from '../types';
 
 export type SubscribeResult = 'subscribed' | 'already-subscribed';
@@ -24,12 +24,13 @@ export async function subscribeEmail(db: Firestore, email: string): Promise<Subs
   const normalized = email.trim().toLowerCase();
   if (!normalized) throw new Error('Email is required.');
 
+  const refs = caspianCollections(db);
   const existing = await getDocs(
-    query(collection(db, 'subscribers'), where('email', '==', normalized), limit(1)),
+    query(refs.subscribers, where('email', '==', normalized), limit(1)),
   );
   if (!existing.empty) return 'already-subscribed';
 
-  await addDoc(collection(db, 'subscribers'), {
+  await addDoc(refs.subscribers, {
     email: normalized,
     subscribedAt: Timestamp.now(),
   });
@@ -46,7 +47,7 @@ function docToSubscriber(snap: QueryDocumentSnapshot): Subscriber {
 }
 
 export async function listSubscribers(db: Firestore): Promise<Subscriber[]> {
-  const q = query(collection(db, 'subscribers'), orderBy('subscribedAt', 'desc'));
+  const q = query(caspianCollections(db).subscribers, orderBy('subscribedAt', 'desc'));
   const snap = await getDocs(q);
   return snap.docs.map(docToSubscriber);
 }

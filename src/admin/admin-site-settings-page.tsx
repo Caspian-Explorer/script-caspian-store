@@ -279,6 +279,22 @@ export function AdminSiteSettingsPage({ className }: { className?: string }) {
                 allowUrlFallback
               />
             </div>
+            <p
+              style={{
+                gridColumn: '1 / -1',
+                margin: '8px 0 0',
+                fontSize: 12,
+                color: '#666',
+                lineHeight: 1.5,
+              }}
+            >
+              <strong>Heads up:</strong> SVG logos and favicons can embed
+              JavaScript. Only upload SVG files from sources you trust — paste
+              the file content into a text editor first if you're unsure. Other
+              storefront image uploads (products, journal, pages) reject SVG
+              automatically; this surface accepts it because logos are commonly
+              vector.
+            </p>
           </div>
         </div>
 

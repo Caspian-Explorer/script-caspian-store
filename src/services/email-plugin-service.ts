@@ -1,6 +1,5 @@
 import {
   addDoc,
-  collection,
   deleteDoc,
   doc,
   getDocs,
@@ -13,6 +12,7 @@ import {
   type Firestore,
   type QueryDocumentSnapshot,
 } from 'firebase/firestore';
+import { caspianCollections } from '../firebase/collections';
 import type { EmailPluginInstall } from '../types';
 import { stripUndefined } from '../utils/strip-undefined';
 
@@ -36,7 +36,7 @@ export async function listEmailPluginInstalls(
   const constraints = opts.onlyEnabled
     ? [where('enabled', '==', true), orderBy('order', 'asc')]
     : [orderBy('order', 'asc')];
-  const snap = await getDocs(query(collection(db, 'emailPluginInstalls'), ...constraints));
+  const snap = await getDocs(query(caspianCollections(db).emailPluginInstalls, ...constraints));
   return snap.docs.map(docToInstall);
 }
 
@@ -52,7 +52,7 @@ export async function createEmailPluginInstall(
     await setDoc(doc(db, 'emailPluginInstalls', id), payload);
     return id;
   }
-  const ref = await addDoc(collection(db, 'emailPluginInstalls'), payload);
+  const ref = await addDoc(caspianCollections(db).emailPluginInstalls, payload);
   return ref.id;
 }
 

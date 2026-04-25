@@ -7,6 +7,7 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { getFirestore } from 'firebase-admin/firestore';
 import { send } from './email-sender';
+import { EMAIL_SECRETS } from './secrets';
 import { renderEmail, type EmailSettingsFields, type RenderContext } from './email-renderer';
 
 interface Payload {
@@ -15,7 +16,7 @@ interface Payload {
 }
 
 export const sendTestEmail = onCall(
-  {},
+  { secrets: EMAIL_SECRETS },
   async (req) => {
     const uid = req.auth?.uid;
     if (!uid) throw new HttpsError('unauthenticated', 'Sign in required.');

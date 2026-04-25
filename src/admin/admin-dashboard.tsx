@@ -1,8 +1,9 @@
 'use client';
 
 import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
-import { getDocs, collection, query, where } from 'firebase/firestore';
+import { getDocs, query, where } from 'firebase/firestore';
 import { useCaspianFirebase, useCaspianLink } from '../provider/caspian-store-provider';
+import { caspianCollections } from '../firebase/collections';
 import { useT } from '../i18n/locale-context';
 import { Badge, Skeleton } from '../ui/misc';
 import type { ContactSubmission } from '../types';
@@ -43,6 +44,7 @@ export function AdminDashboard({
     let alive = true;
     (async () => {
       try {
+        const refs = caspianCollections(db);
         const [
           productsSnap,
           ordersSnap,
@@ -51,10 +53,10 @@ export function AdminDashboard({
           contacts,
           newContacts,
         ] = await Promise.all([
-          getDocs(collection(db, 'products')),
-          getDocs(collection(db, 'orders')),
-          getDocs(query(collection(db, 'reviews'), where('status', '==', 'pending'))),
-          getDocs(query(collection(db, 'questions'), where('status', '==', 'pending'))),
+          getDocs(refs.products),
+          getDocs(refs.orders),
+          getDocs(query(refs.reviews, where('status', '==', 'pending'))),
+          getDocs(query(refs.questions, where('status', '==', 'pending'))),
           listRecentContacts(db, 5).catch(() => [] as ContactSubmission[]),
           countNewContacts(db).catch(() => 0),
         ]);

@@ -1,6 +1,5 @@
 import {
   addDoc,
-  collection,
   deleteDoc,
   doc,
   getDocs,
@@ -12,6 +11,7 @@ import {
   type Firestore,
   type QueryDocumentSnapshot,
 } from 'firebase/firestore';
+import { caspianCollections } from '../firebase/collections';
 import type { FirestoreReview, ModerationStatus, ReviewPolicy } from '../types';
 import { hasUserPurchasedProduct } from './order-service';
 
@@ -39,7 +39,7 @@ export async function getApprovedReviewsForProduct(
   sortBy: ReviewSortBy = 'recent',
 ): Promise<FirestoreReview[]> {
   const q = query(
-    collection(db, 'reviews'),
+    caspianCollections(db).reviews,
     where('productId', '==', productId),
     where('status', '==', 'approved'),
     sortBy === 'highest' || sortBy === 'lowest'
@@ -56,7 +56,7 @@ export async function hasUserReviewedProduct(
   productId: string,
 ): Promise<boolean> {
   const q = query(
-    collection(db, 'reviews'),
+    caspianCollections(db).reviews,
     where('productId', '==', productId),
     where('userId', '==', userId),
   );
@@ -102,7 +102,7 @@ export async function createReview(
     isVerifiedPurchase,
     status: 'pending' as ModerationStatus,
   };
-  const ref = await addDoc(collection(db, 'reviews'), payload);
+  const ref = await addDoc(caspianCollections(db).reviews, payload);
   return ref.id;
 }
 
@@ -113,7 +113,7 @@ export async function listAllReviews(
   const constraints = statusFilter
     ? [where('status', '==', statusFilter), orderBy('createdAt', 'desc')]
     : [orderBy('createdAt', 'desc')];
-  const q = query(collection(db, 'reviews'), ...constraints);
+  const q = query(caspianCollections(db).reviews, ...constraints);
   const snap = await getDocs(q);
   return snap.docs.map(docToReview);
 }

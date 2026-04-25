@@ -430,11 +430,11 @@ export const DEFAULT_MESSAGES: MessageDict = {
   'admin.emailPlugins.field.nameHint':
     'Label shown in admin — e.g. "SendGrid — production" or "Brevo — staging".',
   'admin.emailPlugins.field.order': 'Order',
-  'admin.emailPlugins.field.apiKey': 'API key',
-  'admin.emailPlugins.field.apiKeyHint.sendgrid':
-    'SendGrid API key starting with "SG.". Generate at sendgrid.com → Settings → API Keys.',
-  'admin.emailPlugins.field.apiKeyHint.brevo':
-    'Brevo API key starting with "xkeysib-". Generate at brevo.com → SMTP & API → API Keys.',
+  'admin.emailPlugins.secretSetup.title': 'API key — set via Cloud Secret Manager',
+  'admin.emailPlugins.secretSetup.body':
+    'For security, the provider API key is no longer stored in the database. Run this command in your project root, paste the API key when prompted, then redeploy the email functions.',
+  'admin.emailPlugins.secretSetup.deployHint':
+    'After setting the secret: `firebase deploy --only functions:caspian-email`',
   'admin.emailPlugins.toasts.installed': 'Provider installed',
   'admin.emailPlugins.toasts.updated': 'Provider updated',
   'admin.emailPlugins.toasts.removed': 'Provider removed',

@@ -2,7 +2,7 @@
 
 Framework-agnostic React e-commerce store. **Bring your own Firebase.** Install into any React app (Next.js, Vite, CRA).
 
-> **Status: `v1.9.0` — working RSC-boundary install.** The bundle now preserves `'use client'` so Next.js App Router consumers render out of the box, and the `exports` map resolves for both `import` and `require`. See [CHANGELOG](./CHANGELOG.md).
+> **Status: `v8.0.0` — hardened deploy path.** Self-update endpoint runs `npm install` with `--ignore-scripts`, gated by `CASPIAN_ALLOW_SELF_UPDATE=true` and an admin Bearer token. Email-provider API keys (SendGrid, Brevo) live in Google Cloud Secret Manager — no secret values in Firestore. Brevo SDK upgraded to `^5.0.4` to clear the `request`-library SSRF (CVE-2024-6225). Build now emits typed `.d.ts` for all three entries (`.`, `./firebase`, `./server`). See [CHANGELOG](./CHANGELOG.md) for the full v8.0.0 upgrade steps.
 
 ## Quickstart
 
@@ -13,12 +13,12 @@ cp .env.example .env.local   # fill in Firebase config
 npm run dev                  # http://localhost:3000
 ```
 
-`npm create caspian-store@latest` generates a Next.js 14 App Router project with every storefront, auth, content, and admin route pre-mounted, real deployable Firestore rules, and optional Stripe Cloud Functions (`--with-functions`). See [INSTALL.md](./INSTALL.md) for the full first-run checklist, or the manual-install path below for embedding into an existing app.
+`npm create caspian-store@latest` generates a **Next.js 15 App Router** project with every storefront, auth, content, and admin route pre-mounted, real deployable Firestore rules, and optional Stripe + email Cloud Functions (`--with-stripe`, `--with-email`). See [INSTALL.md](./INSTALL.md) for the full first-run checklist, or the manual-install path below for embedding into an existing app.
 
-### Manual install (v7.0.0 — one route file owns every page)
+### Manual install (v7.0.0+ — one route file owns every page)
 
 ```bash
-npm install github:Caspian-Explorer/script-caspian-store#vX.Y.Z firebase
+npm install github:Caspian-Explorer/script-caspian-store#v8.0.0 firebase
 ```
 
 Two files are all you ever need. **No per-page route files, ever, for any library version.** New library pages land automatically.
@@ -86,7 +86,7 @@ See [INSTALL.md](./INSTALL.md) for the **one-command scaffolder**, **Vite** / **
 | **Script Settings** — `<ScriptSettingsPage />`, theme tokens via CSS vars | ✅ |
 | `firebase/firestore.rules` + `firebase/firestore.indexes.json` | ✅ |
 | **Payment plugins** — pluggable providers (Stripe included); install/configure at `/admin/plugins/payments` | ✅ |
-| **Email plugins** — pluggable providers (SendGrid + Brevo); install/configure at `/admin/plugins/email-providers`; API key in Firestore, no Functions secrets | ✅ (v3.0.0+) |
+| **Email plugins** — pluggable providers (SendGrid + Brevo); install at `/admin/plugins/email-providers`; API keys held in Google Cloud Secret Manager (`firebase functions:secrets:set …`) | ✅ (v8.0.0+) |
 | Cloud Functions — Stripe callable + webhook; transactional-email dispatcher (caspian-email codebase) | ✅ (deployed as scaffold) |
 | **Storefront — PLP:** `<ProductListPage />`, `<ProductGrid />`, `<ProductCard />` | ✅ |
 | **Storefront — PDP:** `<ProductDetailPage />`, `<ProductGallery />`, size/qty pickers, Add to cart | ✅ |
@@ -207,8 +207,12 @@ Stripe is handled by Firebase Cloud Functions (callable + webhook), so the packa
 The full release log lives in [CHANGELOG.md](./CHANGELOG.md). High-level:
 
 - **v0.1 – v1.0** — scaffolded the provider, storefront, reviews/Q&A, cart, checkout, admin, auth, account, i18n, theming.
-- **v1.1 – v1.8** — Stripe + i18n parity polish, homepage surface, journal + content pages, FAQs / shipping / size guide, remaining admin CRUD, site shell (header / footer / layout / favicon), turnkey scaffolder, admin todo list with setup checklist.
-- **v1.9** — fixed the long-standing `'use client'` stripping bug so a fresh install renders in Next.js App Router without RSC errors; fixed the `exports` map so both `import` and `require` resolve.
+- **v1.1 – v1.9** — Stripe + i18n parity polish, homepage, journal + content pages, FAQs / shipping / size guide, remaining admin CRUD, site shell, scaffolder, admin todo list. v1.9 fixed the `'use client'` stripping bug so App Router consumers render out of the box.
+- **v1.10 – v1.23** — admin overhaul (dashboard cards, notifications bell, contacts inbox), site-settings page, search-term analytics.
+- **v2.0 – v2.14** — payment + shipping + email plugin architecture, appearance themes, contact-form admin emails, transactional dispatcher.
+- **v3.0 – v6.x** — email plugin metadata-only catalog, RSC boundary tightening, framework-adapter contract.
+- **v7.0 – v7.3** — single-route-file architecture (`<CaspianRoot />` dispatches every URL), self-healing layout shell, plugins sidebar/grid polish, cart hydration safety.
+- **v8.0** — security hardening pass: Secret Manager for email API keys, hardened self-update (env-gate + `--ignore-scripts` + rate-limit + stderr redaction), Brevo SSRF cleared, tsup parallel-clean race fixed so all three entries ship `.d.ts`, Firestore service collection refs centralized.
 
 ## License
 

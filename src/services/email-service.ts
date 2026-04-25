@@ -1,5 +1,4 @@
 import {
-  collection,
   doc,
   getDoc,
   getDocs,
@@ -10,6 +9,7 @@ import {
   type QueryDocumentSnapshot,
 } from 'firebase/firestore';
 import { httpsCallable, type Functions } from 'firebase/functions';
+import { caspianCollections } from '../firebase/collections';
 import {
   EMAIL_TEMPLATE_KEYS,
   type EmailAudience,
@@ -143,7 +143,7 @@ function docToTemplate(snap: QueryDocumentSnapshot | DocumentSnapshot): EmailTem
  * UI can detect them and hint "not yet saved".
  */
 export async function listEmailTemplates(db: Firestore): Promise<EmailTemplate[]> {
-  const snap = await getDocs(collection(db, 'emailTemplates'));
+  const snap = await getDocs(caspianCollections(db).emailTemplates);
   const byKey = new Map<EmailTemplateKey, EmailTemplate>();
   for (const d of snap.docs) {
     const t = docToTemplate(d);

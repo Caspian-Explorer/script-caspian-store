@@ -1,7 +1,7 @@
 {
   "name": "caspian-email-functions",
-  "version": "0.1.2",
-  "description": "Firebase Cloud Functions for Caspian Store transactional email. Reads the enabled email provider plugin from Firestore (`emailPluginInstalls`) and delegates sending — no secrets declared at the function level, so `firebase deploy` does not require any `functions:secrets:set` step.",
+  "version": "0.2.0",
+  "description": "Firebase Cloud Functions for Caspian Store transactional email. Reads the enabled email provider plugin from Firestore (`emailPluginInstalls`) and delegates sending. v8.0.0+: API keys are loaded from Google Secret Manager — run `firebase functions:secrets:set CASPIAN_EMAIL_<PROVIDER>_API_KEY` before deploy.",
   "main": "lib/index.js",
   "engines": {
     "node": "22"
@@ -15,7 +15,7 @@
     "logs": "firebase functions:log --only caspian-email"
   },
   "dependencies": {
-    "@getbrevo/brevo": "^2.2.0",
+    "@getbrevo/brevo": "^5.0.4",
     "@sendgrid/mail": "^8.1.0",
     "firebase-admin": "^13.8.0",
     "firebase-functions": "^7.0.0"

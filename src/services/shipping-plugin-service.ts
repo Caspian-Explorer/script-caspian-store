@@ -1,6 +1,5 @@
 import {
   addDoc,
-  collection,
   deleteDoc,
   doc,
   getDocs,
@@ -13,6 +12,7 @@ import {
   type Firestore,
   type QueryDocumentSnapshot,
 } from 'firebase/firestore';
+import { caspianCollections } from '../firebase/collections';
 import type { ShippingPluginInstall } from '../types';
 import type { ShippingPluginId } from '../shipping/types';
 import { stripUndefined } from '../utils/strip-undefined';
@@ -41,7 +41,7 @@ export async function listShippingPluginInstalls(
   const constraints = opts.onlyEnabled
     ? [where('enabled', '==', true), orderBy('order', 'asc')]
     : [orderBy('order', 'asc')];
-  const snap = await getDocs(query(collection(db, 'shippingPluginInstalls'), ...constraints));
+  const snap = await getDocs(query(caspianCollections(db).shippingPluginInstalls, ...constraints));
   return snap.docs.map(docToInstall);
 }
 
@@ -57,7 +57,7 @@ export async function createShippingPluginInstall(
     await setDoc(doc(db, 'shippingPluginInstalls', id), payload);
     return id;
   }
-  const ref = await addDoc(collection(db, 'shippingPluginInstalls'), payload);
+  const ref = await addDoc(caspianCollections(db).shippingPluginInstalls, payload);
   return ref.id;
 }
 
