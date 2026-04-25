@@ -1,6 +1,6 @@
 {
   "name": "@caspian-explorer/script-caspian-store",
-  "version": "7.3.3",
+  "version": "7.4.0",
   "description": "Framework-agnostic React e-commerce store. Bring your own Firebase. Install into any React app (Next.js, Vite, CRA).",
   "license": "MIT",
   "author": "Caspian-Explorer",
@@ -30,6 +30,11 @@
       "types": "./dist/firebase/index.d.ts",
       "import": "./dist/firebase/index.mjs",
       "require": "./dist/firebase/index.js"
+    },
+    "./server": {
+      "types": "./dist/server/index.d.ts",
+      "import": "./dist/server/index.mjs",
+      "require": "./dist/server/index.js"
     },
     "./styles.css": "./src/styles/globals.css",
     "./firestore.rules": "./firebase/firestore.rules",
@@ -61,6 +66,7 @@
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "firebase": "^12.12.1",
+    "firebase-admin": "^13.8.0",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
     "rimraf": "^6.0.1",

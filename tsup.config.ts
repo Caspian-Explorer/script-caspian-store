@@ -76,4 +76,19 @@ export default defineConfig([
     ...shared,
     entry: { 'firebase/index': 'src/firebase/index.ts' },
   },
+  {
+    // Server-only entry (v7.4.0+). Hosts the self-update HTTP handler that
+    // scaffolded route.ts used to inline. Externalize firebase-admin + Node
+    // built-ins so they don't end up in the bundle — this entry assumes a
+    // Node runtime and is consumed only from `app/api/**/route.ts`.
+    ...shared,
+    entry: { 'server/index': 'src/server/index.ts' },
+    external: [
+      ...shared.external,
+      'firebase-admin',
+      'firebase-admin/app',
+      'firebase-admin/auth',
+      'node:child_process',
+    ],
+  },
 ]);

@@ -555,156 +555,19 @@ export async function POST(request: Request) {
 // explicit CASPIAN_ALLOW_SELF_UPDATE=true env var so self-update can't be
 // turned on accidentally. Serverless platforms with read-only filesystems
 // (Vercel, stock App Hosting) will get a clean EROFS error back.
-write('src/app/api/caspian-store/update/route.ts', `import { NextResponse } from 'next/server';
-import { spawn } from 'node:child_process';
-import { getApps, initializeApp, applicationDefault } from 'firebase-admin/app';
-import { getAuth } from 'firebase-admin/auth';
+// v7.4.0+ — the route's body lives in the library, so future fixes to
+// projectId resolution / npm-spawn quoting / credential handling land via
+// `npm install` instead of asking consumers to re-scaffold or hand-edit.
+// Everything below is just the Next.js bindings (runtime + dynamic +
+// maxDuration + the POST export).
+write('src/app/api/caspian-store/update/route.ts', `import { caspianHandleSelfUpdate } from '@caspian-explorer/script-caspian-store/server';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
 
-const ALLOWED_OWNER = 'Caspian-Explorer';
-const ALLOWED_REPO = 'script-caspian-store';
-const VERSION_RE = /^[0-9]+\\.[0-9]+\\.[0-9]+$/;
-
-function resolveProjectId(): string | undefined {
-  // firebase-admin needs an explicit projectId off Firebase-managed runtimes.
-  // GCLOUD_PROJECT / GOOGLE_CLOUD_PROJECT are set automatically on Firebase
-  // App Hosting and Cloud Functions; on Vercel, generic Node hosts, and local
-  // dev they are not, and applicationDefault() then can't auto-detect one,
-  // producing "Unable to detect a Project Id in the current environment".
-  // FIREBASE_PROJECT_ID is the firebase-admin convention; NEXT_PUBLIC_* is the
-  // scaffolder default; CASPIAN_FIREBASE_PROJECT_ID is a server-only escape
-  // hatch for hosts that don't expose NEXT_PUBLIC_* to the runtime.
-  return (
-    process.env.GOOGLE_CLOUD_PROJECT ||
-    process.env.GCLOUD_PROJECT ||
-    process.env.FIREBASE_PROJECT_ID ||
-    process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ||
-    process.env.CASPIAN_FIREBASE_PROJECT_ID ||
-    undefined
-  );
-}
-
-function ensureAdminApp(projectId: string) {
-  if (getApps().length > 0) return;
-  // Mirror the resolved id into GOOGLE_CLOUD_PROJECT so any nested Google
-  // client lib (storage, auth) inherits it without re-running detection.
-  process.env.GOOGLE_CLOUD_PROJECT = projectId;
-  try {
-    initializeApp({ credential: applicationDefault(), projectId });
-  } catch {
-    initializeApp({ projectId });
-  }
-}
-
-async function requireAdmin(req: Request): Promise<{ ok: true } | { ok: false; status: number; error: string }> {
-  const authHeader = req.headers.get('authorization') ?? '';
-  const idToken = authHeader.replace(/^Bearer\\s+/i, '').trim();
-  if (!idToken) return { ok: false, status: 401, error: 'Missing Authorization header' };
-  const projectId = resolveProjectId();
-  if (!projectId) {
-    return {
-      ok: false,
-      status: 500,
-      error:
-        'Server cannot detect a Firebase project ID. Set NEXT_PUBLIC_FIREBASE_PROJECT_ID ' +
-        '(or FIREBASE_PROJECT_ID) in your hosting environment and redeploy. ' +
-        'On Vercel: Project Settings → Environment Variables. ' +
-        'On Firebase App Hosting: apphosting.yaml → env.',
-    };
-  }
-  try {
-    ensureAdminApp(projectId);
-    const decoded = await getAuth().verifyIdToken(idToken);
-    if (!decoded.admin) {
-      return { ok: false, status: 403, error: 'Caller is not an admin' };
-    }
-    return { ok: true };
-  } catch (err) {
-    return {
-      ok: false,
-      status: 401,
-      error: err instanceof Error ? err.message : 'Token verification failed',
-    };
-  }
-}
-
 export async function POST(req: Request) {
-  if (
-    process.env.NODE_ENV === 'production' &&
-    process.env.CASPIAN_ALLOW_SELF_UPDATE !== 'true'
-  ) {
-    return NextResponse.json(
-      {
-        ok: false,
-        error:
-          'Self-update is disabled in production. Set CASPIAN_ALLOW_SELF_UPDATE=true on the server to enable.',
-      },
-      { status: 403 },
-    );
-  }
-
-  const auth = await requireAdmin(req);
-  if (!auth.ok) {
-    return NextResponse.json({ ok: false, error: auth.error }, { status: auth.status });
-  }
-
-  const body = (await req.json().catch(() => null)) as { version?: unknown } | null;
-  const version = typeof body?.version === 'string' ? body.version : '';
-  if (!VERSION_RE.test(version)) {
-    return NextResponse.json(
-      { ok: false, error: 'Invalid version. Expected X.Y.Z.' },
-      { status: 400 },
-    );
-  }
-
-  const spec = \`github:\${ALLOWED_OWNER}/\${ALLOWED_REPO}#v\${version}\`;
-  const npmCmd = process.platform === 'win32' ? 'npm.cmd' : 'npm';
-
-  let stdout = '';
-  let stderr = '';
-  const exitCode: number | null = await new Promise((resolve) => {
-    const child = spawn(npmCmd, ['install', spec, '--no-audit', '--no-fund'], {
-      cwd: process.cwd(),
-      env: process.env,
-      shell: false,
-    });
-    child.stdout.on('data', (d: Buffer) => (stdout += d.toString()));
-    child.stderr.on('data', (d: Buffer) => (stderr += d.toString()));
-    child.on('error', (err) => {
-      stderr += '\\n' + (err instanceof Error ? err.message : String(err));
-      resolve(-1);
-    });
-    child.on('close', (code) => resolve(code));
-  });
-
-  if (exitCode !== 0) {
-    return NextResponse.json(
-      {
-        ok: false,
-        error: \`npm install exited with code \${exitCode}\`,
-        stdout,
-        stderr,
-      },
-      { status: 500 },
-    );
-  }
-
-  // Schedule a restart after responding. In dev, Next.js respawns on file
-  // change — we rely on the install writing to node_modules. In production,
-  // rely on a process manager (PM2, systemd, Docker restart policy, Firebase
-  // App Hosting) to restart the container when the Node process exits.
-  setTimeout(() => {
-    try {
-      process.exit(0);
-    } catch {
-      /* no-op */
-    }
-  }, 500);
-
-  return NextResponse.json({ ok: true, stdout, stderr, restarting: true });
+  return caspianHandleSelfUpdate(req);
 }
 `);
 

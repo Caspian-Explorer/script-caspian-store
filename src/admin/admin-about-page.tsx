@@ -483,8 +483,23 @@ function ProjectIdRemediation() {
         route can&apos;t verify your admin token without it.
       </p>
       <p style={{ margin: '0 0 4px' }}>
-        Add this environment variable on your host and redeploy:
+        Add either of these environment variables on your host and redeploy. Both are read
+        by the route — pick whichever fits your env-management workflow.
       </p>
+      <pre
+        style={{
+          margin: '0 0 4px',
+          padding: 8,
+          background: '#f3f4f6',
+          border: '1px solid rgba(0,0,0,0.08)',
+          borderRadius: 4,
+          fontSize: 12,
+          whiteSpace: 'pre-wrap',
+          wordBreak: 'break-word',
+        }}
+      >
+        GOOGLE_CLOUD_PROJECT=&lt;your-firebase-project-id&gt;
+      </pre>
       <pre
         style={{
           margin: '0 0 8px',
@@ -498,6 +513,35 @@ function ProjectIdRemediation() {
         }}
       >
         NEXT_PUBLIC_FIREBASE_PROJECT_ID=&lt;your-firebase-project-id&gt;
+      </pre>
+      <p style={{ margin: '0 0 6px', fontSize: 12, color: '#666' }}>
+        <strong>If you scaffolded before v7.4.0 and even setting these doesn&apos;t help</strong>
+        , your <code>src/app/api/caspian-store/update/route.ts</code> is the old in-lined
+        version that doesn&apos;t read <code>NEXT_PUBLIC_FIREBASE_PROJECT_ID</code>. Replace
+        its contents with this 8-line shim — future fixes to the route will then land
+        automatically via <code>npm install</code>:
+      </p>
+      <pre
+        style={{
+          margin: '0 0 10px',
+          padding: 8,
+          background: '#f3f4f6',
+          border: '1px solid rgba(0,0,0,0.08)',
+          borderRadius: 4,
+          fontSize: 12,
+          whiteSpace: 'pre-wrap',
+          wordBreak: 'break-word',
+        }}
+      >
+        {`import { caspianHandleSelfUpdate } from '@caspian-explorer/script-caspian-store/server';
+
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+export const maxDuration = 300;
+
+export async function POST(req: Request) {
+  return caspianHandleSelfUpdate(req);
+}`}
       </pre>
       <ul style={{ margin: '0 0 0 18px', padding: 0 }}>
         <li>

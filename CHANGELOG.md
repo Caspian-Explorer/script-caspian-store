@@ -16,6 +16,53 @@ Do not omit the heading, rename it, or fold it into `### Notes`. This is how
 customers tell at a glance whether an upgrade needs attention.
 -->
 
+## v7.4.0 — Self-update route moves into the library (`@caspian-explorer/script-caspian-store/server`)
+
+The scaffolded `app/api/caspian-store/update/route.ts` used to be a 150-line, hand-rolled handler that did its own `firebase-admin` init, project-ID detection, admin-token verification, and `spawn(npm install)`. Every fix to project-ID detection or credential fallback required consumers to re-scaffold or hand-edit that file — exactly the friction the v7 single-mount architecture eliminated everywhere else.
+
+The smoking gun: a consumer's `.env.local` had `NEXT_PUBLIC_FIREBASE_PROJECT_ID` set correctly, the about-page's "How to fix" panel said to add that variable, but their pre-v7.4.0 route called `applicationDefault()` directly — and `applicationDefault()` only auto-detects from `GOOGLE_CLOUD_PROJECT` / `GCLOUD_PROJECT`, not the `NEXT_PUBLIC_*` form. The route never read `NEXT_PUBLIC_FIREBASE_PROJECT_ID`, so the help text was lying.
+
+v7.4.0 moves the whole handler into the library at `@caspian-explorer/script-caspian-store/server` (a new server-only entry point). Consumers' route.ts files become a 7-line shim:
+
+```ts
+import { caspianHandleSelfUpdate } from '@caspian-explorer/script-caspian-store/server';
+
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+export const maxDuration = 300;
+
+export async function POST(req: Request) {
+  return caspianHandleSelfUpdate(req);
+}
+```
+
+Future fixes to project-ID resolution, credential fallback, npm-spawn quoting, etc. land via `npm install`. No re-scaffolding. No hand-editing. Same contract the v7 single-mount `<CaspianRoot />` made for client routing — now applied to API routes.
+
+The library helper reads the project ID from `GOOGLE_CLOUD_PROJECT`, `GCLOUD_PROJECT`, `FIREBASE_PROJECT_ID`, `NEXT_PUBLIC_FIREBASE_PROJECT_ID`, and `CASPIAN_FIREBASE_PROJECT_ID` (in that order), passes it explicitly to `initializeApp({ projectId })`, mirrors it back into `process.env.GOOGLE_CLOUD_PROJECT` so any nested Google client lib inherits it, and falls back through credentialed and uncredentialed init paths. Same logic the latest scaffold's route had — just owned by the library now.
+
+### Consumer action required on upgrade
+
+Existing consumers (scaffolded pre-v7.4.0) must replace the body of their `src/app/api/caspian-store/update/route.ts` with the 8-line shim above. After this one-time migration, no future library version touches the file. The about page's "How to fix" panel now displays this snippet inline when it detects the failure mode.
+
+Fresh scaffolds (`npm create caspian-store@latest`) get the new shim automatically.
+
+Also bumps the floor for `firebase-admin` to `^13.8.0` in the library's devDependencies (was implicit; now explicit) so the library's own DTS build can resolve admin types.
+
+### Added
+
+- **New entry point: `@caspian-explorer/script-caspian-store/server`.** Server-only — uses `node:child_process` and `firebase-admin`; importing from client/storefront code pulls those into the browser bundle.
+- [src/server/self-update.ts](src/server/self-update.ts), [src/server/index.ts](src/server/index.ts): `caspianHandleSelfUpdate(req, opts?)` with options `{ allowedOwner, allowedRepo, disableProductionGuard }`. Public exports: `caspianHandleSelfUpdate`, `CaspianHandleSelfUpdateOptions`.
+- [tsup.config.ts](tsup.config.ts): third entry for `server/index` that externalizes `firebase-admin` + `firebase-admin/app` + `firebase-admin/auth` + `node:child_process`.
+- [package.json](package.json): new `./server` exports map entry.
+
+### Changed
+
+- [scaffold/create.mjs](scaffold/create.mjs): the 150-line `route.ts` template collapses to the 8-line shim. Fresh scaffolds use the library helper.
+- [src/admin/admin-about-page.tsx](src/admin/admin-about-page.tsx): the "How to fix" panel now offers `GOOGLE_CLOUD_PROJECT` as the first env-var option (always works, even with stale routes), keeps `NEXT_PUBLIC_FIREBASE_PROJECT_ID` as second (works on v7.4.0+ routes), and inlines the migration snippet for consumers stuck on the in-lined route version.
+- [package.json](package.json) `devDependencies`: `firebase-admin@^13.8.0` added so the library's own DTS build resolves `firebase-admin/app` + `firebase-admin/auth` types. Externalized at runtime — not bundled.
+
+---
+
 ## v7.3.3 — Cart hydration no longer crashes when Firestore is offline
 
 `<CartProvider>` hydrates the user's cart on auth change by calling `loadUserCart(db, uid)`. The hydration block was wrapped in `try { … } finally { setLoading(false) }` — no `catch`. When Firestore threw (most often *"Failed to get document because the client is offline"*, which happens any time the consumer's Firebase config is incomplete — e.g. missing `projectId` — or the user is genuinely offline), the rejection escaped as an unhandled promise rejection: `Uncaught (in promise) FirebaseError: Failed to get document because the client is offline.` Visible in the console, but otherwise silent — and on a clean dev session it could mask broken Firebase config behind a noisy log instead of surfacing it as a user-facing error.
