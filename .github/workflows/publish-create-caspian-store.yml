@@ -34,8 +34,15 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           registry-url: 'https://registry.npmjs.org'
+
+      # npm Trusted Publishing requires npm >= 11.5.1. Node 22 ships with
+      # npm 10.x; force-upgrade to the latest 11.x. Without this, the
+      # publish PUT 404s after a successful provenance signature because
+      # the CLI doesn't speak the OIDC trust handshake.
+      - name: Upgrade npm to a version that supports OIDC trusted publishing
+        run: npm install -g npm@latest
 
       - name: Verify the tagged version matches package.json
         if: startsWith(github.ref, 'refs/tags/create-caspian-store/v')
