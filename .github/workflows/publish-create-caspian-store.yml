@@ -38,16 +38,20 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
 
       # npm Trusted Publishing requires npm >= 11.5.1. Node 22 ships with
-      # npm 10.x. Self-upgrading via `npm install -g npm@latest` is
-      # fragile: npm modifies its own running files mid-install and
-      # frequently fails with `Cannot find module 'promise-retry'`. Volta
-      # is preinstalled on GitHub-hosted Ubuntu runners and installs the
-      # new npm to a clean toolchain location atomically.
-      - name: Install npm 11+ via Volta (atomic, doesn't self-modify)
+      # npm 10.x, and self-upgrading via `npm install -g npm@latest` is
+      # fragile (npm modifies its own running files mid-install and
+      # frequently fails with `Cannot find module 'promise-retry'`).
+      # Solution: install npm@latest into a sibling node_modules and put
+      # its bin first on PATH. The running npm 10 fetches npm 11 as a
+      # regular dependency — no self-modification, atomic.
+      - name: Install npm 11+ to a separate prefix
         run: |
-          volta install npm@latest
-          echo "$VOLTA_HOME/bin" >> "$GITHUB_PATH"
-          "$VOLTA_HOME/bin/npm" --version
+          mkdir -p "$HOME/.npm-cli"
+          cd "$HOME/.npm-cli"
+          npm init -y >/dev/null
+          npm install npm@latest --no-audit --no-fund --no-progress
+          echo "$HOME/.npm-cli/node_modules/.bin" >> "$GITHUB_PATH"
+          "$HOME/.npm-cli/node_modules/.bin/npm" --version
 
       - name: Verify the tagged version matches package.json
         if: startsWith(github.ref, 'refs/tags/create-caspian-store/v')
@@ -62,4 +66,8 @@ jobs:
 
       - name: Publish to npm with provenance
         working-directory: create-caspian-store
-        run: npm publish --provenance --access public
+        run: |
+          # Confirm the on-PATH npm is the upgraded one, not the runner's bundled npm 10.
+          which npm
+          npm --version
+          npm publish --provenance --access public
