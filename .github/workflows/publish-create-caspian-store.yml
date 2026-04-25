@@ -46,12 +46,14 @@ jobs:
       # regular dependency — no self-modification, atomic.
       - name: Install npm 11+ to a separate prefix
         run: |
-          mkdir -p "$HOME/.npm-cli"
-          cd "$HOME/.npm-cli"
+          # Directory must NOT start with a dot — `npm init -y` rejects
+          # ".npm-cli" with `Invalid name`. Plain `npm-cli` works.
+          mkdir -p "$HOME/npm-cli"
+          cd "$HOME/npm-cli"
           npm init -y >/dev/null
           npm install npm@latest --no-audit --no-fund --no-progress
-          echo "$HOME/.npm-cli/node_modules/.bin" >> "$GITHUB_PATH"
-          "$HOME/.npm-cli/node_modules/.bin/npm" --version
+          echo "$HOME/npm-cli/node_modules/.bin" >> "$GITHUB_PATH"
+          "$HOME/npm-cli/node_modules/.bin/npm" --version
 
       - name: Verify the tagged version matches package.json
         if: startsWith(github.ref, 'refs/tags/create-caspian-store/v')
