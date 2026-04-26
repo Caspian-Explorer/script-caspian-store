@@ -16,6 +16,22 @@ Do not omit the heading, rename it, or fold it into `### Notes`. This is how
 customers tell at a glance whether an upgrade needs attention.
 -->
 
+## v8.0.1 — Move storefront avatar to the far right of the header
+
+Issue [#88](https://github.com/Caspian-Explorer/script-caspian-store/issues/88) noted that the storefront header's account control (avatar when signed in, "Sign in" button when signed out) sat in the middle of the right-side icon cluster — search, language switcher, **avatar/sign-in**, wishlist, cart — wedged between two square icon buttons. This release moves the avatar/sign-in slot to the very end of the row so the cart and wishlist icons sit together as a visual group and the account control anchors the far edge of the header.
+
+In RTL locales the avatar likewise becomes the visual far-left item, since the header's row uses `justifyContent: 'flex-end'` which respects logical direction — no RTL-specific code path was needed.
+
+### No consumer action required
+
+Visual-only reorder of items inside [src/components/site-header.tsx](src/components/site-header.tsx). Reinstalling the new tag picks it up; no provider props, exported types, Firestore rules, or Cloud Function signatures changed.
+
+### Changed
+
+- [src/components/site-header.tsx](src/components/site-header.tsx): the avatar/sign-in conditional moves from between the language switcher and the wishlist button to after the cart button, so it is the last item in the right-side flex row.
+
+---
+
 ## v8.0.0 — End the v7.x firefighting cycle: hardened deploy, Secret Manager email keys, build race fixed
 
 The v7.0–v7.3.3 release cadence was eleven patches in roughly forty-eight hours, every one of them a self-healing follow-up to a different deploy footgun. A three-perspective audit (build correctness, security, consumer experience) surfaced the three classes of problems that compound: a parallel-clean race in tsup that silently dropped `dist/firebase/index.d.ts` and `dist/server/index.d.ts` so consumer typecheck broke without a clear error; a self-update HTTP endpoint that ran `npm install` from any admin token without `--ignore-scripts` and wasn't gated outside production; email-provider API keys living in Firestore (`emailPluginInstalls.config.apiKey`) where a leaked Cloud Function or Firestore export would expose them; documentation pinning extinct version numbers and resurrecting the v7.0.2 double-header bug for manual installs. v8.0.0 ships a coordinated fix for all of them.

@@ -253,16 +253,6 @@ export function SiteHeader({
 
             {languageSwitcher}
 
-            {!loading && user ? (
-              userMenu ?? <StorefrontProfileMenu />
-            ) : (
-              <Link href={accountHref}>
-                <Button variant="outline" size="sm">
-                  {t('navigation.signIn')}
-                </Button>
-              </Link>
-            )}
-
             <Link href={wishlistHref}>
               <Button variant="outline" size="sm" style={{ position: 'relative' }}>
                 ♥
@@ -300,6 +290,16 @@ export function SiteHeader({
                 </span>
               )}
             </Button>
+
+            {!loading && user ? (
+              userMenu ?? <StorefrontProfileMenu />
+            ) : (
+              <Link href={accountHref}>
+                <Button variant="outline" size="sm">
+                  {t('navigation.signIn')}
+                </Button>
+              </Link>
+            )}
           </div>
         </div>
       </header>
