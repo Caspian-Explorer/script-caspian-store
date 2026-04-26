@@ -14,8 +14,10 @@
  * five layers (any of which is a hard refusal):
  *   1. `CASPIAN_ALLOW_SELF_UPDATE=true` env var must be set. Opt-in in *all*
  *      environments, not just production. Stops accidental enablement.
- *   2. Caller must present a valid Firebase Auth ID token with the `admin`
- *      custom claim. Tokens are short-lived (1h) and rotated.
+ *   2. Caller must present a valid Firebase Auth ID token whose uid maps to
+ *      a Firestore `users/{uid}` doc with `role == 'admin'` — the same
+ *      definition `firestore.rules` `isAdmin()` uses, so the two stay in
+ *      lockstep. Tokens are short-lived (1h) and rotated.
  *   3. The `version` field is restricted to `X.Y.Z` (no slashes, no
  *      protocol injection, no `..`).
  *   4. The GitHub owner/repo allowlist is regex-validated; the default
@@ -123,7 +125,9 @@ async function requireAdmin(req: Request): Promise<AuthOk | AuthFail> {
     await ensureAdminApp(projectId);
     const { getAuth } = await import('firebase-admin/auth');
     const decoded = await getAuth().verifyIdToken(idToken);
-    if (!(decoded as { admin?: boolean }).admin) {
+    const { getFirestore } = await import('firebase-admin/firestore');
+    const userSnap = await getFirestore().collection('users').doc(decoded.uid).get();
+    if (!userSnap.exists || userSnap.get('role') !== 'admin') {
       return { ok: false, status: 403, error: 'Caller is not an admin' };
     }
     return { ok: true };

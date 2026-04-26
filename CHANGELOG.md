@@ -16,6 +16,22 @@ Do not omit the heading, rename it, or fold it into `### Notes`. This is how
 customers tell at a glance whether an upgrade needs attention.
 -->
 
+## v8.1.1 — Fix self-update Update button: align admin check with the rest of the library
+
+The About admin page's **Update to vX.Y.Z** button has been failing for every consumer since v8.0.0 with `Caller is not an admin`, even when the signed-in user clearly *is* an admin. Root cause: the `/api/caspian-store/update` route checked for an `admin: true` Firebase Auth **custom claim**, but no code path in the library or its Cloud Functions ever set that claim. Every other admin gate in the library — `firestore.rules` `isAdmin()`, `storage.rules`, `functions-admin/onUserCreate`, `functions-admin/claimAdmin`, `<AdminGuard>`, every admin UI page — keys on the Firestore field `users/{uid}.role == 'admin'` instead, so consumers reached the Update button by being a Firestore-role admin and then bounced off a stricter, undocumented second check.
+
+This release deletes that second check. The self-update endpoint now resolves admin status the same way every other gate does — verify the ID token, look up `users/{uid}.role` via Firebase Admin SDK, accept iff `role === 'admin'`. Token verification is still mandatory (so the endpoint cannot be hit by an unauthenticated request), and the four other layers of the threat model are unchanged: `CASPIAN_ALLOW_SELF_UPDATE=true` opt-in, `X.Y.Z` version regex, GitHub owner/repo allowlist, `--ignore-scripts` + 10-minute rate limit.
+
+### No consumer action required
+
+Drop-in patch. Existing admins (anyone whose `users/{uid}` doc has `role: 'admin'`) gain the working Update button as soon as they upgrade. No custom claims to set, no token refresh required, no `functions-admin` redeploy.
+
+### Fixed
+
+- [src/server/self-update.ts](src/server/self-update.ts): `requireAdmin()` now reads the Firestore `users/{uid}.role` field via the Admin SDK instead of checking a custom claim that nothing in the library or scaffold ever wrote. Threat-model layer 2 in the file's header comment was reworded to match. Error string (`'Caller is not an admin'`) is unchanged so anything matching against it keeps working.
+
+---
+
 ## v8.1.0 — Per-theme code structure + Clean default theme redesign
 
 Two improvements that ride together. The first is structural: each theme preset now lives in its own folder under [src/theme/themes/<id>/](src/theme/themes/). Combined with a per-theme `version: string` field and a new [`useThemeUpdateTracker`](src/theme/theme-update-tracker.ts) hook that remembers each admin's last-acknowledged version per theme in `localStorage`, the Appearance admin page now flags an `Updated` pill only on theme cards that actually changed since the admin last engaged with them — bumping one theme no longer makes every card look like it changed. The second is a polish pass on the default Clean theme so a fresh install looks finished out of the box: pure white page background (new optional `ThemeTokens.background` field), Poppins as the body + headline font (auto-loaded from Google Fonts when the theme activates — no consumer hand-edit needed), no underline on link hover, centered Collection page titles + tagline, and a 240px filter sidebar on the Shop page with Category, Price, Size, and Quick filter sections plus a Reset all button.
