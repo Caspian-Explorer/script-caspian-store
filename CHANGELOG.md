@@ -16,6 +16,25 @@ Do not omit the heading, rename it, or fold it into `### Notes`. This is how
 customers tell at a glance whether an upgrade needs attention.
 -->
 
+## v8.1.2 — Remove the Pages dropdown from the storefront header
+
+Issue mod1205 — `<SiteHeader>` carried a "Pages ▾" dropdown next to Shop and Collections that opened a hardcoded list of seven content pages (About, Journal, Sustainability, Contact, FAQs, Size guide, Shipping & returns). Consumer sites have wildly different page sets, so the library shouldn't be prescribing IA. v8.1.2 removes the dropdown trigger, the flyout, and the `DEFAULT_MORE` default list. Sites that need extra header links should add them to the `nav` prop instead.
+
+### No consumer action required
+
+The `moreNav` prop on `<SiteHeader>` is kept in the public type as a `@deprecated` no-op — sites that still pass `moreNav={[…]}` (whether the old default or a customized list) keep typechecking and just stop rendering a dropdown. The prop will be removed in the next major version.
+
+### Removed
+
+- [src/components/site-header.tsx](src/components/site-header.tsx): the "Pages" dropdown trigger button, its flyout `<div>`, the `DEFAULT_MORE` default list, the `moreOpen` state, and the `▾` glyph.
+- [src/i18n/messages.ts](src/i18n/messages.ts): `'navigation.pages'` message key (now unreferenced; the i18n layer falls back to the key name for any orphan reference, so removal is safe).
+
+### Deprecated
+
+- `moreNav` prop on `SiteHeaderProps`: still accepted, now ignored. JSDoc updated with `@deprecated` tag pointing to `nav` as the replacement.
+
+---
+
 ## v8.1.1 — Fix self-update Update button: align admin check with the rest of the library
 
 The About admin page's **Update to vX.Y.Z** button has been failing for every consumer since v8.0.0 with `Caller is not an admin`, even when the signed-in user clearly *is* an admin. Root cause: the `/api/caspian-store/update` route checked for an `admin: true` Firebase Auth **custom claim**, but no code path in the library or its Cloud Functions ever set that claim. Every other admin gate in the library — `firestore.rules` `isAdmin()`, `storage.rules`, `functions-admin/onUserCreate`, `functions-admin/claimAdmin`, `<AdminGuard>`, every admin UI page — keys on the Firestore field `users/{uid}.role == 'admin'` instead, so consumers reached the Update button by being a Firestore-role admin and then bounced off a stricter, undocumented second check.

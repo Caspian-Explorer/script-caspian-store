@@ -626,7 +626,6 @@ export const DEFAULT_MESSAGES: MessageDict = {
   'navigation.brand': 'STORE',
   'navigation.shop': 'Shop',
   'navigation.collections': 'Collections',
-  'navigation.pages': 'Pages',
   'navigation.searchPlaceholder': 'Search…',
 
   // Collections storefront

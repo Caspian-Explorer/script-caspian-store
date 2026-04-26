@@ -28,7 +28,11 @@ export interface SiteHeaderProps {
   brandFallback?: string;
   /** Top-level nav items (rendered alongside the brand). */
   nav?: SiteHeaderNavItem[];
-  /** Extra items shown in a "more" dropdown. Pass `null` to hide. */
+  /**
+   * @deprecated since v8.1.2 — the "Pages" dropdown was removed (issue mod1205).
+   *   The prop is accepted but ignored. Add extra links to `nav` instead.
+   *   Will be removed in the next major version.
+   */
   moreNav?: SiteHeaderNavItem[] | null;
   /** Right-side language switcher slot (e.g. <LanguageSwitcher />). */
   languageSwitcher?: ReactNode;
@@ -48,20 +52,9 @@ const DEFAULT_NAV: SiteHeaderNavItem[] = [
   { href: '/collections', label: 'Collections' },
 ];
 
-const DEFAULT_MORE: SiteHeaderNavItem[] = [
-  { href: '/about', label: 'About' },
-  { href: '/journal', label: 'Journal' },
-  { href: '/sustainability', label: 'Sustainability' },
-  { href: '/contact', label: 'Contact' },
-  { href: '/faqs', label: 'FAQs' },
-  { href: '/size-guide', label: 'Size guide' },
-  { href: '/shipping-returns', label: 'Shipping & returns' },
-];
-
 export function SiteHeader({
   brandFallback = 'STORE',
   nav = DEFAULT_NAV,
-  moreNav = DEFAULT_MORE,
   languageSwitcher,
   userMenu,
   accountHref = '/auth/login',
@@ -79,7 +72,6 @@ export function SiteHeader({
   const wishlistCount = wishlist.length;
 
   const [settings, setSettings] = useState<SiteSettings | null>(null);
-  const [moreOpen, setMoreOpen] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -163,65 +155,6 @@ export function SiteHeader({
                 {item.label}
               </Link>
             ))}
-            {moreNav && moreNav.length > 0 && (
-              <div style={{ position: 'relative' }}>
-                <button
-                  type="button"
-                  onClick={() => setMoreOpen((v) => !v)}
-                  onBlur={() => setTimeout(() => setMoreOpen(false), 150)}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    padding: 0,
-                    cursor: 'pointer',
-                    fontSize: 12,
-                    fontWeight: 500,
-                    textTransform: 'uppercase',
-                    letterSpacing: 1,
-                    color: '#666',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 4,
-                  }}
-                >
-                  {t('navigation.pages')} <span style={{ fontSize: 10 }}>▾</span>
-                </button>
-                {moreOpen && (
-                  <div
-                    style={{
-                      position: 'absolute',
-                      top: '100%',
-                      left: 0,
-                      marginTop: 4,
-                      minWidth: 200,
-                      background: '#fff',
-                      border: '1px solid #eee',
-                      borderRadius: 6,
-                      boxShadow: '0 6px 24px rgba(0,0,0,0.08)',
-                      padding: 6,
-                      zIndex: 50,
-                    }}
-                  >
-                    {moreNav.map((item, i) => (
-                      <Link
-                        key={i}
-                        href={item.href}
-                        style={{
-                          display: 'block',
-                          padding: '8px 12px',
-                          fontSize: 13,
-                          color: '#333',
-                          textDecoration: 'none',
-                          borderRadius: 4,
-                        }}
-                      >
-                        {item.label}
-                      </Link>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
           </nav>
 
           <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 8 }}>
