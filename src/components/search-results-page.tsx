@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-import type { Product } from '../types';
+import { useEffect, useMemo, useReducer, useState } from 'react';
+import type { Product, ProductCategoryDoc } from '../types';
 import { getProducts } from '../services/product-service';
+import { listActiveCategories } from '../services/category-service';
 import { useCaspianFirebase, useCaspianNavigation } from '../provider/caspian-store-provider';
 import { useT } from '../i18n/locale-context';
 import { ProductGrid } from './product-grid';
@@ -35,7 +36,24 @@ export function SearchResultsPage({
   const t = useT();
   const navigation = useCaspianNavigation();
   const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<ProductCategoryDoc[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Force a re-render on client-side URL changes even when the consumer's
+  // adapter doesn't expose a reactive `searchParams`. The library emits
+  // `caspian:locationchange` after wrapping any navigation.push/replace call
+  // (see useCaspianNavigation in the provider); popstate covers back/forward.
+  const [, bumpUrlTick] = useReducer((n: number) => n + 1, 0);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const onChange = () => bumpUrlTick();
+    window.addEventListener('popstate', onChange);
+    window.addEventListener('caspian:locationchange', onChange);
+    return () => {
+      window.removeEventListener('popstate', onChange);
+      window.removeEventListener('caspian:locationchange', onChange);
+    };
+  }, []);
 
   const queryState =
     typeof queryProp === 'string'
@@ -63,14 +81,35 @@ export function SearchResultsPage({
     };
   }, [db, max]);
 
+  useEffect(() => {
+    let alive = true;
+    listActiveCategories(db)
+      .then((list) => {
+        if (alive) setCategories(list);
+      })
+      .catch((error) => {
+        console.error('[caspian-store] Failed to load categories for search:', error);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [db]);
+
+  const categoryLabels = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const c of categories) map.set(c.id, c.name);
+    return map;
+  }, [categories]);
+
   const matches = useMemo(() => {
     const q = queryState.trim().toLowerCase();
     if (!q) return products;
     return products.filter((p) => {
-      const hay = `${p.name} ${p.brand} ${p.category}`.toLowerCase();
+      const categoryLabel = categoryLabels.get(p.category) ?? p.category;
+      const hay = `${p.name} ${p.brand} ${categoryLabel}`.toLowerCase();
       return hay.includes(q);
     });
-  }, [products, queryState]);
+  }, [products, queryState, categoryLabels]);
 
   return (
     <div className={className} style={{ maxWidth: 1200, margin: '0 auto', padding: '32px 24px' }}>

@@ -161,7 +161,30 @@ export function useCaspianImage() {
 
 export function useCaspianNavigation() {
   const hook = useCaspianStore().adapters.useNavigation;
-  return hook();
+  const adapter = hook();
+  return {
+    ...adapter,
+    push: (href: string) => {
+      adapter.push(href);
+      emitCaspianLocationChange();
+    },
+    replace: (href: string) => {
+      adapter.replace(href);
+      emitCaspianLocationChange();
+    },
+  };
+}
+
+// Dispatched after the library wraps a router push/replace so URL-driven
+// components (e.g. SearchResultsPage) can re-render even when the consumer's
+// adapter doesn't supply a reactive `searchParams`. Self-heals issue #43
+// without requiring consumer adapter edits. Microtask-deferred so the
+// underlying router has a chance to update history first.
+function emitCaspianLocationChange() {
+  if (typeof window === 'undefined') return;
+  queueMicrotask(() => {
+    window.dispatchEvent(new Event('caspian:locationchange'));
+  });
 }
 
 export function useCaspianCollections() {

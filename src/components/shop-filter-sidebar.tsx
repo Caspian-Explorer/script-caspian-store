@@ -26,6 +26,11 @@ export interface ShopFilterSidebarProps {
   onChange: (next: ShopFilterState) => void;
   /** Categories present in the loaded product set; the radio list. */
   availableCategories: readonly string[];
+  /** Map from category value (the string stored on `product.category`, usually
+   *  a Firestore category id) to the human display label. When omitted, or
+   *  when a value isn't in the map, the raw value is shown — matches the
+   *  legacy behaviour for free-text categories. */
+  categoryLabels?: ReadonlyMap<string, string>;
   /** Sizes present in the loaded product set; the chip checkboxes. */
   availableSizes: readonly string[];
   /** Total number of products visible after filters apply. Renders the count line. */
@@ -65,6 +70,7 @@ export function ShopFilterSidebar({
   state,
   onChange,
   availableCategories,
+  categoryLabels,
   availableSizes,
   resultCount,
   className,
@@ -139,7 +145,7 @@ export function ShopFilterSidebar({
                 checked={state.category === cat}
                 onChange={() => setCategory(cat)}
               />
-              <span>{cat}</span>
+              <span>{categoryLabels?.get(cat) ?? cat}</span>
             </label>
           ))}
         </div>

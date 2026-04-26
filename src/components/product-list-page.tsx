@@ -1,9 +1,10 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import type { InventorySettings, Product, TaxConfig } from '../types';
+import type { InventorySettings, Product, ProductCategoryDoc, TaxConfig } from '../types';
 import { getProducts, type ProductFilters } from '../services/product-service';
 import { getSiteSettings } from '../services/site-settings-service';
+import { listActiveCategories } from '../services/category-service';
 import { useCaspianFirebase } from '../provider/caspian-store-provider';
 import { ProductGrid } from './product-grid';
 import {
@@ -69,7 +70,22 @@ export function ProductListPage({
   const [loading, setLoading] = useState(true);
   const [inventory, setInventory] = useState<InventorySettings | undefined>(inventoryOverride);
   const [taxConfig, setTaxConfig] = useState<TaxConfig | undefined>(taxConfigOverride);
+  const [categories, setCategories] = useState<ProductCategoryDoc[]>([]);
   const [filterState, setFilterState] = useState<ShopFilterState>(EMPTY_SHOP_FILTERS);
+
+  useEffect(() => {
+    let alive = true;
+    listActiveCategories(db)
+      .then((list) => {
+        if (alive) setCategories(list);
+      })
+      .catch((error) => {
+        console.error('[caspian-store] Failed to load categories:', error);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [db]);
 
   useEffect(() => {
     if (inventoryOverride !== undefined && taxConfigOverride !== undefined) {
@@ -119,11 +135,19 @@ export function ProductListPage({
     };
   }, [db, effectiveFilters, max]);
 
+  const categoryLabels = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const c of categories) map.set(c.id, c.name);
+    return map;
+  }, [categories]);
+
   const availableCategories = useMemo(() => {
     const set = new Set<string>();
     for (const p of products) if (p.category) set.add(p.category);
-    return [...set].sort();
-  }, [products]);
+    return [...set].sort((a, b) =>
+      (categoryLabels.get(a) ?? a).localeCompare(categoryLabels.get(b) ?? b),
+    );
+  }, [products, categoryLabels]);
 
   const availableSizes = useMemo(() => {
     const set = new Set<string>();
@@ -175,6 +199,7 @@ export function ProductListPage({
             state={filterState}
             onChange={setFilterState}
             availableCategories={availableCategories}
+            categoryLabels={categoryLabels}
             availableSizes={availableSizes}
             resultCount={loading ? undefined : visibleProducts.length}
           />

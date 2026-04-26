@@ -16,6 +16,30 @@ Do not omit the heading, rename it, or fold it into `### Notes`. This is how
 customers tell at a glance whether an upgrade needs attention.
 -->
 
+## v8.1.4 — Storefront category filter shows names; search re-renders on client navigation
+
+Two bugs fixed together. The visible one: on `/admin/categories`, seeded categories rendered correctly as "Apparel" and "T-Shirt", but on `/shop` the left-rail Category filter listed `LWzDYddyskad6jamRP32`, `XcEnK9slvetPOTaM7E34`, and a stray `cat 1` — the literal Firestore auto-IDs that the admin product editor stores on `product.category`, plus one legacy free-text value from a pre-categories-collection product. Root cause: the storefront's `<ProductListPage>` built the filter list directly from `product.category` strings without ever joining against the `productCategories` collection, so the human-readable name was nowhere on screen. The admin **products list** page already had the resolver pattern (load active categories, build an `id → name` map, fall back to the raw value); the storefront just never adopted it. This release lifts that pattern verbatim into [src/components/product-list-page.tsx](src/components/product-list-page.tsx) and [src/components/search-results-page.tsx](src/components/search-results-page.tsx), and adds an additive `categoryLabels?: ReadonlyMap<string, string>` prop on `<ShopFilterSidebar>` so the resolved labels render. Filter state still keys on the underlying ID, so URL state and click-to-filter behaviour are unchanged. Legacy free-text categories (like `cat 1`) keep falling through unchanged via the same `?? raw` fallback.
+
+A second symptom rode along: `<SearchResultsPage>` concatenated `p.category` into the search haystack, so searching for "apparel" returned no products (the haystack contained the ID). The same map-resolve trick fixes it as a one-line change.
+
+The other fix in this release self-heals issue #43: `<SearchResultsPage>` did not re-render on client-side URL changes when the consumer's framework adapter didn't expose a reactive `searchParams` (the field is documented as required for real adapters but typed `URLSearchParams | undefined` for backward compatibility, and many older consumer adapters omit it). The library now wraps `useCaspianNavigation()`'s `push` and `replace` to dispatch a `caspian:locationchange` window event after the underlying router updates history, and `<SearchResultsPage>` listens for that event plus `popstate` to bump a render tick. Consumers running stale adapter code get search-results reactivity back without editing their adapter.
+
+### No consumer action required
+
+Drop-in patch. Reinstalling the new tag makes the storefront filter list and the search haystack render category names, and unblocks search-results client-side reactivity for any consumer whose navigation adapter omits a reactive `searchParams`. The new `categoryLabels` prop on `<ShopFilterSidebar>` is optional with a raw-value fallback, so any third-party usage that imports the sidebar directly keeps compiling and rendering unchanged.
+
+### Fixed
+
+- [src/components/product-list-page.tsx](src/components/product-list-page.tsx): added a `useEffect` that calls `listActiveCategories(db)`, a `categoryLabels` `Map<id, name>`, and reworked `availableCategories` to sort by resolved label (so "Apparel" precedes a long auto-ID alphabetically). The new map is forwarded to `<ShopFilterSidebar>`.
+- [src/components/search-results-page.tsx](src/components/search-results-page.tsx): same category-load + map. The search haystack now resolves `p.category` to the human label before lowercasing — searching for "apparel" matches the Apparel category again. Also added a `popstate` + `caspian:locationchange` listener that bumps a `useReducer` tick so URL changes re-render the page even when the navigation adapter's `searchParams` isn't reactive.
+- [src/provider/caspian-store-provider.tsx](src/provider/caspian-store-provider.tsx): `useCaspianNavigation()` now returns a wrapper whose `push` and `replace` dispatch a `caspian:locationchange` window event after delegating to the consumer's adapter (microtask-deferred so the underlying router has a chance to update history first). Self-heals issue #43 without requiring consumer adapter edits.
+
+### Added
+
+- [src/components/shop-filter-sidebar.tsx](src/components/shop-filter-sidebar.tsx): optional `categoryLabels?: ReadonlyMap<string, string>` prop on `ShopFilterSidebarProps`. When omitted (or when a key is missing), the raw value is rendered as before — preserves backward compatibility for any consumer that imports the sidebar directly.
+
+---
+
 ## v8.1.3 — Self-update no longer needs Application Default Credentials
 
 v8.1.1 fixed *which* admin definition the Update button uses but unintentionally exposed a host-portability issue: the Firestore role lookup went through the Firebase Admin SDK, which requires Application Default Credentials at request time. Cloud Run / App Engine / Cloud Functions get ADC for free from the GCP metadata server, but Vercel, Netlify, and generic Node hosts don't — and that's where most consumer Next.js sites live. So clicking Update on those hosts hit `Could not load the default credentials. Browse to https://cloud.google.com/docs/authentication/getting-started for more information.`
