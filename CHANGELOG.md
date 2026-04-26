@@ -16,6 +16,26 @@ Do not omit the heading, rename it, or fold it into `### Notes`. This is how
 customers tell at a glance whether an upgrade needs attention.
 -->
 
+## v8.1.3 — Self-update no longer needs Application Default Credentials
+
+v8.1.1 fixed *which* admin definition the Update button uses but unintentionally exposed a host-portability issue: the Firestore role lookup went through the Firebase Admin SDK, which requires Application Default Credentials at request time. Cloud Run / App Engine / Cloud Functions get ADC for free from the GCP metadata server, but Vercel, Netlify, and generic Node hosts don't — and that's where most consumer Next.js sites live. So clicking Update on those hosts hit `Could not load the default credentials. Browse to https://cloud.google.com/docs/authentication/getting-started for more information.`
+
+The pre-v8.1.1 endpoint accidentally avoided the issue because `verifyIdToken()` doesn't need ADC — it verifies JWT signatures against Google's public JWKS endpoint over plain HTTPS. Adding the Admin-SDK Firestore call broke that streak.
+
+This release does the role lookup via Firestore REST using the caller's own ID token instead of the Admin SDK. The library's own [firebase/firestore.rules:41-42](firebase/firestore.rules#L41-L42) already permit `request.auth.uid == uid` to read `users/{uid}`, so the user's ID token is sufficient — no service-account credentials, no `GOOGLE_APPLICATION_CREDENTIALS` env var, no consumer hand-edit. The endpoint now works on every host that can make HTTPS requests.
+
+Token verification still uses `firebase-admin/auth` (which is also ADC-free), so the route's threat-model stays the same: signed token required, Firestore-role admin required, then the existing four layers (env opt-in, version regex, owner/repo allowlist, `--ignore-scripts` + 10-minute rate limit).
+
+### No consumer action required
+
+Drop-in patch. Reinstalling the new tag fixes the Update button on Vercel/Netlify/etc. without any environment-variable changes or service-account JSON files.
+
+### Fixed
+
+- [src/server/self-update.ts](src/server/self-update.ts): `requireAdmin()` now reads `users/{uid}.role` via Firestore REST API (`https://firestore.googleapis.com/v1/projects/{projectId}/databases/(default)/documents/users/{uid}`) using the caller's already-verified ID token in the `Authorization` header, instead of `getFirestore().collection(...).get()` from the Admin SDK. Threat-model layer 2 in the file's header comment was extended to note the route is now ADC-free. Error string (`'Caller is not an admin'`) unchanged.
+
+---
+
 ## v8.1.2 — Remove the Pages dropdown from the storefront header
 
 Issue mod1205 — `<SiteHeader>` carried a "Pages ▾" dropdown next to Shop and Collections that opened a hardcoded list of seven content pages (About, Journal, Sustainability, Contact, FAQs, Size guide, Shipping & returns). Consumer sites have wildly different page sets, so the library shouldn't be prescribing IA. v8.1.2 removes the dropdown trigger, the flyout, and the `DEFAULT_MORE` default list. Sites that need extra header links should add them to the `nav` prop instead.

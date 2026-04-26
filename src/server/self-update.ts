@@ -17,7 +17,11 @@
  *   2. Caller must present a valid Firebase Auth ID token whose uid maps to
  *      a Firestore `users/{uid}` doc with `role == 'admin'` — the same
  *      definition `firestore.rules` `isAdmin()` uses, so the two stay in
- *      lockstep. Tokens are short-lived (1h) and rotated.
+ *      lockstep. The role lookup uses Firestore REST with the caller's own
+ *      ID token (not the Admin SDK), so the route doesn't require Application
+ *      Default Credentials and works on every host that can do HTTPS — Vercel,
+ *      Netlify, Cloud Run, App Engine, etc. Tokens are short-lived (1h) and
+ *      rotated.
  *   3. The `version` field is restricted to `X.Y.Z` (no slashes, no
  *      protocol injection, no `..`).
  *   4. The GitHub owner/repo allowlist is regex-validated; the default
@@ -125,9 +129,19 @@ async function requireAdmin(req: Request): Promise<AuthOk | AuthFail> {
     await ensureAdminApp(projectId);
     const { getAuth } = await import('firebase-admin/auth');
     const decoded = await getAuth().verifyIdToken(idToken);
-    const { getFirestore } = await import('firebase-admin/firestore');
-    const userSnap = await getFirestore().collection('users').doc(decoded.uid).get();
-    if (!userSnap.exists || userSnap.get('role') !== 'admin') {
+    const userDocUrl =
+      `https://firestore.googleapis.com/v1/projects/${projectId}` +
+      `/databases/(default)/documents/users/${decoded.uid}`;
+    const userRes = await fetch(userDocUrl, {
+      headers: { Authorization: `Bearer ${idToken}` },
+    });
+    if (!userRes.ok) {
+      return { ok: false, status: 403, error: 'Caller is not an admin' };
+    }
+    const userBody = (await userRes.json()) as {
+      fields?: { role?: { stringValue?: string } };
+    };
+    if (userBody.fields?.role?.stringValue !== 'admin') {
       return { ok: false, status: 403, error: 'Caller is not an admin' };
     }
     return { ok: true };
