@@ -16,6 +16,7 @@ export {
   type ThemeCategory,
   type ThemeThumbnail,
 } from './catalog';
+export { useThemeUpdateTracker } from './theme-update-tracker';
 export {
   ThemeThumbnail as ThemeThumbnailSvg,
   type ThemeThumbnailProps,

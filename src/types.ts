@@ -878,6 +878,13 @@ export interface ThemeTokens {
   accent: string;
   radius: string;
   fontFamily?: string;
+  /**
+   * Optional page background color, written to `--caspian-background` by
+   * `<ThemeInjector>`. When omitted, falls back to `#ffffff` from globals.css.
+   * Added in v8.1 so themes can paint the page beneath the storefront — the
+   * default Clean theme uses pure white; dark themes can specify their own.
+   */
+  background?: string;
 }
 
 export interface FontTokens {
@@ -960,10 +967,13 @@ export const DEFAULT_SCRIPT_SETTINGS: Omit<ScriptSettings, 'updatedAt'> = {
     primaryForeground: '#ffffff',
     accent: '#171717',
     radius: '0.5rem',
+    background: '#ffffff',
+    fontFamily: "'Poppins', system-ui, -apple-system, sans-serif",
   },
   fonts: {
-    body: 'system-ui, -apple-system, sans-serif',
-    headline: 'system-ui, -apple-system, sans-serif',
+    body: "'Poppins', system-ui, -apple-system, sans-serif",
+    headline: "'Poppins', system-ui, -apple-system, sans-serif",
+    googleFamilies: ['Poppins:wght@400;500;600;700'],
   },
   hero: {
     title: 'Shop our latest collection',

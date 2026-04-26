@@ -42,7 +42,7 @@ Plus exports: `./styles.css` (side-effect CSS, imported once at app root), `./fi
 - [src/ui/](src/ui/) — generic UI primitives (Button, Dialog, Tabs, Select, Table, Toast, …)
 - [src/services/](src/services/) — Firestore/service-layer functions
 - [src/i18n/](src/i18n/) — LocaleProvider, message tables, formatters, switcher
-- [src/theme/](src/theme/) — theme presets + picker
+- [src/theme/](src/theme/) — theme presets + picker. Each preset lives in its own folder under [src/theme/themes/<id>/index.ts](src/theme/themes/) exporting a single `CatalogTheme` default; [src/theme/catalog.ts](src/theme/catalog.ts) is a barrel that imports each one and assembles `THEME_CATALOG`. To modify a preset, change only its folder — the per-theme `version: string` field combined with [`useThemeUpdateTracker`](src/theme/theme-update-tracker.ts) is what makes the admin Appearance page show an `Updated` pill on only the touched cards. Bumping a theme's version is the contract; if you change tokens/thumbnail/copy without bumping, admins won't see the badge
 - [src/shipping/](src/shipping/) — shipping plugin catalog + per-plugin implementations
 - [src/payments/](src/payments/) — payment plugin catalog + per-plugin implementations (v2.0+)
 - [src/email/](src/email/) — email provider plugin catalog (metadata-only; server `send` impls live in `functions-email/`) (v3.0+)

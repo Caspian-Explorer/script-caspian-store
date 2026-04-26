@@ -22,6 +22,9 @@ export function ThemeInjector() {
     if (theme.fontFamily) {
       root.style.setProperty('--caspian-font-family', theme.fontFamily);
     }
+    if (theme.background) {
+      root.style.setProperty('--caspian-background', theme.background);
+    }
   }, [settings.theme]);
 
   return null;

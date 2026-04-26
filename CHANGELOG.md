@@ -16,6 +16,34 @@ Do not omit the heading, rename it, or fold it into `### Notes`. This is how
 customers tell at a glance whether an upgrade needs attention.
 -->
 
+## v8.1.0 — Per-theme code structure + Clean default theme redesign
+
+Two improvements that ride together. The first is structural: each theme preset now lives in its own folder under [src/theme/themes/<id>/](src/theme/themes/). Combined with a per-theme `version: string` field and a new [`useThemeUpdateTracker`](src/theme/theme-update-tracker.ts) hook that remembers each admin's last-acknowledged version per theme in `localStorage`, the Appearance admin page now flags an `Updated` pill only on theme cards that actually changed since the admin last engaged with them — bumping one theme no longer makes every card look like it changed. The second is a polish pass on the default Clean theme so a fresh install looks finished out of the box: pure white page background (new optional `ThemeTokens.background` field), Poppins as the body + headline font (auto-loaded from Google Fonts when the theme activates — no consumer hand-edit needed), no underline on link hover, centered Collection page titles + tagline, and a 240px filter sidebar on the Shop page with Category, Price, Size, and Quick filter sections plus a Reset all button.
+
+### No consumer action required
+
+Reinstalling the new tag picks everything up. The new `ThemeTokens.background` field is optional with a `#ffffff` fallback, and the catalog file refactor preserves the existing `THEME_CATALOG` export shape — both `import { THEME_CATALOG } from '@caspian-explorer/script-caspian-store'` and the admin Appearance page keep working unchanged. Existing stores already running the Clean theme keep their current page background until an admin re-activates the theme from `/admin/appearance`, at which point the new tokens (white bg + Poppins) get written to Firestore and applied.
+
+### Added
+
+- [src/theme/themes/](src/theme/themes/) — one folder per preset (`clean-white`, `minimal-dark`, `boutique`, `editorial`, `neon-shop`, `pastel-studio`, `academy`, `kitchen-table`, `forum-blue`, `runway`). Each exports a single `CatalogTheme` default. Modifying one preset now touches one file.
+- [src/theme/types.ts](src/theme/types.ts) — extracted `CatalogTheme`, `ThemeCategory`, `ThemeThumbnail`, `THEME_CATEGORY_LABELS` from the old monolithic catalog. Adds two new fields to `CatalogTheme`: `version: string` (per-theme semver, bumped only when that theme changes) and `googleFamilies?: string[]` (Google Fonts to auto-load when the theme activates).
+- [src/theme/theme-update-tracker.ts](src/theme/theme-update-tracker.ts) — new `useThemeUpdateTracker()` hook backed by `localStorage['caspian:seen-theme-versions']`. Returns `{ isUpdated, markSeen }`. Seeds first-ever visits at the v8.0 baseline (`1.0.0`) so the v8.1 release shows `Updated` only on the cards actually bumped above baseline.
+- [src/components/shop-filter-sidebar.tsx](src/components/shop-filter-sidebar.tsx) — new exported `<ShopFilterSidebar>` with `ShopFilterState` and `EMPTY_SHOP_FILTERS` helpers. Sections: Category (radio list, derived from loaded products), Price (min/max inputs), Size (chip checkboxes, derived), Quick filters (New arrivals + Limited toggles), with a Reset filters action that appears only when something is active.
+- New i18n keys under `shop.filters.*` in [src/i18n/messages.ts](src/i18n/messages.ts) and `admin.appearance.badgeUpdated`.
+- New optional field `ThemeTokens.background` in [src/types.ts](src/types.ts) — written to `--caspian-background` by `<ThemeInjector>`, applied to `.caspian-root` in [src/styles/globals.css](src/styles/globals.css). Falls back to `#ffffff`.
+
+### Changed
+
+- **Clean white preset** (now at [src/theme/themes/clean-white/index.ts](src/theme/themes/clean-white/index.ts), `version: '1.1.0'`) — adds `background: '#ffffff'` and `fontFamily: "'Poppins', system-ui, …"` to its tokens, plus `googleFamilies: ['Poppins:wght@400;500;600;700']`. The other 9 presets stay at `version: '1.0.0'` baseline; their tokens, thumbnails, and copy are byte-for-byte identical.
+- **Activating a theme** — [src/admin/admin-appearance-page.tsx](src/admin/admin-appearance-page.tsx) now also writes `settings.fonts` (body, headline, googleFamilies) when the catalog theme declares `googleFamilies` and/or `fontFamily`, so [`<FontLoader>`](src/context/font-loader.tsx) injects the Google Fonts `<link>` on next render. Activating Clean white = white background + Poppins, automatically.
+- **Storefront link hover** — [src/styles/globals.css](src/styles/globals.css) replaces `text-decoration: underline` on `.caspian-root a:hover` with `opacity: 0.7`. Cleaner against minimal themes; still gives a hover affordance.
+- **Collection detail page header** — [src/components/collection-detail-page.tsx](src/components/collection-detail-page.tsx) centers the title (now 36px / -0.02em letter-spacing) and the description (acting as the tagline) inside a 640px max-width column. Hero image stays full-bleed.
+- **Shop page (`<ProductListPage>`)** — [src/components/product-list-page.tsx](src/components/product-list-page.tsx) wraps the product grid in `.caspian-shop-grid` (240px sidebar + flex-1 grid, 32px gap, collapses to single column under 720px). Adds a `hideFilters` prop for embedding the listing in tighter layouts. Sidebar filtering is purely additive client-side; the existing `filters` prop (server-side narrowing) still applies on top.
+- **`DEFAULT_SCRIPT_SETTINGS`** in [src/types.ts](src/types.ts) now matches the redesigned Clean theme (white background + Poppins) so first-paint on a fresh install before Firestore loads already shows the new look instead of system-ui on a transparent background.
+
+---
+
 ## v8.0.1 — Move storefront avatar to the far right of the header
 
 Issue [#88](https://github.com/Caspian-Explorer/script-caspian-store/issues/88) noted that the storefront header's account control (avatar when signed in, "Sign in" button when signed out) sat in the middle of the right-side icon cluster — search, language switcher, **avatar/sign-in**, wishlist, cart — wedged between two square icon buttons. This release moves the avatar/sign-in slot to the very end of the row so the cart and wishlist icons sit together as a visual group and the account control anchors the far edge of the header.

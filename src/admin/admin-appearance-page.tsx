@@ -10,8 +10,9 @@ import {
   type CatalogTheme,
   type ThemeCategory,
 } from '../theme/catalog';
+import { useThemeUpdateTracker } from '../theme/theme-update-tracker';
 import { ThemeThumbnail } from '../theme/theme-thumbnail';
-import type { ThemeTokens } from '../types';
+import type { FontTokens, ThemeTokens } from '../types';
 import { Button } from '../ui/button';
 import { useToast } from '../ui/toast';
 
@@ -52,6 +53,7 @@ export function AdminAppearancePage({
   const [category, setCategory] = useState<ThemeCategory>('all');
   const [query, setQuery] = useState('');
   const [activatingId, setActivatingId] = useState<string | null>(null);
+  const { isUpdated, markSeen } = useThemeUpdateTracker();
 
   const counts = useMemo(countThemesByCategory, []);
 
@@ -75,8 +77,19 @@ export function AdminAppearancePage({
 
   const handleActivate = async (theme: CatalogTheme) => {
     setActivatingId(theme.id);
+    markSeen(theme.id, theme.version);
     try {
-      await save({ theme: theme.tokens });
+      const patch: { theme: ThemeTokens; fonts?: FontTokens } = { theme: theme.tokens };
+      const themeFontFamily = theme.tokens.fontFamily ?? theme.fontFamily;
+      if (theme.googleFamilies?.length || themeFontFamily) {
+        const stack = themeFontFamily ?? 'system-ui, -apple-system, sans-serif';
+        patch.fonts = {
+          body: stack,
+          headline: stack,
+          ...(theme.googleFamilies?.length ? { googleFamilies: theme.googleFamilies } : {}),
+        };
+      }
+      await save(patch);
       toast({ title: t('admin.appearance.activated', { name: theme.name }) });
     } catch (error) {
       console.error('[caspian-store] Failed to activate theme:', error);
@@ -88,6 +101,7 @@ export function AdminAppearancePage({
 
   const handlePreview = (theme: CatalogTheme) => {
     if (typeof window === 'undefined') return;
+    markSeen(theme.id, theme.version);
     const url = `${previewPath}?theme=${encodeURIComponent(theme.id)}`;
     window.open(
       url,
@@ -195,6 +209,7 @@ export function AdminAppearancePage({
                   theme={theme}
                   active={activeThemeId === theme.id}
                   activating={activatingId === theme.id}
+                  updated={isUpdated(theme.id, theme.version)}
                   onPreview={() => handlePreview(theme)}
                   onActivate={() => handleActivate(theme)}
                   disabled={saving}
@@ -213,6 +228,7 @@ interface ThemeCardProps {
   theme: CatalogTheme;
   active: boolean;
   activating: boolean;
+  updated: boolean;
   disabled: boolean;
   onPreview: () => void;
   onActivate: () => void;
@@ -223,6 +239,7 @@ function ThemeCard({
   theme,
   active,
   activating,
+  updated,
   disabled,
   onPreview,
   onActivate,
@@ -243,6 +260,9 @@ function ThemeCard({
       <div style={{ position: 'relative', aspectRatio: '3 / 2', background: '#f5f5f5' }}>
         <ThemeThumbnail theme={theme} />
         {theme.isNew && <CornerBadge label={t('admin.appearance.badgeNew')} color="#2563eb" />}
+        {!theme.isNew && updated && (
+          <CornerBadge label={t('admin.appearance.badgeUpdated')} color="#0ea5e9" />
+        )}
         {active && (
           <CornerBadge
             label={t('admin.appearance.badgeActive')}

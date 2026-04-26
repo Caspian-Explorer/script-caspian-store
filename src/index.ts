@@ -44,6 +44,12 @@ export { StarRatingInput, type StarRatingInputProps } from './components/star-ra
 export { ProductCard, type ProductCardProps } from './components/product-card';
 export { ProductGrid, type ProductGridProps } from './components/product-grid';
 export { ProductListPage, type ProductListPageProps } from './components/product-list-page';
+export {
+  ShopFilterSidebar,
+  EMPTY_SHOP_FILTERS,
+  type ShopFilterSidebarProps,
+  type ShopFilterState,
+} from './components/shop-filter-sidebar';
 export { CollectionsPage, type CollectionsPageProps } from './components/collections-page';
 export {
   CollectionDetailPage,

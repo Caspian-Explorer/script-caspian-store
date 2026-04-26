@@ -160,6 +160,20 @@ export const DEFAULT_MESSAGES: MessageDict = {
   'storefront.badges.newArrival': 'New Arrival',
   'storefront.empty': 'No products found.',
 
+  // Shop / PLP filter sidebar (v8.1+)
+  'shop.filters.title': 'Filters',
+  'shop.filters.category': 'Category',
+  'shop.filters.allCategories': 'All',
+  'shop.filters.price': 'Price',
+  'shop.filters.minPrice': 'Min',
+  'shop.filters.maxPrice': 'Max',
+  'shop.filters.size': 'Size',
+  'shop.filters.quickFilters': 'Quick filters',
+  'shop.filters.newArrivals': 'New arrivals',
+  'shop.filters.limited': 'Limited',
+  'shop.filters.reset': 'Reset filters',
+  'shop.filters.resultCount': '{count} products',
+
   // Product detail page
   'product.size': 'Size',
   'product.quantity': 'Quantity',
@@ -460,6 +474,7 @@ export const DEFAULT_MESSAGES: MessageDict = {
   'admin.appearance.activating': 'Activating…',
   'admin.appearance.activeButton': 'Active',
   'admin.appearance.badgeNew': 'New',
+  'admin.appearance.badgeUpdated': 'Updated',
   'admin.appearance.badgeActive': 'Active',
   'admin.appearance.preview.badge': 'Preview',
   'admin.appearance.preview.previewing': 'Previewing "{name}" — dummy data, not your live store',

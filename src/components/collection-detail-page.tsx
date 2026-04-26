@@ -110,7 +110,7 @@ export function CollectionDetailPage({
 
   return (
     <div className={cn('caspian-collection-detail-page', className)}>
-      <header style={{ marginBottom: 32 }}>
+      <header style={{ marginBottom: 40, textAlign: 'center' }}>
         {collection?.imageUrl && (
           <div
             style={{
@@ -120,17 +120,37 @@ export function CollectionDetailPage({
               overflow: 'hidden',
               borderRadius: 'var(--caspian-radius, 8px)',
               background: '#f5f5f5',
-              marginBottom: 20,
+              marginBottom: 28,
             }}
           >
             <Image src={collection.imageUrl} alt={collection.name} fill />
           </div>
         )}
-        <h1 style={{ fontSize: 32, fontWeight: 700, margin: 0 }}>
+        <h1
+          style={{
+            fontSize: 36,
+            fontWeight: 700,
+            margin: 0,
+            letterSpacing: '-0.02em',
+            lineHeight: 1.2,
+          }}
+        >
           {collection?.name ?? ''}
         </h1>
         {collection?.description && (
-          <p style={{ color: '#666', marginTop: 8, maxWidth: 720 }}>{collection.description}</p>
+          <p
+            style={{
+              color: '#666',
+              marginTop: 12,
+              marginLeft: 'auto',
+              marginRight: 'auto',
+              maxWidth: 640,
+              fontSize: 16,
+              lineHeight: 1.6,
+            }}
+          >
+            {collection.description}
+          </p>
         )}
       </header>
 
