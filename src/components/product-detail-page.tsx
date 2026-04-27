@@ -141,7 +141,7 @@ export function ProductDetailPage({
 
   if (loading) {
     return (
-      <div className={className} style={gridStyle}>
+      <div className={className} style={{ ...gridStyle, paddingTop: 40 }}>
         <Skeleton style={{ aspectRatio: '4 / 5' }} />
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <Skeleton style={{ height: 14, width: '30%' }} />
@@ -196,7 +196,7 @@ export function ProductDetailPage({
   };
 
   return (
-    <div className={className}>
+    <div className={className} style={{ paddingTop: 40 }}>
       <div style={gridStyle}>
         <ProductGallery images={product.images} />
         <div style={{ display: 'flex', flexDirection: 'column' }}>
@@ -358,6 +358,7 @@ function TabButton({ label, active, onClick }: { label: string; active: boolean;
 
 const gridStyle: React.CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)',
-  gap: 32,
+  gridTemplateColumns: 'minmax(0, 1fr) minmax(280px, 450px)',
+  gap: 48,
+  alignItems: 'start',
 };

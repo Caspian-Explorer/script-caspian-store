@@ -16,6 +16,21 @@ Do not omit the heading, rename it, or fold it into `### Notes`. This is how
 customers tell at a glance whether an upgrade needs attention.
 -->
 
+## v8.2.1 — Product detail page: top padding + 450px-capped detail column
+
+The product detail page (`<ProductDetailPage>`) shipped without any top padding, so on storefronts where it mounts directly under the sticky `<SiteHeader>` the brand label and badges butted right against the header's bottom edge with no breathing room. The two-column grid was also `1fr / 1fr`, which on wide viewports stretched the right-hand details column (title, price, size selector, quantity, add-to-cart) far wider than it needs to be — making the line lengths uncomfortable to read and the Add-to-cart button look like a banner.
+
+### No consumer action required
+
+Visual-only fix in [src/components/product-detail-page.tsx](src/components/product-detail-page.tsx). Reinstalling the new tag picks it up. No exports, props, or schema changed.
+
+### Changed
+
+- [src/components/product-detail-page.tsx](src/components/product-detail-page.tsx): outer wrapper gains `paddingTop: 40` (applied to both the loading-skeleton return and the loaded return) for a consistent gap below the header.
+- `gridStyle` becomes `gridTemplateColumns: 'minmax(0, 1fr) minmax(280px, 450px)'` with `gap: 48` and `alignItems: 'start'`. The image gallery takes the flexible left column; the details column flexes between 280px and 450px maximum on any viewport — comfortable line lengths, button no longer stretches the full half-width.
+
+---
+
 ## v8.2.0 — Appearance promoted to a Settings sidebar child
 
 Issue store-1208 — the admin Settings page's in-page left rail packed five tabs (General, Appearance, Shipping options, Emails, Languages) into one screen, but Appearance is the most-edited surface and burying it behind a sub-tab made it slower to reach than its peers in Catalog or People. v8.2.0 promotes Appearance out of the Settings sub-rail and into the main admin sidebar as a child of a new **Settings** group — same pattern Catalog/People/Plugins already use. The remaining four tabs (General, Shipping options, Emails, Languages) keep the in-page rail unchanged.
