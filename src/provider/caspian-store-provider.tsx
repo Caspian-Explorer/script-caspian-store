@@ -166,7 +166,17 @@ function LocationChangeBridge() {
     if (w.__caspianHistoryPatched) return;
     w.__caspianHistoryPatched = true;
 
-    const dispatch = () => window.dispatchEvent(new Event('caspian:locationchange'));
+    // Defer the event delivery to a microtask. Next.js's app-router calls
+    // `history.pushState` from inside a `useInsertionEffect` during commit;
+    // dispatching synchronously would trigger listeners whose state updates
+    // (via `useReducer`) violate React's "useInsertionEffect must not
+    // schedule updates" invariant. The microtask runs after commit completes
+    // but before paint, so the listener's re-render is timely and the URL
+    // is already updated (we dispatch *after* the original pushState
+    // returns, so deferring does not reintroduce the v8.1.4 race).
+    const dispatch = () => {
+      queueMicrotask(() => window.dispatchEvent(new Event('caspian:locationchange')));
+    };
 
     const origPushState = window.history.pushState.bind(window.history);
     const origReplaceState = window.history.replaceState.bind(window.history);

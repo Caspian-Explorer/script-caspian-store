@@ -16,6 +16,22 @@ Do not omit the heading, rename it, or fold it into `### Notes`. This is how
 customers tell at a glance whether an upgrade needs attention.
 -->
 
+## v8.2.3 — Defer LocationChangeBridge dispatch to escape React's commit phase (#43 / mod1183)
+
+v8.2.2 introduced `<LocationChangeBridge />` which patches `history.pushState` / `replaceState` to dispatch a `caspian:locationchange` event after the URL updates. The event was dispatched *synchronously* from inside the patched function. That broke when Next.js's App Router calls `history.pushState` from inside a `useInsertionEffect` during React's commit phase: the synchronous event triggered `<SearchResultsPage>`'s listener, which called `useReducer`'s dispatch to bump a tick — and React threw `useInsertionEffect must not schedule updates`. The error fires on every search submission on consumer sites running v8.2.2 under Next.js 14+ App Router.
+
+The fix defers the `dispatchEvent` call to a microtask via `queueMicrotask`. Microtasks run after the commit phase completes, so listeners' state updates land outside the insertion-effect window and React processes them as normal post-commit updates. This does **not** reintroduce the v8.1.4 race (where the microtask fired before the URL was updated), because the microtask is queued from inside the patched `pushState` *after* the original `pushState` has already updated the URL — by the time the microtask runs, `window.location.search` is guaranteed to reflect the new query.
+
+### No consumer action required
+
+Drop-in patch. Reinstalling the new tag silences the React error and restores the expected behaviour: typing a new search term while on `/search` updates results without a reload, with no console warnings.
+
+### Fixed
+
+- [src/provider/caspian-store-provider.tsx](src/provider/caspian-store-provider.tsx): `<LocationChangeBridge />`'s patched `history.pushState` / `replaceState` now defer the `caspian:locationchange` event delivery to `queueMicrotask`, escaping React's commit phase. Closes the regression introduced in v8.2.2 where Next.js App Router's commit-phase call to `pushState` triggered a synchronous listener state update inside a `useInsertionEffect`.
+
+---
+
 ## v8.2.2 — SearchResultsPage: real self-heal via History API patch (#43 / mod1183)
 
 The v8.1.4 self-heal wrapped `useCaspianNavigation()`'s `push`/`replace` to dispatch a `caspian:locationchange` event from a `queueMicrotask` callback after delegating to the consumer's adapter. That assumed the underlying router updated `window.location.search` synchronously. Next.js App Router does **not**: `router.push` is scheduled inside a React transition, so the URL is updated some time later. The microtask dispatched the event before the URL changed, the listener re-read `window.location.search`, and got the **old** query string — which is why the bug kept reproducing on consumer sites that had already upgraded.
