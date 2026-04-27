@@ -262,7 +262,7 @@ export function ProductDetailPage({
         </div>
       </div>
 
-      {(detailsTabHasContent || !hideReviews) && (
+      {(!hideReviews || detailsTabHasContent) && (
         <div style={{ marginTop: 48 }}>
           <Separator />
           <nav
@@ -270,18 +270,17 @@ export function ProductDetailPage({
             aria-label={t('product.tabs.ariaLabel')}
             style={{
               display: 'flex',
-              gap: 24,
+              gap: 32,
+              justifyContent: 'center',
               borderBottom: '1px solid rgba(0,0,0,0.08)',
               marginBottom: 24,
             }}
           >
-            {detailsTabHasContent && (
-              <TabButton
-                label={t('product.tabs.details')}
-                active={activeTab === 'details'}
-                onClick={() => setActiveTab('details')}
-              />
-            )}
+            <TabButton
+              label={t('product.tabs.details')}
+              active={activeTab === 'details'}
+              onClick={() => setActiveTab('details')}
+            />
             {!hideReviews && (
               <>
                 <TabButton
@@ -298,7 +297,7 @@ export function ProductDetailPage({
             )}
           </nav>
 
-          {activeTab === 'details' && detailsTabHasContent && (
+          {activeTab === 'details' && (
             <section>
               {hasDetails && (
                 <HtmlContent html={product.details} style={{ color: '#333', lineHeight: 1.6 }} />
@@ -306,6 +305,11 @@ export function ProductDetailPage({
               {hasLongDescription && (
                 <p style={{ color: '#555', lineHeight: 1.6, whiteSpace: 'pre-wrap', marginTop: hasDetails ? 20 : 0 }}>
                   {product.description}
+                </p>
+              )}
+              {!detailsTabHasContent && (
+                <p style={{ color: '#999', textAlign: 'center', padding: '32px 0', margin: 0 }}>
+                  {t('product.tabs.detailsEmpty')}
                 </p>
               )}
             </section>

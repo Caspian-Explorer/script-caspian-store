@@ -187,6 +187,7 @@ export const DEFAULT_MESSAGES: MessageDict = {
   'product.tabs.details': 'Details',
   'product.tabs.reviews': 'Reviews',
   'product.tabs.questions': 'Questions',
+  'product.tabs.detailsEmpty': 'No additional details.',
 
   // Reviews & Q&A
   'reviews.title': 'Product Reviews',

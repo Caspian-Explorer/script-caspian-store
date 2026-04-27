@@ -16,6 +16,23 @@ Do not omit the heading, rename it, or fold it into `### Notes`. This is how
 customers tell at a glance whether an upgrade needs attention.
 -->
 
+## v8.2.4 — Product detail tabs: centered row + always-visible Details
+
+The product detail page tab row was left-aligned, and the `Details` tab was hidden whenever the product had no `details` HTML and no `description` distinct from the auto-generated blurb. On a freshly-created test product this collapsed the row to just `Reviews | Questions` flush against the left margin — visually unbalanced against the rest of the storefront (Collection page header centered, Shop page symmetric) and read as missing structure.
+
+### No consumer action required
+
+Visual-only fix in [src/components/product-detail-page.tsx](src/components/product-detail-page.tsx) and one new i18n key. Reinstalling the new tag picks it up. No exports, props, or schema changed.
+
+### Changed
+
+- [src/components/product-detail-page.tsx](src/components/product-detail-page.tsx): `<nav role="tablist">` now uses `justifyContent: 'center'` with `gap: 32` (up from `24`). The `Details` tab renders unconditionally as the first item in the row regardless of whether the product has `details` HTML or a long-form `description`. When activated on a product with no detail content, the tab body shows a small `No additional details.` empty-state placeholder (centered, muted) rather than collapsing to nothing.
+- [src/i18n/messages.ts](src/i18n/messages.ts): new `product.tabs.detailsEmpty` key driving the empty-state copy.
+
+`Details` was already the default active tab on first load (existing `useState<TabKey>('details')`), so no state change was needed there.
+
+---
+
 ## v8.2.3 — Defer LocationChangeBridge dispatch to escape React's commit phase (#43 / mod1183)
 
 v8.2.2 introduced `<LocationChangeBridge />` which patches `history.pushState` / `replaceState` to dispatch a `caspian:locationchange` event after the URL updates. The event was dispatched *synchronously* from inside the patched function. That broke when Next.js's App Router calls `history.pushState` from inside a `useInsertionEffect` during React's commit phase: the synchronous event triggered `<SearchResultsPage>`'s listener, which called `useReducer`'s dispatch to bump a tick — and React threw `useInsertionEffect must not schedule updates`. The error fires on every search submission on consumer sites running v8.2.2 under Next.js 14+ App Router.
