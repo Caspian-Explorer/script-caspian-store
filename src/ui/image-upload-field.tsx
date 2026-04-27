@@ -1,6 +1,7 @@
 'use client';
 
 import { useId, useRef, useState } from 'react';
+import { useT } from '../i18n';
 import { useCaspianFirebase } from '../provider/caspian-store-provider';
 import { uploadAdminImage } from '../services/storage-service';
 import { cn } from '../utils/cn';
@@ -71,6 +72,7 @@ export function ImageUploadField({
 }: ImageUploadFieldProps) {
   const { storage } = useCaspianFirebase();
   const { toast } = useToast();
+  const t = useT();
   const inputRef = useRef<HTMLInputElement>(null);
   const inputId = useId();
   const [uploading, setUploading] = useState(false);
@@ -89,12 +91,60 @@ export function ImageUploadField({
         allowedTypes,
       });
       onChange(url);
-      toast({ title: 'Image uploaded' });
+      toast({ title: t('imageUpload.success') });
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : 'Upload failed. Check Storage rules.';
       console.error('[caspian-store] Image upload failed:', error);
-      toast({ title: message, variant: 'destructive' });
+      const code =
+        error && typeof error === 'object' && 'code' in error &&
+        typeof (error as { code?: unknown }).code === 'string'
+          ? (error as { code: string }).code
+          : null;
+      switch (code) {
+        case 'storage/unauthorized':
+          toast({
+            title: t('imageUpload.errors.unauthorized.title'),
+            description: t('imageUpload.errors.unauthorized.description'),
+            variant: 'destructive',
+            durationMs: 8000,
+          });
+          break;
+        case 'storage/unauthenticated':
+          toast({
+            title: t('imageUpload.errors.unauthenticated.title'),
+            description: t('imageUpload.errors.unauthenticated.description'),
+            variant: 'destructive',
+            durationMs: 8000,
+          });
+          break;
+        case 'storage/quota-exceeded':
+          toast({
+            title: t('imageUpload.errors.quotaExceeded.title'),
+            description: t('imageUpload.errors.quotaExceeded.description'),
+            variant: 'destructive',
+            durationMs: 8000,
+          });
+          break;
+        case 'storage/retry-limit-exceeded':
+        case 'storage/canceled':
+          toast({
+            title: t('imageUpload.errors.network.title'),
+            description: t('imageUpload.errors.network.description'),
+            variant: 'destructive',
+          });
+          break;
+        default:
+          if (code === null && error instanceof Error) {
+            // Local validation throws (size/type) from uploadAdminImage — the
+            // message is already short and actionable.
+            toast({ title: error.message, variant: 'destructive' });
+          } else {
+            toast({
+              title: t('imageUpload.errors.generic.title'),
+              description: t('imageUpload.errors.generic.description'),
+              variant: 'destructive',
+            });
+          }
+      }
     } finally {
       setUploading(false);
       if (inputRef.current) inputRef.current.value = '';

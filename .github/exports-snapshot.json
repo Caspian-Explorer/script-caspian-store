@@ -281,6 +281,7 @@
   "firebaseEntry": [
     "CASPIAN_FIRESTORE_INDEXES",
     "CASPIAN_FIRESTORE_RULES",
+    "CASPIAN_STORAGE_RULES",
     "caspianCollections",
     "getDefaultCaspianFirebase",
     "initCaspianFirebase"

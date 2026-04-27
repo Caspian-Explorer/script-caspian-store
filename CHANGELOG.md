@@ -16,6 +16,40 @@ Do not omit the heading, rename it, or fold it into `### Notes`. This is how
 customers tell at a glance whether an upgrade needs attention.
 -->
 
+## v8.3.1 — Self-diagnosing storage upload errors + ship `CASPIAN_STORAGE_RULES` (#store-1210)
+
+Admins reported `Firebase Storage: User does not have permission to access 'siteSettings/logo/...' (storage/unauthorized)` when trying to upload a logo from `<AdminSiteSettingsPage>`, with the toast just echoing the long FirebaseError string and no actionable next step. Root cause across reported installs: stale deployed Storage rules. The `siteSettings/**` rule block was added in v3.0.0, but consumers who upgraded the library since then never re-ran `firebase deploy --only storage`, so the bucket still runs on pre-v3.0.0 rules and default-denies every write to `siteSettings/`. A close second is `firebase deploy --only firestore` from §4 of INSTALL.md skipping the `,storage` flag.
+
+The library can't deploy rules on the consumer's behalf, but it can make the failure self-diagnosing: from this release the toast switches on the Firebase `error.code` and tells admins the exact command to run (`npm run firebase:sync && firebase deploy --only storage`). And `CASPIAN_STORAGE_RULES` is now exported from `@caspian-explorer/script-caspian-store/firebase`, alongside `CASPIAN_FIRESTORE_RULES` — full parity, so consumers can build their own deploy tooling without `cp`-ing from `node_modules`.
+
+### Consumer action required on upgrade
+
+```bash
+npm install github:Caspian-Explorer/script-caspian-store#v8.3.1
+npm run firebase:sync
+firebase deploy --only storage
+```
+
+If logo / avatar / page-image uploads were already failing on your install, the deploy above is the fix. From now on, the same toast that flagged the error tells the next admin who trips this what to do — so you shouldn't have to rediscover it on the next upgrade.
+
+### Fixed
+
+- [src/ui/image-upload-field.tsx](src/ui/image-upload-field.tsx): the catch branch now switches on Firebase `error.code` and surfaces an actionable, i18n-keyed toast per code. `storage/unauthorized` reads *"Upload denied by Firebase Storage rules"* with the description containing the exact `npm run firebase:sync && firebase deploy --only storage` fix command. `storage/unauthenticated`, `storage/quota-exceeded`, `storage/retry-limit-exceeded`, and `storage/canceled` get their own targeted copy. Storage-error toasts use `durationMs: 8000` so the instructions are readable. Local validation errors (size / type) keep their existing short messages. The follow-up to also route the component's still-untranslated literals (`Upload`, `Replace`, `Remove`, `No image`, `or paste URL`) through `useT()` is intentionally out of scope here.
+
+### Added
+
+- [src/firebase/rules.ts](src/firebase/rules.ts) / [src/firebase/index.ts](src/firebase/index.ts) / [package.json](package.json): `CASPIAN_STORAGE_RULES` is now exported from `@caspian-explorer/script-caspian-store/firebase`, and `./storage.rules` is now a subpath import — both mirroring the existing `CASPIAN_FIRESTORE_RULES` constant and `./firestore.rules` subpath. `import { CASPIAN_STORAGE_RULES } from '@caspian-explorer/script-caspian-store/firebase'` works in deploy scripts; `firebase.json` configs that reference the file directly still work via `node_modules/.../firebase/storage.rules`.
+- [src/i18n/messages.ts](src/i18n/messages.ts): new `imageUpload.*` namespace — `success`, plus `errors.{unauthorized,unauthenticated,quotaExceeded,network,generic}.{title,description}`. Override individual keys via `<CaspianStoreProvider messages={{ ... }}>` if you want different wording.
+- [tsup.config.ts](tsup.config.ts): build-time drift guard — `CASPIAN_STORAGE_RULES` is asserted to match `firebase/storage.rules` byte-for-byte on every build (extracts the template-literal contents from `src/firebase/rules.ts`, undoes the source-level backslash doubling, and compares to the file on disk). Hand-editing one without the other now fails the build with a clear error instead of silently shipping diverged rules.
+
+### Changed
+
+- [INSTALL.md](INSTALL.md): §12 Upgrade is now unconditional — every upgrade should resync rules + indexes, not just upgrades whose CHANGELOG calls it out. Troubleshooting gains a `storage/unauthorized` entry recapping the symptom + fix command.
+- [README.md](README.md): "what ships" feature row updated to list `firebase/storage.rules` alongside `firebase/firestore.rules` and `firebase/firestore.indexes.json`. The `./firebase` import example now includes `CASPIAN_STORAGE_RULES`.
+- [src/services/storage-service.ts](src/services/storage-service.ts): `uploadAdminImage` JSDoc now lists the `storage/*` error codes callers should handle, and the "what paths the package ships rules for" list is brought up to date (was missing `siteSettings/**` and `products/**` since v3.0.0 / v4.0.0).
+
+---
+
 ## v8.3.0 — SEO-friendly product URLs + Write-a-Review star fix
 
 Two storefront issues addressed in one minor release.

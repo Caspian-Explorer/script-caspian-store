@@ -84,7 +84,7 @@ See [INSTALL.md](./INSTALL.md) for the **one-command scaffolder**, **Vite** / **
 | `CaspianStoreProvider` + framework adapter contract | ✅ |
 | Firebase init (BYOF), auth context, user profile bootstrap | ✅ |
 | **Script Settings** — `<ScriptSettingsPage />`, theme tokens via CSS vars | ✅ |
-| `firebase/firestore.rules` + `firebase/firestore.indexes.json` | ✅ |
+| `firebase/firestore.rules` + `firebase/firestore.indexes.json` + `firebase/storage.rules` | ✅ |
 | **Payment plugins** — pluggable providers (Stripe included); install/configure at `/admin/plugins/payments` | ✅ |
 | **Email plugins** — pluggable providers (SendGrid + Brevo); install at `/admin/plugins/email-providers`; API keys held in Google Cloud Secret Manager (`firebase functions:secrets:set …`) | ✅ (v8.0.0+) |
 | Cloud Functions — Stripe callable + webhook; transactional-email dispatcher (caspian-email codebase) | ✅ (deployed as scaffold) |
@@ -184,6 +184,7 @@ And a sub-entrypoint for Firestore config:
 import {
   CASPIAN_FIRESTORE_RULES,
   CASPIAN_FIRESTORE_INDEXES,
+  CASPIAN_STORAGE_RULES,
   caspianCollections,
 } from '@caspian-explorer/script-caspian-store/firebase';
 ```
@@ -198,7 +199,7 @@ Stripe is handled by Firebase Cloud Functions (callable + webhook), so the packa
 
 ## Usage notes
 
-- **`"use client"` boundary (Next.js App Router):** the main entry bundle starts with `'use client';`, so package components and hooks can be imported directly from Server Component layouts and pages — the library *is* the client boundary. The `./firebase` sub-entry (`initCaspianFirebase`, `caspianCollections`, and the Firestore rules/indexes constants) is intentionally unbannered, so it stays callable from Node deploy scripts, Cloud Functions, and Server Components.
+- **`"use client"` boundary (Next.js App Router):** the main entry bundle starts with `'use client';`, so package components and hooks can be imported directly from Server Component layouts and pages — the library *is* the client boundary. The `./firebase` sub-entry (`initCaspianFirebase`, `caspianCollections`, and the Firestore + Storage rules/indexes constants) is intentionally unbannered, so it stays callable from Node deploy scripts, Cloud Functions, and Server Components.
 - **Tree-shaking:** the ESM bundle is side-effect-free except for `styles.css`, which you import once at your app root.
 - **One store per page:** pass `appName="my-shop"` if you need multiple `CaspianStoreProvider` instances (e.g. a preview alongside the live storefront).
 

@@ -128,3 +128,90 @@ service cloud.firestore {
   }
 }
 `;
+
+/**
+ * Firebase Storage security rules for a Caspian Store installation.
+ *
+ * Consumers should write this to their `storage.rules` file and deploy with
+ * `firebase deploy --only storage`. The simpler path is `npm run firebase:sync`
+ * (which copies firestore.rules + firestore.indexes.json + storage.rules from
+ * the installed package), then redeploy.
+ *
+ * Stale deployed Storage rules are the #1 cause of the
+ * `Firebase Storage: User does not have permission ... (storage/unauthorized)`
+ * error during admin image uploads — the `siteSettings/**` block was added in
+ * v3.0.0, and consumers who upgraded across that boundary without redeploying
+ * still default-deny. The build's tsup config asserts that this constant
+ * matches `firebase/storage.rules` byte-for-byte, so the two never drift.
+ */
+export const CASPIAN_STORAGE_RULES = `rules_version = '2';
+
+// Recommended Storage rules for a Caspian Store installation. Deploy with
+//   firebase deploy --only storage
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isAdmin() {
+      return request.auth != null
+          && firestore.get(
+               /databases/(default)/documents/users/$(request.auth.uid)
+             ).data.role == 'admin';
+    }
+
+    // Profile avatars live under users/{uid}/<filename>. Storage rules grammar
+    // doesn't allow wildcards inside a segment, so we match any single-segment
+    // filename; the content-type + size guards below do the real validation.
+    // Anyone can read (product pages show avatars in review cards).
+    match /users/{uid}/{filename} {
+      allow read: if true;
+      allow write: if request.auth != null
+                   && request.auth.uid == uid
+                   && request.resource.size < 5 * 1024 * 1024
+                   && request.resource.contentType.matches('image/(jpeg|png|webp)');
+      allow delete: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // Journal cover images — public read, admin write up to 10 MB.
+    match /journal/{path=**} {
+      allow read: if true;
+      allow write: if isAdmin()
+                   && request.resource.size < 10 * 1024 * 1024
+                   && request.resource.contentType.matches('image/(jpeg|png|webp|gif)');
+      allow delete: if isAdmin();
+    }
+
+    // Page content assets (optional image uploads from <AdminPagesPage>).
+    match /pageContents/{path=**} {
+      allow read: if true;
+      allow write: if isAdmin()
+                   && request.resource.size < 10 * 1024 * 1024
+                   && request.resource.contentType.matches('image/(jpeg|png|webp|gif)');
+      allow delete: if isAdmin();
+    }
+
+    // Site-settings branding assets — logo and favicon uploaded from
+    // <AdminSiteSettingsPage>. Public read (the storefront renders the logo
+    // on every page), admin write up to 10 MB. SVG is allowed here because
+    // logos/favicons are commonly vector.
+    match /siteSettings/{path=**} {
+      allow read: if true;
+      allow write: if isAdmin()
+                   && request.resource.size < 10 * 1024 * 1024
+                   && request.resource.contentType.matches('image/(jpeg|png|webp|gif|svg\\\\+xml)');
+      allow delete: if isAdmin();
+    }
+
+    // Product catalog images uploaded from <AdminProductEditor>. Public read
+    // (every PLP/PDP card shows these), admin write up to 10 MB. No SVG here
+    // — product photos should be raster, and blocking SVG avoids embedded-
+    // script exploits from less-trusted sources.
+    match /products/{path=**} {
+      allow read: if true;
+      allow write: if isAdmin()
+                   && request.resource.size < 10 * 1024 * 1024
+                   && request.resource.contentType.matches('image/(jpeg|png|webp|gif)');
+      allow delete: if isAdmin();
+    }
+  }
+}
+`;

@@ -134,6 +134,22 @@ export const DEFAULT_MESSAGES: MessageDict = {
   'photo.invalidType': 'Please select a JPEG, PNG, or WebP image.',
   'photo.tooLarge': 'Image must be under {max} MB.',
 
+  // Admin image upload (logo, favicon, product photos, page assets)
+  'imageUpload.success': 'Image uploaded',
+  'imageUpload.errors.unauthorized.title': 'Upload denied by Firebase Storage rules',
+  'imageUpload.errors.unauthorized.description':
+    'Your deployed Storage rules don’t allow this path. Run `npm run firebase:sync && firebase deploy --only storage` from your project root, then retry. (See INSTALL.md § Upgrade.)',
+  'imageUpload.errors.unauthenticated.title': 'Sign-in expired',
+  'imageUpload.errors.unauthenticated.description': 'Sign in again, then retry the upload.',
+  'imageUpload.errors.quotaExceeded.title': 'Storage bucket full',
+  'imageUpload.errors.quotaExceeded.description':
+    'Your Firebase Storage bucket is over quota. Delete unused files in the Firebase console, then retry.',
+  'imageUpload.errors.network.title': 'Upload interrupted',
+  'imageUpload.errors.network.description':
+    'Network connection dropped. Check your internet and try again.',
+  'imageUpload.errors.generic.title': 'Upload failed',
+  'imageUpload.errors.generic.description': 'Check the browser console for details.',
+
   // Delete account
   'deleteAccount.title': 'Delete account',
   'deleteAccount.description':

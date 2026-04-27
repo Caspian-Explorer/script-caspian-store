@@ -22,6 +22,33 @@ if (existing !== versionContents) {
   writeFileSync(versionFile, versionContents);
 }
 
+// Drift guard for `CASPIAN_STORAGE_RULES`. The constant in `src/firebase/rules.ts`
+// is a verbatim string copy of `firebase/storage.rules` (the file consumers
+// deploy). Hand-editing one without the other silently ships diverged rules,
+// so we fail the build when the bytes don't match. (Storage rules change ~once
+// a year, so failing loud beats silent auto-rewrite.) Any literal backslash in
+// the rules file is doubled in the JS source — the regex `svg\+xml` is
+// `'svg\\\\+xml'` in `rules.ts` and `'svg\\+xml'` on disk — so we compare the
+// JS-evaluated string against the disk bytes.
+const storageRulesOnDisk = readFileSync(join('firebase', 'storage.rules'), 'utf8');
+const rulesTsSource = readFileSync(join('src', 'firebase', 'rules.ts'), 'utf8');
+const storageRulesMatch = rulesTsSource.match(
+  /export const CASPIAN_STORAGE_RULES = `([\s\S]*?)`;/,
+);
+if (!storageRulesMatch) {
+  throw new Error(
+    'tsup.config.ts: could not find CASPIAN_STORAGE_RULES template literal in src/firebase/rules.ts',
+  );
+}
+const storageRulesEvaluated = storageRulesMatch[1].replace(/\\\\/g, '\\');
+if (storageRulesEvaluated !== storageRulesOnDisk) {
+  throw new Error(
+    'tsup.config.ts: CASPIAN_STORAGE_RULES drift — the constant in src/firebase/rules.ts ' +
+      'does not match firebase/storage.rules byte-for-byte. Re-sync the constant ' +
+      '(remember to double any literal backslashes when copying into the JS template literal).',
+  );
+}
+
 // All three entries (`.`, `./firebase`, `./server`) ship from a single tsup
 // config block. Earlier versions split them into three blocks, which made
 // `clean: true` on the main entry race against the sibling entries' DTS

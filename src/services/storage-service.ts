@@ -56,11 +56,23 @@ export async function uploadProfilePhoto({
 }
 
 /**
- * Generic image upload helper for admin surfaces (journal cover images,
- * pageContents assets, etc.). Returns the public download URL.
+ * Generic image upload helper for admin surfaces (logo/favicon, product
+ * photos, journal cover images, pageContents assets). Returns the public
+ * download URL.
  *
- * `path` is arbitrary but must match your Storage rules — the package ships
- * rules for `journal/**` and `pageContents/**`.
+ * `path` is arbitrary but must match your deployed Storage rules — the
+ * package ships rules for `siteSettings/**`, `products/**`, `journal/**`,
+ * and `pageContents/**` (see `firebase/storage.rules` /
+ * `CASPIAN_STORAGE_RULES`).
+ *
+ * `uploadBytes` may throw a `FirebaseError`; common `error.code` values
+ * callers should handle:
+ *   - `storage/unauthorized` — rules deny the path, or the user's Firestore
+ *     `users/{uid}.role !== 'admin'`. Most often: stale deployed rules. Fix:
+ *     `firebase deploy --only storage`.
+ *   - `storage/unauthenticated` — no auth user. Sign in again.
+ *   - `storage/quota-exceeded` — Storage bucket is full.
+ *   - `storage/retry-limit-exceeded` / `storage/canceled` — network drop.
  */
 export async function uploadAdminImage({
   storage,

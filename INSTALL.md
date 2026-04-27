@@ -527,7 +527,7 @@ Pin to a tag; bump when ready:
 npm install github:Caspian-Explorer/script-caspian-store#vX.Y.Z
 ```
 
-If the release CHANGELOG mentions rule or index changes, sync them into your project root afterwards (v1.20.1+):
+**Resync rules and indexes on every upgrade — even patch releases.** They're cheap to redeploy and skipping is the #1 cause of `storage/unauthorized` after a library bump (the `siteSettings/**` Storage rule was added in v3.0.0; admins who upgrade across that boundary without redeploying still default-deny logo / favicon / page-image uploads). v1.20.1+:
 
 ```bash
 npm run firebase:sync    # copies firestore.rules, firestore.indexes.json, storage.rules from the library
@@ -612,6 +612,8 @@ See [CHANGELOG.md](./CHANGELOG.md) for release notes and migration guidance per 
 **"auth/invalid-api-key"** — your `.env.local` values didn't load. Next.js reads `.env.local` at build time; restart `npm run dev`.
 
 **Admin pages say "access denied"** — you haven't set `users/{yourUid}.role = 'admin'`. See [§7](#7-grant-yourself-admin).
+
+**Logo / avatar / page-image uploads fail with `Firebase Storage: User does not have permission … (storage/unauthorized)`** — your deployed Storage rules are stale. Run `npm run firebase:sync && firebase deploy --only storage` from your project root, then retry. The `siteSettings/**` rule block was added in v3.0.0; libraries upgraded across that boundary without redeploying storage rules will hit this on every admin image upload. From v8.3.1 onward, the toast surfaces the fix command directly.
 
 **Cart doesn't persist across refreshes** — when signed out, cart lives in `localStorage`. When signed in, it syncs to `carts/{uid}`. Check that Firestore rules from [§4](#4-deploy-firestore-rules--indexes--storage-rules) are deployed.
 
