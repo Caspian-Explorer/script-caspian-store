@@ -16,6 +16,28 @@ Do not omit the heading, rename it, or fold it into `### Notes`. This is how
 customers tell at a glance whether an upgrade needs attention.
 -->
 
+## v8.2.0 — Appearance promoted to a Settings sidebar child
+
+Issue store-1208 — the admin Settings page's in-page left rail packed five tabs (General, Appearance, Shipping options, Emails, Languages) into one screen, but Appearance is the most-edited surface and burying it behind a sub-tab made it slower to reach than its peers in Catalog or People. v8.2.0 promotes Appearance out of the Settings sub-rail and into the main admin sidebar as a child of a new **Settings** group — same pattern Catalog/People/Plugins already use. The remaining four tabs (General, Shipping options, Emails, Languages) keep the in-page rail unchanged.
+
+The URL reverts to top-level `/admin/appearance` (where it lived pre-v7.1.0). The v7.1.0-introduced `/admin/settings/appearance` keeps redirecting for one release so existing bookmarks don't 404.
+
+### No consumer action required
+
+Drop-in upgrade. Reinstalling the new tag promotes Appearance to the sidebar automatically. Old `/admin/settings/appearance` URLs redirect for one release. No new exports, no removed exports, no provider-prop changes. Sites that pass a custom `navItems` prop to `<AdminShell>` keep their custom nav untouched.
+
+### Changed
+
+- [src/admin/admin-shell.tsx](src/admin/admin-shell.tsx) — the `Settings` entry in `DEFAULT_ADMIN_NAV` is now an `AdminNavGroup` (`id: 'settings'`, `href: '/admin/settings'`) with a single `Appearance` child at `/admin/appearance`. `SETTINGS_SUB_NAV` no longer includes the Appearance row; the in-page Settings rail now shows General / Shipping options / Emails / Languages.
+- [src/admin/admin-settings-shell.tsx](src/admin/admin-settings-shell.tsx) — the `'appearance'` slug is removed from `SettingsSlug`, `KNOWN_SLUGS`, and the `SettingsPanel` switch. Hitting `/admin/settings/appearance` now redirects to `/admin/appearance` via a new `legacyAppearance` `RawSlug` variant.
+- [src/admin/admin-root.tsx](src/admin/admin-root.tsx) — `case 'appearance'` renders `<AdminAppearancePage />` directly (it was a redirect to `/admin/settings/appearance` from v7.1.0 through v8.1.x). File-header docstring updated to describe the v8.2.0 reshuffle.
+
+### Trade-offs
+
+- Sidebar `Appearance` label is hardcoded English, matching the rest of `DEFAULT_ADMIN_NAV` (no other top-level sidebar label is i18n-routed today). The page heading inside `<AdminAppearancePage>` continues to drive off the existing `admin.appearance.title` i18n key, so localized admins still see a localized header on the page itself. A full sidebar i18n pass is a separate effort.
+
+---
+
 ## v8.1.4 — Storefront category filter shows names; search re-renders on client navigation
 
 Two bugs fixed together. The visible one: on `/admin/categories`, seeded categories rendered correctly as "Apparel" and "T-Shirt", but on `/shop` the left-rail Category filter listed `LWzDYddyskad6jamRP32`, `XcEnK9slvetPOTaM7E34`, and a stray `cat 1` — the literal Firestore auto-IDs that the admin product editor stores on `product.category`, plus one legacy free-text value from a pre-categories-collection product. Root cause: the storefront's `<ProductListPage>` built the filter list directly from `product.category` strings without ever joining against the `productCategories` collection, so the human-readable name was nowhere on screen. The admin **products list** page already had the resolver pattern (load active categories, build an `id → name` map, fall back to the raw value); the storefront just never adopted it. This release lifts that pattern verbatim into [src/components/product-list-page.tsx](src/components/product-list-page.tsx) and [src/components/search-results-page.tsx](src/components/search-results-page.tsx), and adds an additive `categoryLabels?: ReadonlyMap<string, string>` prop on `<ShopFilterSidebar>` so the resolved labels render. Filter state still keys on the underlying ID, so URL state and click-to-filter behaviour are unchanged. Legacy free-text categories (like `cat 1`) keep falling through unchanged via the same `?? raw` fallback.

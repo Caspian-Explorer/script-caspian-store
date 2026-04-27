@@ -8,7 +8,6 @@ import { SETTINGS_SUB_NAV } from './admin-shell';
 import { AdminSiteSettingsPage } from './admin-site-settings-page';
 import { AdminEmailsPage } from './admin-emails-page';
 import { AdminLanguagesPage } from './admin-languages-page';
-import { AdminAppearancePage } from './admin-appearance-page';
 import { AdminShippingOptionsPage } from './admin-shipping-options-page';
 
 export interface AdminSettingsShellProps {
@@ -39,11 +38,16 @@ export function AdminSettingsShell({ className }: AdminSettingsShellProps) {
     }
     if (raw.kind === 'legacyPlugin') {
       nav.replace(`/admin/plugins/${raw.slug}`);
+      return;
+    }
+    if (raw.kind === 'legacyAppearance') {
+      nav.replace('/admin/appearance');
     }
   }, [raw, nav]);
 
   if (raw === null) return null;
   if (raw.kind === 'legacyPlugin') return null;
+  if (raw.kind === 'legacyAppearance') return null;
 
   const slug = raw.slug;
 
@@ -121,8 +125,6 @@ function SettingsPanel({ slug }: { slug: SettingsSlug }): ReactNode {
   switch (slug) {
     case 'general':
       return <AdminSiteSettingsPage />;
-    case 'appearance':
-      return <AdminAppearancePage />;
     case 'shipping-options':
       return <AdminShippingOptionsPage />;
     case 'emails':
@@ -132,12 +134,11 @@ function SettingsPanel({ slug }: { slug: SettingsSlug }): ReactNode {
   }
 }
 
-type SettingsSlug = 'general' | 'appearance' | 'shipping-options' | 'emails' | 'languages';
+type SettingsSlug = 'general' | 'shipping-options' | 'emails' | 'languages';
 type LegacyPluginSlug = 'shipping' | 'payments' | 'email-providers';
 
 const KNOWN_SLUGS: readonly SettingsSlug[] = [
   'general',
-  'appearance',
   'shipping-options',
   'emails',
   'languages',
@@ -150,13 +151,16 @@ const LEGACY_PLUGIN_SLUGS: readonly LegacyPluginSlug[] = [
 
 type RawSlug =
   | { kind: 'settings'; slug: SettingsSlug }
-  | { kind: 'legacyPlugin'; slug: LegacyPluginSlug };
+  | { kind: 'legacyPlugin'; slug: LegacyPluginSlug }
+  | { kind: 'legacyAppearance' };
 
 function deriveRawSlug(pathname: string): RawSlug | null {
   const match = pathname.match(/^\/admin\/settings\/?(.*)$/);
   if (!match) return { kind: 'settings', slug: 'general' };
   const rest = match[1].split('/')[0];
   if (!rest) return null;
+  // Reverted to top-level /admin/appearance in v8.2.0. Redirect for one release.
+  if (rest === 'appearance') return { kind: 'legacyAppearance' };
   if ((LEGACY_PLUGIN_SLUGS as readonly string[]).includes(rest)) {
     return { kind: 'legacyPlugin', slug: rest as LegacyPluginSlug };
   }

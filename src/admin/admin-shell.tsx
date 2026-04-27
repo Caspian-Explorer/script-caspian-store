@@ -143,16 +143,24 @@ export const DEFAULT_ADMIN_NAV: AdminNavItem[] = [
     href: '/admin/plugins',
     children: [],
   },
-  { href: '/admin/settings', label: 'Settings', icon: <SettingsIcon size={ICON_SIZE} /> },
+  {
+    kind: 'group',
+    id: 'settings',
+    label: 'Settings',
+    icon: <SettingsIcon size={ICON_SIZE} />,
+    href: '/admin/settings',
+    children: [
+      { href: '/admin/appearance', label: 'Appearance', icon: <PaletteIcon size={ICON_SIZE} /> },
+    ],
+  },
   { href: '/admin/about', label: 'About', icon: <InfoIcon size={ICON_SIZE} /> },
 ];
 
 // Settings sub-sidebar items. Exported for use by AdminSettingsShell so both
-// surfaces share the same ordering and icon set. Appearance + Shipping
-// options moved under Settings in v7.1.0.
+// surfaces share the same ordering and icon set. Appearance promoted to a
+// top-level Settings sidebar child in v8.2.0 (was a sub-tab here in v7.1.0–v8.1.x).
 export const SETTINGS_SUB_NAV: AdminNavLeaf[] = [
   { href: '/admin/settings/general', label: 'General', icon: <SlidersIcon size={ICON_SIZE} /> },
-  { href: '/admin/settings/appearance', label: 'Appearance', icon: <PaletteIcon size={ICON_SIZE} /> },
   {
     href: '/admin/settings/shipping-options',
     label: 'Shipping options',

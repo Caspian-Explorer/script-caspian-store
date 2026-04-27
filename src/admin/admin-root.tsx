@@ -17,6 +17,7 @@ import { AdminUsersPage } from './admin-users-page';
 import { AdminProductCategoriesPage } from './admin-product-categories-page';
 import { AdminProductCollectionsPage } from './admin-product-collections-page';
 import { AdminAboutPage } from './admin-about-page';
+import { AdminAppearancePage } from './admin-appearance-page';
 import { AdminSettingsShell } from './admin-settings-shell';
 import { AdminPluginsPage } from './admin-plugins-page';
 import { AdminPluginInstallPage } from './admin-plugin-install-page';
@@ -31,8 +32,11 @@ import { AdminEmailPluginsPage } from './admin-email-plugins-page';
  * New admin pages land by adding a switch case here — never by asking the
  * consumer to add a route file. That is the v7 contract.
  *
+ * v8.2.0 reshuffle:
+ *  - `/admin/appearance` → top-level again (Settings sidebar child); legacy
+ *    `/admin/settings/appearance` redirects here for one release.
+ *
  * v7.1.0 reshuffle:
- *  - `/admin/appearance` → moved under Settings; redirects to `/admin/settings/appearance`.
  *  - `/admin/plugins` → unified `<AdminPluginsPage>` (search + filter + catalog).
  *  - `/admin/plugins/manage/<category>` → the old per-category page (for installing new plugins).
  *  - `/admin/plugins/<pluginId>/<installId>` → `<AdminPluginInstallPage>` per-install configure.
@@ -70,8 +74,7 @@ export function AdminRoot(): ReactNode {
     case 'journal':
       return <AdminJournalPage />;
     case 'appearance':
-      // Moved under Settings in v7.1.0. Redirect for one release.
-      return <LegacyRedirect to="/admin/settings/appearance" />;
+      return <AdminAppearancePage />;
     case 'about':
       return <AdminAboutPage />;
     case 'settings':
