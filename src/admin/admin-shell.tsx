@@ -106,6 +106,7 @@ export const DEFAULT_ADMIN_NAV: AdminNavItem[] = [
     icon: <UsersIcon size={ICON_SIZE} />,
     children: [
       { href: '/admin/users', label: 'Users', icon: <UserIcon size={ICON_SIZE} /> },
+      { href: '/admin/contacts', label: 'Contacts', icon: <MailIcon size={ICON_SIZE} /> },
       { href: '/admin/subscribers', label: 'Subscribers', icon: <MailIcon size={ICON_SIZE} /> },
     ],
   },

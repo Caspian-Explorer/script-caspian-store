@@ -770,12 +770,19 @@ export const DEFAULT_MESSAGES: MessageDict = {
   'contact.form.errorGeneric': 'Could not send your message. Please try again.',
   'contact.form.errorRequired': 'Name, email, and message are required.',
 
-  // Admin > Users (v2.13)
+  // Admin > Users (v2.13; rescoped v8.5.0 to signed-up customers)
   'admin.users.title': 'Users',
-  'admin.users.subtitle': 'Customer-facing records: contact submissions and related inbox items.',
-  'admin.users.tabs.contacts': 'Contacts',
+  'admin.users.subtitle': 'Customers who have signed up to the site.',
+  'admin.users.col.name': 'Name',
+  'admin.users.col.email': 'Email',
+  'admin.users.col.role': 'Role',
+  'admin.users.col.joined': 'Joined',
+  'admin.users.empty': 'No users yet.',
+  'admin.users.searchPlaceholder': 'Search by name or email…',
 
-  // Admin > Users > Contacts (v2.13)
+  // Admin > Contacts (v2.13 as Users tab; promoted to its own page in v8.5.0)
+  'admin.contacts.title': 'Contacts',
+  'admin.contacts.subtitle': 'Contact-form submissions from the public site.',
   'admin.contacts.empty': 'No contact submissions yet.',
   'admin.contacts.filterAll': 'All',
   'admin.contacts.filterNew': 'New',

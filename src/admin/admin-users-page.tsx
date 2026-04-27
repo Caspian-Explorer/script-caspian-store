@@ -1,63 +1,103 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import type { UserProfile } from '../types';
+import { listUsers } from '../services/user-service';
+import { reportServiceError } from '../services/error-log-service';
 import { useCaspianFirebase } from '../provider/caspian-store-provider';
 import { useT } from '../i18n/locale-context';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
-import { countNewContacts } from '../services/contact-service';
-import { AdminContactsList } from './admin-contacts-list';
+import { Badge, Skeleton } from '../ui/misc';
+import { Input } from '../ui/input';
+import { Table, TBody, TD, TH, THead, TR } from '../ui/table';
 
 export interface AdminUsersPageProps {
   className?: string;
 }
 
-/**
- * Admin > Users — customer-facing records. Tabbed parent; the first (and
- * currently only) tab renders the Contacts inbox. Additional tabs for
- * customer records, subscribers, etc. can slot in here without a nav re-org.
- */
 export function AdminUsersPage({ className }: AdminUsersPageProps) {
   const { db } = useCaspianFirebase();
   const t = useT();
-  const [newContactCount, setNewContactCount] = useState<number | null>(null);
-  const [refreshKey, setRefreshKey] = useState(0);
-
-  const refreshCount = useCallback(async () => {
-    try {
-      const n = await countNewContacts(db);
-      setNewContactCount(n);
-    } catch (error) {
-      console.error('[caspian-store] Failed to count new contacts:', error);
-    }
-  }, [db]);
+  const [users, setUsers] = useState<UserProfile[] | null>(null);
+  const [search, setSearch] = useState('');
 
   useEffect(() => {
-    refreshCount();
-  }, [refreshCount, refreshKey]);
+    let alive = true;
+    setUsers(null);
+    listUsers(db)
+      .then((list) => {
+        if (alive) setUsers(list);
+      })
+      .catch((error) => {
+        reportServiceError(db, 'admin-users-page.load', error);
+        if (alive) setUsers([]);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [db]);
 
-  const handleMutated = () => {
-    setRefreshKey((k) => k + 1);
-  };
+  const filtered = useMemo(() => {
+    if (!users) return [];
+    const q = search.trim().toLowerCase();
+    if (!q) return users;
+    return users.filter(
+      (u) =>
+        u.email?.toLowerCase().includes(q) ||
+        u.displayName?.toLowerCase().includes(q),
+    );
+  }, [users, search]);
 
   return (
     <div className={className}>
       <header style={{ marginBottom: 16 }}>
         <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0 }}>{t('admin.users.title')}</h1>
-        <p style={{ color: '#666', marginTop: 4 }}>{t('admin.users.subtitle')}</p>
+        <p style={{ color: '#666', marginTop: 4 }}>
+          {users === null ? t('admin.users.subtitle') : `${users.length} total`}
+        </p>
       </header>
 
-      <Tabs defaultValue="contacts">
-        <TabsList>
-          <TabsTrigger value="contacts">
-            {t('admin.users.tabs.contacts')}
-            {newContactCount !== null && newContactCount > 0 ? ` (${newContactCount})` : ''}
-          </TabsTrigger>
-        </TabsList>
+      <div style={{ marginBottom: 12, maxWidth: 320 }}>
+        <Input
+          placeholder={t('admin.users.searchPlaceholder')}
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+      </div>
 
-        <TabsContent value="contacts">
-          <AdminContactsList refreshKey={refreshKey} onMutated={handleMutated} />
-        </TabsContent>
-      </Tabs>
+      {users === null ? (
+        <Skeleton style={{ height: 120 }} />
+      ) : filtered.length === 0 ? (
+        <p style={{ color: '#888', padding: 32, textAlign: 'center' }}>{t('admin.users.empty')}</p>
+      ) : (
+        <Table>
+          <THead>
+            <TR>
+              <TH>{t('admin.users.col.name')}</TH>
+              <TH>{t('admin.users.col.email')}</TH>
+              <TH>{t('admin.users.col.role')}</TH>
+              <TH>{t('admin.users.col.joined')}</TH>
+            </TR>
+          </THead>
+          <TBody>
+            {filtered.map((u) => (
+              <TR key={u.uid}>
+                <TD style={{ fontWeight: 500 }}>
+                  {u.displayName || <span style={{ color: '#bbb' }}>—</span>}
+                </TD>
+                <TD style={{ fontSize: 13, color: '#333' }}>{u.email}</TD>
+                <TD>
+                  <Badge variant={u.role === 'admin' ? 'secondary' : 'default'}>
+                    {u.role ?? 'customer'}
+                  </Badge>
+                </TD>
+                <TD style={{ color: '#888', fontSize: 13 }}>
+                  {u.createdAt?.toDate ? u.createdAt.toDate().toLocaleString() : '—'}
+                </TD>
+              </TR>
+            ))}
+          </TBody>
+        </Table>
+      )}
     </div>
   );
 }

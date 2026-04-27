@@ -1,5 +1,21 @@
-import { doc, getDoc, updateDoc, Timestamp, type Firestore } from 'firebase/firestore';
+import {
+  doc,
+  getDoc,
+  getDocs,
+  orderBy,
+  query,
+  updateDoc,
+  Timestamp,
+  type Firestore,
+} from 'firebase/firestore';
 import type { UserAddress, UserProfile } from '../types';
+import { caspianCollections } from '../firebase/collections';
+
+export async function listUsers(db: Firestore): Promise<UserProfile[]> {
+  const q = query(caspianCollections(db).users, orderBy('createdAt', 'desc'));
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => ({ uid: d.id, ...(d.data() as Omit<UserProfile, 'uid'>) }));
+}
 
 export async function updateDisplayName(
   db: Firestore,

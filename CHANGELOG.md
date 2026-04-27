@@ -16,6 +16,28 @@ Do not omit the heading, rename it, or fold it into `### Notes`. This is how
 customers tell at a glance whether an upgrade needs attention.
 -->
 
+## v8.5.0 — People menu split: Users / Contacts / Subscribers (#store-1212)
+
+The admin sidebar's **People** group used to read *Users → Subscribers*, but `/admin/users` was actually the contact-form inbox in disguise — there was no surface anywhere that listed customers who had signed up to the site, even though that data was sitting in the `users` Firestore collection. This release straightens out the labels and the data: **Users**, **Contacts**, and **Subscribers** are now three independent pages, each backed by its own collection.
+
+`/admin/users` is now a real customer list — name, email, role badge, joined date — sorted newest-first, with a name/email search box. Read-only on purpose: editing roles or deleting Firebase Auth users is a separate concern that needs its own design pass. The contacts inbox keeps every feature it had (status filter, mark read / archive / delete, detail dialog, header unread count) — it just lives at `/admin/contacts` instead of behind a single-tab wrapper, and shows up as its own sidebar entry with the `Mail` icon.
+
+### No consumer action required
+
+`npm install github:Caspian-Explorer/script-caspian-store#v8.5.0` is enough — the `users` collection rule already grants admins broad read/write (no `firebase deploy` needed), the new `listUsers()` query uses a single-field `orderBy('createdAt')` that Firestore auto-indexes (no composite index to add), and the route dispatcher absorbs `/admin/contacts` automatically because it's a switch case inside the library's `AdminRoot`. Anyone who bookmarked the old `/admin/users` finds the contacts inbox one click away in the sidebar — no redirect needed, the URL is repurposed in place.
+
+### Added
+
+- [src/admin/admin-contacts-page.tsx](src/admin/admin-contacts-page.tsx): new thin page wrapper that hosts `<AdminContactsList>` with the title + unread count header that used to live inside `AdminUsersPage`. Registered at `/admin/contacts` via [src/admin/admin-root.tsx](src/admin/admin-root.tsx) and added to the People group in [src/admin/admin-shell.tsx](src/admin/admin-shell.tsx) between Users and Subscribers. Exported as `AdminContactsPage` + `AdminContactsPageProps` from [src/admin/index.ts](src/admin/index.ts) and [src/index.ts](src/index.ts).
+- [src/services/user-service.ts](src/services/user-service.ts): `listUsers(db)` — admin-side query against `caspianCollections(db).users` ordered by `createdAt desc`, returning `UserProfile[]`.
+
+### Changed
+
+- [src/admin/admin-users-page.tsx](src/admin/admin-users-page.tsx): rewritten from a single-tab Contacts wrapper into a real signed-up-users list (search by name/email, table of Name / Email / Role badge / Joined). Read-only.
+- [src/i18n/messages.ts](src/i18n/messages.ts): rescoped `admin.users.subtitle` to *"Customers who have signed up to the site."*; added `admin.users.col.{name,email,role,joined}`, `admin.users.empty`, `admin.users.searchPlaceholder`, `admin.contacts.title`, `admin.contacts.subtitle`. Removed the now-unreferenced `admin.users.tabs.contacts`.
+
+---
+
 ## v8.4.0 — Brands admin page + brand dropdown on Product CRUD
 
 A new **Brands** sub-menu under Catalog gives admins full CRUD on a `productBrands` Firestore collection — list, create, edit, delete. The product editor's free-text Brand input becomes a `<Select>` populated from active brands, and the products-list filter switches from substring text to a brand `<Select>`. Two products typed `"Acme"` vs `"ACME"` no longer count as different brands.
