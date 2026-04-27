@@ -85,6 +85,7 @@ export function CaspianStoreProvider({
     <CaspianStoreContext.Provider value={value}>
       <ErrorBoundary db={value.firebase.db} origin="CaspianStoreProvider">
         <GlobalErrorCapture db={value.firebase.db} projectId={firebaseConfig.projectId} />
+        <LocationChangeBridge />
         <LocaleProvider locale={locale} messages={messages} messagesByLocale={messagesByLocale}>
           <ToastProvider>
             <AuthProvider firebase={value.firebase}>
@@ -139,6 +140,52 @@ function GlobalErrorCapture({ db, projectId }: { db: CaspianFirebase['db']; proj
   return null;
 }
 
+/**
+ * Patches `history.pushState` and `history.replaceState` once per page so they
+ * dispatch a `caspian:locationchange` event after updating history. URL-driven
+ * library components (e.g. <SearchResultsPage>) listen for that event and
+ * re-render on client-side navigation, even when the consumer's
+ * `useNavigation` adapter doesn't expose a reactive `searchParams`.
+ *
+ * Why this and not a microtask after our own `useCaspianNavigation` push: the
+ * Next.js App Router schedules `router.push` inside a React transition, so
+ * `window.location.search` is not necessarily updated by the time the
+ * microtask runs. Patching the History API guarantees the event fires
+ * synchronously *after* the URL is updated, regardless of router internals or
+ * whether the navigation went through our hook at all. Self-heals issue #43
+ * without requiring consumer adapter edits.
+ *
+ * Idempotent: a window-level flag prevents double-patching across HMR
+ * reloads or multiple `<CaspianStoreProvider>` mounts on the same page.
+ */
+function LocationChangeBridge() {
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    type PatchedWindow = Window & { __caspianHistoryPatched?: boolean };
+    const w = window as PatchedWindow;
+    if (w.__caspianHistoryPatched) return;
+    w.__caspianHistoryPatched = true;
+
+    const dispatch = () => window.dispatchEvent(new Event('caspian:locationchange'));
+
+    const origPushState = window.history.pushState.bind(window.history);
+    const origReplaceState = window.history.replaceState.bind(window.history);
+    window.history.pushState = function (...args: Parameters<typeof origPushState>) {
+      const result = origPushState(...args);
+      dispatch();
+      return result;
+    };
+    window.history.replaceState = function (...args: Parameters<typeof origReplaceState>) {
+      const result = origReplaceState(...args);
+      dispatch();
+      return result;
+    };
+    // popstate fires natively on back/forward — components listen to it
+    // directly, no patch needed.
+  }, []);
+  return null;
+}
+
 export function useCaspianStore(): CaspianStoreContextValue {
   const ctx = useContext(CaspianStoreContext);
   if (!ctx) {
@@ -161,30 +208,7 @@ export function useCaspianImage() {
 
 export function useCaspianNavigation() {
   const hook = useCaspianStore().adapters.useNavigation;
-  const adapter = hook();
-  return {
-    ...adapter,
-    push: (href: string) => {
-      adapter.push(href);
-      emitCaspianLocationChange();
-    },
-    replace: (href: string) => {
-      adapter.replace(href);
-      emitCaspianLocationChange();
-    },
-  };
-}
-
-// Dispatched after the library wraps a router push/replace so URL-driven
-// components (e.g. SearchResultsPage) can re-render even when the consumer's
-// adapter doesn't supply a reactive `searchParams`. Self-heals issue #43
-// without requiring consumer adapter edits. Microtask-deferred so the
-// underlying router has a chance to update history first.
-function emitCaspianLocationChange() {
-  if (typeof window === 'undefined') return;
-  queueMicrotask(() => {
-    window.dispatchEvent(new Event('caspian:locationchange'));
-  });
+  return hook();
 }
 
 export function useCaspianCollections() {

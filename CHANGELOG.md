@@ -16,6 +16,30 @@ Do not omit the heading, rename it, or fold it into `### Notes`. This is how
 customers tell at a glance whether an upgrade needs attention.
 -->
 
+## v8.2.2 — SearchResultsPage: real self-heal via History API patch (#43 / mod1183)
+
+The v8.1.4 self-heal wrapped `useCaspianNavigation()`'s `push`/`replace` to dispatch a `caspian:locationchange` event from a `queueMicrotask` callback after delegating to the consumer's adapter. That assumed the underlying router updated `window.location.search` synchronously. Next.js App Router does **not**: `router.push` is scheduled inside a React transition, so the URL is updated some time later. The microtask dispatched the event before the URL changed, the listener re-read `window.location.search`, and got the **old** query string — which is why the bug kept reproducing on consumer sites that had already upgraded.
+
+This release replaces the wrapping with a one-time patch on `window.history.pushState` and `window.history.replaceState`, installed by a new null-render `<LocationChangeBridge />` mounted inside `<CaspianStoreProvider>`. The patches dispatch `caspian:locationchange` **synchronously after** the History API updates the URL, so the listener always reads the fresh `window.location.search`. No microtasks, no router-internal timing assumptions, and it catches navigation from anywhere on the page — including direct `router.push` calls that bypass the library.
+
+`<SearchResultsPage>`'s listener (added in v8.1.4) is unchanged; only the event source has moved from "wrapped hook + microtask" to "patched History API". `useCaspianNavigation()` is back to a thin pass-through, which removes a small layer of indirection.
+
+### No consumer action required
+
+Drop-in patch. Reinstalling the new tag fixes the `/search?q=` regression on every consumer site, including those whose custom `useNavigation` adapter doesn't supply `searchParams`. No provider-prop changes, no new public exports, no removed exports.
+
+Idempotent: a `__caspianHistoryPatched` flag on `window` prevents double-patching across HMR reloads or apps that mount more than one `<CaspianStoreProvider>` per page.
+
+### Fixed
+
+- [src/provider/caspian-store-provider.tsx](src/provider/caspian-store-provider.tsx): `<LocationChangeBridge />` (new internal component) patches `history.pushState`/`replaceState` once per window to dispatch `caspian:locationchange` synchronously after the URL updates. Closes [#43](https://github.com/Caspian-Explorer/script-caspian-store/issues/43) for real this time — the v8.1.4 attempt was racy under Next.js App Router.
+
+### Changed
+
+- [src/provider/caspian-store-provider.tsx](src/provider/caspian-store-provider.tsx): `useCaspianNavigation()` is back to a one-line pass-through — the v8.1.4 wrapping that called `queueMicrotask(emit)` after delegating to the adapter is removed. The `<LocationChangeBridge />` now owns the event dispatch end-to-end, which is more reliable and catches navigation paths that don't go through the hook.
+
+---
+
 ## v8.2.1 — Product detail page: top padding + 450px-capped detail column
 
 The product detail page (`<ProductDetailPage>`) shipped without any top padding, so on storefronts where it mounts directly under the sticky `<SiteHeader>` the brand label and badges butted right against the header's bottom edge with no breathing room. The two-column grid was also `1fr / 1fr`, which on wide viewports stretched the right-hand details column (title, price, size selector, quantity, add-to-cart) far wider than it needs to be — making the line lengths uncomfortable to read and the Add-to-cart button look like a banner.
