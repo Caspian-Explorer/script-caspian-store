@@ -9,6 +9,7 @@ import {
   type ProductWriteInput,
 } from '../services/product-service';
 import { listAllCategories } from '../services/category-service';
+import { slugify } from '../utils/slugify';
 import { useCaspianFirebase, useCaspianNavigation } from '../provider/caspian-store-provider';
 import { Button } from '../ui/button';
 import { ImageUploadField } from '../ui/image-upload-field';
@@ -28,6 +29,8 @@ export interface AdminProductEditorProps {
 
 interface FormState {
   name: string;
+  /** URL-safe slug. Auto-filled from `name` on blur when empty; admin-editable. */
+  slug: string;
   brand: string;
   description: string;
   shortDescription: string;
@@ -53,6 +56,7 @@ interface FormState {
 
 const empty: FormState = {
   name: '',
+  slug: '',
   brand: '',
   description: '',
   shortDescription: '',
@@ -199,6 +203,7 @@ export function AdminProductEditor({
         }
         setForm({
           name: p.name,
+          slug: p.slug ?? '',
           brand: p.brand,
           description: p.description,
           shortDescription: p.shortDescription ?? '',
@@ -296,6 +301,7 @@ export function AdminProductEditor({
       }
       const payload: ProductWriteInput = {
         name: form.name.trim(),
+        slug: form.slug.trim() || undefined,
         brand: form.brand.trim(),
         description: form.description.trim(),
         shortDescription: shortDescTrimmed || undefined,
@@ -349,6 +355,9 @@ export function AdminProductEditor({
             <Input
               value={form.name}
               onChange={(e) => setForm((s) => ({ ...s, name: e.target.value }))}
+              onBlur={() =>
+                setForm((s) => (s.slug ? s : { ...s, slug: slugify(s.name) }))
+              }
             />
           </Field>
           <Field label="Brand">
@@ -358,6 +367,20 @@ export function AdminProductEditor({
             />
           </Field>
         </div>
+        <Field label="URL slug">
+          <Input
+            value={form.slug}
+            onChange={(e) =>
+              setForm((s) => ({ ...s, slug: e.target.value.toLowerCase() }))
+            }
+            placeholder="auto-generated from name on save"
+          />
+          <p style={{ fontSize: 12, color: '#666', marginTop: 4 }}>
+            Used in the product URL: <code>/product/{form.slug || 'your-slug-here'}</code>.
+            Leave blank to auto-generate from the name. Changing an existing slug
+            will break old links — only edit if you really mean to.
+          </p>
+        </Field>
         <Field label="Description">
           <Textarea
             rows={4}

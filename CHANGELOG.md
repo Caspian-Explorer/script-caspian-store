@@ -16,6 +16,38 @@ Do not omit the heading, rename it, or fold it into `### Notes`. This is how
 customers tell at a glance whether an upgrade needs attention.
 -->
 
+## v8.3.0 — SEO-friendly product URLs + Write-a-Review star fix
+
+Two storefront issues addressed in one minor release.
+
+**Product URLs now use a slug** derived from the product name. Before: `/product/ZSVNBOkVKSf214KxxSKd` (the Firestore document id). After: `/product/black-leather-jacket`. New products created through the admin editor get a slug auto-generated from the name on save, with collision suffixes (`-2`, `-3`, …) when two products share a name. Existing products created before this release have no `slug` field — the route resolver transparently falls back to id-based lookup, so old links keep working forever. The next time an admin opens and saves a legacy product through the editor, a slug is generated and persisted; from then on, listings link to the slug URL. Renaming a product after the slug is set deliberately leaves the slug alone, so SEO and external links survive copy edits. Admins can override the auto-generated slug in a new "URL slug" field in the product editor.
+
+**The "Write a review" modal now shows visible star icons.** Previously the star input rendered as 5 empty boxes — the inline SVG was sized via Tailwind utility classes (`caspian-w-8 caspian-h-8`) passed through `className`, which fell back to a 0-sized render in the dialog context. The display variants on the same page worked because they pass numeric `width`/`height` SVG attributes directly. Switched the input to the same numeric-attribute approach, so the icons render regardless of which CSS layers the consumer has loaded.
+
+### No consumer action required
+
+Drop-in upgrade. The slug lookup is a single-equality query (`where('slug', '==', x)`) which Firestore auto-indexes — **no `firebase deploy --only firestore:indexes` needed**. Old `/product/{id}` URLs keep resolving via the id fallback, so search-engine cached links and customer bookmarks survive the upgrade. Reinstalling the new tag picks up both fixes.
+
+### Added
+
+- [src/utils/slugify.ts](src/utils/slugify.ts): shared `slugify(input, maxLen = 80)` helper, also re-exported from the package root for consumer use. Replaces the duplicated inline implementations previously in `admin-product-categories-page.tsx` and `admin-product-collections-page.tsx`.
+- [src/services/product-service.ts](src/services/product-service.ts): new `getProductBySlug(db, slug)` and `getProductBySlugOrId(db, slugOrId)`. The latter is what the route handler uses — slug first, document-id fallback. Internal `ensureUniqueSlug` handles collision suffixes on write.
+- [src/types.ts](src/types.ts): `Product.slug?: string` (optional — legacy docs without the field remain valid).
+- [src/admin/admin-product-editor.tsx](src/admin/admin-product-editor.tsx): "URL slug" field. Auto-fills from the name on blur when empty; admin can edit; helper text warns that changing an existing slug breaks old links.
+
+### Changed
+
+- [src/components/caspian-root.tsx](src/components/caspian-root.tsx): the `/product/:param` route now passes the captured segment as `productSlugOrId` to `<ProductDetailPage>`. The regex is unchanged (`[^/]+` matches both slugs and ids).
+- [src/components/product-detail-page.tsx](src/components/product-detail-page.tsx): added `productSlugOrId` prop alongside the existing `productId` (kept for one minor cycle to avoid breaking direct mounts). Lookup now uses `getProductBySlugOrId`.
+- Link callsites switched to `product.slug ?? product.id`: [product-card.tsx](src/components/product-card.tsx), [cart-page.tsx](src/components/cart-page.tsx), [cart-sheet.tsx](src/components/cart-sheet.tsx), [auth/wishlist-panel.tsx](src/components/auth/wishlist-panel.tsx), [admin/admin-products-list.tsx](src/admin/admin-products-list.tsx).
+- [src/services/product-service.ts](src/services/product-service.ts): `createProduct` always persists a slug (auto-generated from `name` if the caller didn't provide one). `updateProduct` regenerates the slug only when the caller explicitly passes one or the existing doc has no slug — preserves SEO across renames while lazily backfilling legacy products.
+
+### Fixed
+
+- [src/components/star-rating-input.tsx](src/components/star-rating-input.tsx): replaced the Tailwind-class size map with a numeric `SIZE_PX` map applied as `<svg width>` / `<svg height>` attributes. Star icons now render reliably inside the Write-a-Review modal regardless of consumer Tailwind config. Also bumped the inactive star color from `rgba(100,100,100,0.4)` to `rgba(0,0,0,0.3)` to match the existing display-only stars in [reviews/review-summary.tsx](src/components/reviews/review-summary.tsx).
+
+---
+
 ## v8.2.4 — Product detail tabs: centered row + always-visible Details
 
 The product detail page tab row was left-aligned, and the `Details` tab was hidden whenever the product had no `details` HTML and no `description` distinct from the auto-generated blurb. On a freshly-created test product this collapsed the row to just `Reviews | Questions` flush against the left margin — visually unbalanced against the rest of the storefront (Collection page header centered, Shop page symmetric) and read as missing structure.

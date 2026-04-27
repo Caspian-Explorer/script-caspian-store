@@ -17,13 +17,7 @@ import { Input, Label, Textarea } from '../ui/input';
 import { Badge, Skeleton } from '../ui/misc';
 import { Table, TBody, TD, TH, THead, TR } from '../ui/table';
 import { useToast } from '../ui/toast';
-
-function slugify(v: string) {
-  return v
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/(^-|-$)/g, '');
-}
+import { slugify } from '../utils/slugify';
 
 const emptyDraft: ProductCollectionWriteInput = {
   name: '',

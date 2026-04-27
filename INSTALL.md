@@ -413,7 +413,7 @@ Every route the old per-page scaffold used to write, now an internal switch:
 
 - `/` — `<HomePage />` (or your `homepage` prop)
 - `/cart`, `/checkout`, `/orders/success` — storefront purchase flow
-- `/product/:id`, `/shop`, `/collections`, `/collections/:slug`, `/search`, `/wishlist` — product discovery
+- `/product/:slug`, `/shop`, `/collections`, `/collections/:slug`, `/search`, `/wishlist` — product discovery (the `:slug` segment also accepts a Firestore document id; pre-v8.3 stores keep working without re-saving products)
 - `/account`, `/auth/login`, `/auth/register`, `/auth/forgot-password` — account + auth
 - `/journal`, `/journal/:id` — editorial
 - `/faqs`, `/contact`, `/shipping-returns`, `/size-guide` — support

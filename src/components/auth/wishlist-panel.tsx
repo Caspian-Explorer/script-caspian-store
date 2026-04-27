@@ -148,7 +148,7 @@ export function WishlistPanel({
                 }}
               >
                 <Link
-                  href={getProductHref(product.id)}
+                  href={getProductHref(product.slug ?? product.id)}
                   style={{
                     display: 'block',
                     position: 'relative',
@@ -164,7 +164,7 @@ export function WishlistPanel({
                 </Link>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                   <Link
-                    href={getProductHref(product.id)}
+                    href={getProductHref(product.slug ?? product.id)}
                     style={{
                       color: 'inherit',
                       textDecoration: 'none',

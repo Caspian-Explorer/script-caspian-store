@@ -150,7 +150,7 @@ export function CaspianRoot(props: CaspianRootProps = {}): ReactNode {
   }
   {
     const m = path.match(/^\/product\/([^/]+)$/);
-    if (m) return <ProductDetailPage productId={m[1]} />;
+    if (m) return <ProductDetailPage productSlugOrId={m[1]} />;
   }
   if (path === '/search') return <SearchResultsPage />;
   if (path === '/wishlist') {

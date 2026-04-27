@@ -230,7 +230,7 @@ export function AdminProductsList({
           </THead>
           <TBody>
             {filtered.map((p, idx) => {
-              const viewHref = getViewHref(p.id);
+              const viewHref = getViewHref(p.slug ?? p.id);
               const editHref = getEditHref(p.id);
               const categoryLabel = resolveCategoryLabel(p.category);
               const categoryIsLegacy = p.category && !categoryNameById.has(p.category);

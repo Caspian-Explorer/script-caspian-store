@@ -719,6 +719,7 @@ export type { ErrorLog, ErrorLogSource } from './types';
 
 // --- Utilities ---
 export { cn } from './utils/cn';
+export { slugify } from './utils/slugify';
 export {
   formatCurrency,
   currencySymbol,

@@ -322,7 +322,7 @@ function CartItemCard({
         border: '1px solid rgba(0,0,0,0.05)',
       }}
     >
-      <Link href={getProductHref(item.product.id)}>
+      <Link href={getProductHref(item.product.slug ?? item.product.id)}>
         <div
           style={{
             position: 'relative',
@@ -339,7 +339,7 @@ function CartItemCard({
       </Link>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0 }}>
-        <Link href={getProductHref(item.product.id)}>
+        <Link href={getProductHref(item.product.slug ?? item.product.id)}>
           <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600, color: '#111' }}>
             {item.product.name}
           </h3>

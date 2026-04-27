@@ -18,6 +18,7 @@ import {
 import { caspianCollections } from '../firebase/collections';
 import type { InventorySettings, Product } from '../types';
 import { isProductOutOfStock } from '../utils/inventory';
+import { slugify } from '../utils/slugify';
 import { stripUndefined } from '../utils/strip-undefined';
 
 export interface ProductFilters {
@@ -40,6 +41,7 @@ function docToProduct(docSnap: QueryDocumentSnapshot | DocumentSnapshot): Produc
   const data = docSnap.data()!;
   return {
     id: docSnap.id,
+    slug: data.slug,
     name: data.name,
     brand: data.brand,
     description: data.description,
@@ -91,6 +93,74 @@ export async function getProductById(db: Firestore, id: string): Promise<Product
   return docToProduct(snap);
 }
 
+/**
+ * Look up a product by its `slug` field. Used by the storefront product detail
+ * route. Single-equality query — Firestore auto-creates the underlying single
+ * field index, so consumers don't need to redeploy `firestore.indexes.json` to
+ * upgrade. Inactive products are filtered client-side so we don't need a
+ * composite `slug + isActive` index either.
+ */
+export async function getProductBySlug(
+  db: Firestore,
+  slug: string,
+): Promise<Product | null> {
+  if (!slug) return null;
+  const q = query(
+    caspianCollections(db).products,
+    where('slug', '==', slug),
+    firestoreLimit(1),
+  );
+  const snap = await getDocs(q);
+  const first = snap.docs[0];
+  if (!first) return null;
+  const product = docToProduct(first);
+  if (product.isActive === false) return null;
+  return product;
+}
+
+/**
+ * Resolve a `/product/:param` URL segment that may be either a slug
+ * (`black-leather-jacket`) or a Firestore document id (`abc123XYZ`). Tries the
+ * slug lookup first; on miss, falls back to direct document lookup. Lets us
+ * keep legacy ID-based URLs working while new links use slugs.
+ */
+export async function getProductBySlugOrId(
+  db: Firestore,
+  slugOrId: string,
+): Promise<Product | null> {
+  const bySlug = await getProductBySlug(db, slugOrId);
+  if (bySlug) return bySlug;
+  return getProductById(db, slugOrId);
+}
+
+/**
+ * Find an unused slug starting from `base`. If `base` is taken, tries
+ * `base-2`, `base-3`, … until one is free. `excludeId` lets the caller skip
+ * self-collision when re-saving an existing product. Bounded to 50 attempts;
+ * if you have 50 products literally named the same thing, set the slug
+ * manually in the admin editor.
+ */
+async function ensureUniqueSlug(
+  db: Firestore,
+  base: string,
+  excludeId?: string,
+): Promise<string> {
+  const products = caspianCollections(db).products;
+  const isFree = async (candidate: string): Promise<boolean> => {
+    const q = query(products, where('slug', '==', candidate), firestoreLimit(2));
+    const snap = await getDocs(q);
+    if (snap.empty) return true;
+    if (excludeId && snap.docs.every((d) => d.id === excludeId)) return true;
+    return false;
+  };
+  if (await isFree(base)) return base;
+  for (let i = 2; i < 50; i += 1) {
+    const candidate = `${base}-${i}`;
+    if (await isFree(candidate)) return candidate;
+  }
+  return `${base}-${Date.now().toString(36)}`;
+}
+
 export async function getProductsByIds(db: Firestore, ids: string[]): Promise<Product[]> {
   if (ids.length === 0) return [];
   const chunks: string[][] = [];
@@ -124,7 +194,8 @@ export async function createProduct(
   id?: string,
 ): Promise<string> {
   const now = Timestamp.now();
-  const payload = stripUndefined({ ...data, createdAt: now, updatedAt: now });
+  const slug = await resolveSlugForWrite(db, data.slug, data.name);
+  const payload = stripUndefined({ ...data, slug, createdAt: now, updatedAt: now });
   if (id) {
     await setDoc(doc(db, 'products', id), payload);
     return id;
@@ -138,10 +209,38 @@ export async function updateProduct(
   id: string,
   data: Partial<ProductWriteInput>,
 ): Promise<void> {
+  // On update, regenerate the slug only when:
+  //   1. the admin explicitly typed one (`data.slug` provided), OR
+  //   2. the existing doc has none (legacy backfill path).
+  // Renaming a product without changing the slug field deliberately keeps the
+  // existing slug — preserves SEO and any external links pointing at it.
+  let slug: string | undefined;
+  if (data.slug !== undefined) {
+    slug = await resolveSlugForWrite(db, data.slug, data.name ?? '', id);
+  } else {
+    const existing = await getDoc(doc(db, 'products', id));
+    const existingSlug = existing.exists() ? existing.data()?.slug : undefined;
+    if (!existingSlug) {
+      const sourceName = data.name ?? (existing.exists() ? existing.data()?.name : '') ?? '';
+      slug = await resolveSlugForWrite(db, undefined, sourceName, id);
+    }
+  }
   await updateDoc(
     doc(db, 'products', id),
-    stripUndefined({ ...data, updatedAt: Timestamp.now() }),
+    stripUndefined({ ...data, slug, updatedAt: Timestamp.now() }),
   );
+}
+
+async function resolveSlugForWrite(
+  db: Firestore,
+  rawSlug: string | undefined,
+  name: string,
+  excludeId?: string,
+): Promise<string | undefined> {
+  const candidate = (rawSlug ?? '').trim();
+  const base = candidate ? slugify(candidate) : slugify(name);
+  if (!base) return undefined;
+  return ensureUniqueSlug(db, base, excludeId);
 }
 
 export async function deleteProduct(db: Firestore, id: string): Promise<void> {

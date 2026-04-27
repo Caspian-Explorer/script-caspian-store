@@ -44,7 +44,7 @@ export function ProductCard({
   const priceSuffix = renderPriceSuffix(taxConfig);
 
   return (
-    <Link href={getProductHref(product.id)} className={cn('caspian-product-card', className)}>
+    <Link href={getProductHref(product.slug ?? product.id)} className={cn('caspian-product-card', className)}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12, color: 'inherit', textDecoration: 'none' }}>
         <div
           style={{

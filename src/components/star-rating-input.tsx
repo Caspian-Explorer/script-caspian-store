@@ -12,11 +12,11 @@ export interface StarRatingInputProps {
   className?: string;
 }
 
-const SIZE_CLASS = {
-  sm: 'caspian-w-4 caspian-h-4',
-  md: 'caspian-w-6 caspian-h-6',
-  lg: 'caspian-w-8 caspian-h-8',
-} as const;
+// Numeric pixel sizes — passed as SVG width/height attributes so the icon
+// renders even when the consumer hasn't loaded the library's Tailwind utility
+// layer. The Tailwind-class approach used previously fell back to a 0-sized
+// SVG inside the dialog and the user saw empty boxes.
+const SIZE_PX = { sm: 16, md: 24, lg: 32 } as const;
 
 export function StarRatingInput({
   value,
@@ -27,12 +27,14 @@ export function StarRatingInput({
 }: StarRatingInputProps) {
   const [hover, setHover] = useState(0);
   const display = hover || value;
+  const px = SIZE_PX[size];
 
   return (
     <div
       role="radiogroup"
       aria-label={ariaLabel}
       className={cn('caspian-flex caspian-items-center caspian-gap-1', className)}
+      style={{ display: 'inline-flex', gap: 4 }}
       onMouseLeave={() => setHover(0)}
     >
       {[1, 2, 3, 4, 5].map((i) => {
@@ -49,10 +51,17 @@ export function StarRatingInput({
             onFocus={() => setHover(i)}
             onBlur={() => setHover(0)}
             className="caspian-rounded focus:caspian-outline-none focus-visible:caspian-ring-2 caspian-transition-transform hover:caspian-scale-110"
-            style={{ color: active ? '#f59e0b' : 'rgba(100,100,100,0.4)' }}
+            style={{
+              background: 'transparent',
+              border: 0,
+              padding: 2,
+              cursor: 'pointer',
+              color: active ? '#f59e0b' : 'rgba(0,0,0,0.3)',
+            }}
           >
             <StarIcon
-              className={SIZE_CLASS[size]}
+              width={px}
+              height={px}
               fill={active ? 'currentColor' : 'none'}
             />
           </button>

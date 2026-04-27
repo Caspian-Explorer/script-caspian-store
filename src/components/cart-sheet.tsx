@@ -147,7 +147,7 @@ function CartRow({
   const img = item.product.images?.[0];
   return (
     <div style={{ display: 'flex', gap: 12 }}>
-      <Link href={getProductHref(item.product.id)}>
+      <Link href={getProductHref(item.product.slug ?? item.product.id)}>
         <div
           style={{
             position: 'relative',
@@ -163,7 +163,7 @@ function CartRow({
         </div>
       </Link>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <Link href={getProductHref(item.product.id)}>
+        <Link href={getProductHref(item.product.slug ?? item.product.id)}>
           <p style={{ fontSize: 14, fontWeight: 500, margin: 0, lineHeight: 1.3 }}>{item.product.name}</p>
         </Link>
         {(item.selectedSize || item.selectedColor) && (

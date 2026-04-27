@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import type { CartBehavior, InventorySettings, Product } from '../types';
-import { getProductById } from '../services/product-service';
+import { getProductBySlugOrId } from '../services/product-service';
 import { getSiteSettings } from '../services/site-settings-service';
 import { isProductOutOfStock, isSizeOutOfStock } from '../utils/inventory';
 import { useCaspianFirebase, useCaspianNavigation } from '../provider/caspian-store-provider';
@@ -17,7 +17,14 @@ import { QuantitySelector, SizeSelector } from './product-selectors';
 import { ProductReviews } from './reviews/product-reviews';
 
 export interface ProductDetailPageProps {
-  /** Either pass an id (we'll fetch) or a pre-fetched product. */
+  /**
+   * Either pass an identifier (we'll fetch) or a pre-fetched product. The
+   * identifier may be either a SEO-friendly slug (`black-leather-jacket`) or
+   * a Firestore document id — the page resolves both transparently so old
+   * id-based URLs keep working after upgrading to v8.3.
+   */
+  productSlugOrId?: string;
+  /** @deprecated since v8.3 — use `productSlugOrId`. Kept for one minor cycle. */
   productId?: string;
   product?: Product;
   /** Optional formatter for price display. Default: `$x.xx`. */
@@ -59,6 +66,7 @@ function defaultBlurb(description: string): string {
 }
 
 export function ProductDetailPage({
+  productSlugOrId,
   productId,
   product: externalProduct,
   formatPrice = (p) => `$${p.toFixed(2)}`,
@@ -69,6 +77,7 @@ export function ProductDetailPage({
   onNotFound,
   className,
 }: ProductDetailPageProps) {
+  const lookupKey = productSlugOrId ?? productId;
   const { db } = useCaspianFirebase();
   const nav = useCaspianNavigation();
   const { addToCart } = useCart();
@@ -111,12 +120,12 @@ export function ProductDetailPage({
       setLoading(false);
       return;
     }
-    if (!productId) return;
+    if (!lookupKey) return;
     let alive = true;
     (async () => {
       setLoading(true);
       try {
-        const p = await getProductById(db, productId);
+        const p = await getProductBySlugOrId(db, lookupKey);
         if (!alive) return;
         if (!p) {
           onNotFound?.();
@@ -132,7 +141,7 @@ export function ProductDetailPage({
     return () => {
       alive = false;
     };
-  }, [db, productId, externalProduct, onNotFound]);
+  }, [db, lookupKey, externalProduct, onNotFound]);
 
   const blurb = useMemo(() => {
     if (!product) return '';
