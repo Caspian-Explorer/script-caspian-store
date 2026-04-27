@@ -1,5 +1,6 @@
 import { onDocumentCreated } from 'firebase-functions/v2/firestore';
 import { logger } from 'firebase-functions';
+import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
 
 /**
@@ -34,5 +35,16 @@ export const onUserCreate = onDocumentCreated('users/{uid}', async (event) => {
   }
 
   await snap.ref.update({ role: 'admin' });
-  logger.info(`[onUserCreate] First user promoted to admin: uid=${event.params.uid}.`);
+
+  // Mirror the role into a Firebase Auth custom claim so storage.rules +
+  // firestore.rules can authorize without a cross-service Firestore read
+  // (v8.4.1+). Preserve any existing claims set by other processes.
+  const uid = event.params.uid;
+  const userRecord = await getAuth().getUser(uid);
+  await getAuth().setCustomUserClaims(uid, {
+    ...(userRecord.customClaims ?? {}),
+    role: 'admin',
+  });
+
+  logger.info(`[onUserCreate] First user promoted to admin (role + custom claim): uid=${uid}.`);
 });

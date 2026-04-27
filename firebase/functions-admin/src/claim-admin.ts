@@ -1,5 +1,6 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions';
+import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
 
 /**
@@ -50,6 +51,22 @@ export const claimAdmin = onCall({ cors: true }, async (request) => {
   }
 
   await userRef.update({ role: 'admin' });
-  logger.info(`[claimAdmin] Promoted ${uid} to admin via callable.`);
-  return { ok: true };
+
+  // Set the Firebase Auth custom claim too. Since v8.4.1 the storage + Firestore
+  // rules check `request.auth.token.role == 'admin'` first (with Firestore as
+  // fallback), so the claim is what makes the rule fast and reliable across
+  // cross-service Firestore reads. We preserve any pre-existing claims so other
+  // server-side processes that set custom data on the user are unaffected.
+  const userRecord = await getAuth().getUser(uid);
+  await getAuth().setCustomUserClaims(uid, {
+    ...(userRecord.customClaims ?? {}),
+    role: 'admin',
+  });
+
+  logger.info(`[claimAdmin] Promoted ${uid} to admin via callable (role + custom claim).`);
+
+  // Surface the token-refresh requirement to the client. The new claim only
+  // appears after the ID token rotates — clients should call
+  // `auth.currentUser.getIdToken(true)` to force-refresh immediately.
+  return { ok: true, claimSet: true, requiresTokenRefresh: true };
 });

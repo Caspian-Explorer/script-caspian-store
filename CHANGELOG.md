@@ -16,6 +16,66 @@ Do not omit the heading, rename it, or fold it into `### Notes`. This is how
 customers tell at a glance whether an upgrade needs attention.
 -->
 
+## v8.5.1 — Admin via Auth custom claims; storage uploads stop tripping cross-service Firestore reads (#store-1210)
+
+Admins still couldn't upload a logo from `<AdminSiteSettingsPage>` after v8.3.1 + v8.4.x — the toast told them to redeploy storage rules, they did, the rules were correct on disk, and they STILL got `storage/unauthorized`. Root cause across reported installs: the rules' `isAdmin()` predicate calls `firestore.get(/databases/(default)/documents/users/$(uid))` from inside Storage rules — a cross-service lookup that fails for any of a dozen project-config reasons (Firestore not in the `(default)` database, IAM grants missing for the rules service agent, permissions propagation delay, the user's `users/{uid}` doc carrying a typo or stale role field). Every one of those eats every admin write silently and the admin's only remediation was "fiddle with Firebase project settings until it works."
+
+This release moves the primary admin signal off cross-service Firestore reads and onto Firebase Auth **custom claims**. The claim is baked into the JWT, so storage.rules + firestore.rules authorize without leaving the rules engine — no IAM, no Firestore propagation, no project config. The Firestore field stays as a fallback so admins promoted before v8.5.1 keep working until their token rotates and the new claim becomes visible.
+
+The library wires up the claim in three places: the `claimAdmin` callable now also calls `setCustomUserClaims({ role: 'admin' })` after the Firestore write; the `onUserCreate` trigger does the same for the first-user auto-promote path; and a new `syncAdminClaim` Firestore trigger reconciles the claim with `users/{uid}.role` on every users-doc write — so the Firebase console, `grant-admin.mjs`, and any future admin CRUD UI also propagate the claim without each having to remember. `<AdminGuard>`'s "Claim admin" button now force-refreshes the ID token after the callable returns (`auth.currentUser.getIdToken(true)`) so the new claim is visible immediately instead of after the next ~1h rotation.
+
+### Consumer action required on upgrade
+
+```bash
+# 1. Pull the new library + sync rules + redeploy storage and Firestore rules
+npm install github:Caspian-Explorer/script-caspian-store#v8.5.1
+npm run firebase:sync
+firebase deploy --only firestore:rules,storage
+
+# 2. Redeploy the caspian-admin Cloud Functions codebase (now sets custom claims)
+cd firebase/functions-admin && npm install && cd ../..
+firebase deploy --only functions:caspian-admin
+
+# 3. Backfill custom claims for ALL existing admins. One-time, idempotent.
+node firebase/seed/sync-admin-claims.mjs \
+  --project <your-firebase-project-id> \
+  --credentials ./service-account.json
+
+# 4. Each affected admin must sign out + back in (or call
+#    auth.currentUser.getIdToken(true) from the client) to pick up the
+#    new claim on their ID token. Without this, the rules will still fall
+#    through to the Firestore field — slower but functional, so this is
+#    a "should do" not a "must do."
+```
+
+Step 3 fixes the immediate logo-upload outage: setting the claim on every existing admin makes storage.rules short-circuit on the JWT and never read Firestore. Step 4 makes the new path live for that admin's session; without it, they keep using the Firestore-fallback path that's been failing.
+
+### Fixed
+
+- [firebase/storage.rules](firebase/storage.rules) / [firebase/firestore.rules](firebase/firestore.rules): `isAdmin()` now reads `request.auth.token.role == 'admin'` first; the `firestore.get()` / `get()` lookup is the fallback, not the primary. Admins who pick up the new claim on their next token refresh stop tripping the cross-service path entirely.
+
+### Added
+
+- [firebase/functions-admin/src/sync-admin-claim.ts](firebase/functions-admin/src/sync-admin-claim.ts): new `syncAdminClaim` Firestore `onDocumentWritten` trigger keyed on `users/{uid}` that reconciles the Auth custom claim with the `role` field on every write. Promotion → set claim. Demotion → clear claim. Idempotent. Catches the Firestore-console / `grant-admin.mjs` / future-admin-CRUD paths that don't go through the callable.
+- [firebase/seed/sync-admin-claims.mjs](firebase/seed/sync-admin-claims.mjs): one-time backfill for admins who had `role: 'admin'` in Firestore before v8.5.1 (their Firestore field was set, but no claim ever fired). Iterates every `users/*` doc with role admin and sets the matching custom claim. Idempotent (claim already set → no-op), `--dry-run` supported, prints a summary of `set / already-ok / missing / errored`.
+- [tsup.config.ts](tsup.config.ts): drift guard upgraded to handle JS template-literal escapes for backticks (`` \` ``) and `$` in addition to `\\`. The collapse uses a NUL placeholder dance so escape order doesn't matter (`` \\\` `` correctly evaluates to `\` + `` ` ``, not `\\` + `` ` ``).
+
+### Changed
+
+- [firebase/functions-admin/src/claim-admin.ts](firebase/functions-admin/src/claim-admin.ts): after the Firestore role write, the callable now also calls `getAuth().setCustomUserClaims(uid, { ...existing, role: 'admin' })`, preserving any pre-existing claims. Returns `{ ok: true, claimSet: true, requiresTokenRefresh: true }` so the client knows to force-refresh the ID token.
+- [firebase/functions-admin/src/on-user-create.ts](firebase/functions-admin/src/on-user-create.ts): same `setCustomUserClaims` call on the first-user auto-promote path.
+- [firebase/functions-admin/src/index.ts](firebase/functions-admin/src/index.ts): exports the new `syncAdminClaim` trigger so it deploys with the codebase.
+- [firebase/functions-admin/package.json](firebase/functions-admin/package.json): bumped to `0.4.0` (minor, new export).
+- [firebase/seed/grant-admin.mjs](firebase/seed/grant-admin.mjs): after the Firestore write the CLI also calls `setCustomUserClaims`, so promotions made via the CLI work immediately even if the `syncAdminClaim` trigger isn't deployed (or hasn't fired yet). Logs the token-refresh requirement for the affected admin.
+- [src/admin/admin-guard.tsx](src/admin/admin-guard.tsx): the "Claim admin role" button now force-refreshes `auth.currentUser.getIdToken(true)` after the callable returns and before `refreshProfile()`, so the new claim is visible immediately instead of after the ID token rotates (~1h).
+- [src/firebase/rules.ts](src/firebase/rules.ts): `CASPIAN_STORAGE_RULES` + `CASPIAN_FIRESTORE_RULES` updated to match the new claim-first + Firestore-fallback `isAdmin()` predicate. The build's drift guard asserts `CASPIAN_STORAGE_RULES` matches `firebase/storage.rules` byte-for-byte (including the new escaped backticks in comments).
+
+### Known limitation
+
+`CASPIAN_FIRESTORE_RULES` (the constant exported from `@caspian-explorer/script-caspian-store/firebase`) lags `firebase/firestore.rules` (the on-disk file) for collections added after v3.x — `emailPluginInstalls`, `contacts`, `searchTerms`, `adminTodos`, `emailSettings`, `emailTemplates`, `errorLogs`. The `isAdmin()` change in this release is mirrored in both halves, but the trailing collections aren't. **In practice this only matters if your deploy tooling reads from the `CASPIAN_FIRESTORE_RULES` constant; consumers using `npm run firebase:sync` get the on-disk file directly and are unaffected.** A drift guard for `CASPIAN_FIRESTORE_RULES` is a planned follow-up.
+
+---
+
 ## v8.5.0 — People menu split: Users / Contacts / Subscribers (#store-1212)
 
 The admin sidebar's **People** group used to read *Users → Subscribers*, but `/admin/users` was actually the contact-form inbox in disguise — there was no surface anywhere that listed customers who had signed up to the site, even though that data was sitting in the `users` Firestore collection. This release straightens out the labels and the data: **Users**, **Contacts**, and **Subscribers** are now three independent pages, each backed by its own collection.

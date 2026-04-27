@@ -86,4 +86,20 @@ if (!snap.exists) {
 
 await ref.set({ role: 'admin' }, { merge: true });
 console.log(`[grant-admin] users/${uid}.role = 'admin'`);
+
+// v8.5.0+: storage.rules + firestore.rules check the Firebase Auth custom
+// claim `role` first (with the Firestore field as fallback). Set the claim
+// directly here so admins promoted via this CLI work immediately, without
+// having to wait for the syncAdminClaim Firestore trigger to also fire
+// (and without requiring the trigger to be deployed at all). Preserve any
+// pre-existing claims so other server-side processes are unaffected.
+const userRecord = await auth.getUser(uid);
+await auth.setCustomUserClaims(uid, {
+  ...(userRecord.customClaims ?? {}),
+  role: 'admin',
+});
+console.log(`[grant-admin] users/${uid} custom claim role='admin' set on Auth token`);
+console.log(
+  `[grant-admin] The user must sign out + back in (or call auth.currentUser.getIdToken(true)) for the new claim to appear on their ID token.`,
+);
 process.exit(0);

@@ -536,6 +536,19 @@ firebase deploy --only firestore:rules,firestore:indexes,storage
 
 `firebase:sync` overwrites any hand edits to those root files — if you have custom rules, merge by hand from git history instead.
 
+**v8.5.1 — admin authorization moved to Auth custom claims.** If you're crossing the v8.5.1 boundary, you also need to redeploy the `caspian-admin` Cloud Functions codebase (it now sets the `role` custom claim on promotion + on every `users/{uid}` write) and backfill the claim for existing admins. One-time per project:
+
+```bash
+cd firebase/functions-admin && npm install && cd ../..
+firebase deploy --only functions:caspian-admin
+
+node firebase/seed/sync-admin-claims.mjs \
+  --project <your-firebase-project-id> \
+  --credentials ./service-account.json
+```
+
+After the backfill, each affected admin must sign out + back in (or call `auth.currentUser.getIdToken(true)` from the client) for their session to pick up the new claim. Without the refresh, storage.rules + firestore.rules fall through to the legacy Firestore-field path — slower and the failure mode that was breaking logo uploads — so do the refresh.
+
 ### Self-update from `/admin/about`
 
 The admin About page can `npm install` a newer library version on the host with one click — handy for self-hosted Node deployments and dev. The button POSTs to `src/app/api/caspian-store/update/route.ts` (scaffolded into your project), which verifies your admin Firebase ID token, runs `npm install github:Caspian-Explorer/script-caspian-store#vX.Y.Z` with `--ignore-scripts` (so a compromised tarball can't run a postinstall hook), and exits the Node process so your process manager restarts it.

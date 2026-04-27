@@ -9,10 +9,17 @@ export const CASPIAN_FIRESTORE_RULES = `rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // Admin signal — claim-first, Firestore fallback. The Firebase Auth
+    // custom claim \`role\` is the primary admin signal as of v8.4.1; the
+    // Firestore read is a fallback for admins promoted before v8.4.1 (or
+    // before their token has rotated to pick up the new claim). Storage
+    // rules check the same predicate so consumer admin authorization
+    // works identically across services.
     function isAdmin() {
       return request.auth != null
-          && exists(/databases/$(database)/documents/users/$(request.auth.uid))
-          && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+          && (request.auth.token.role == 'admin'
+              || (exists(/databases/$(database)/documents/users/$(request.auth.uid))
+                  && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'));
     }
 
     function isAuth() {
@@ -151,11 +158,20 @@ export const CASPIAN_STORAGE_RULES = `rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
 
+    // Admin signal — claim-first, Firestore fallback. v8.4.1 introduced an
+    // Auth custom claim \`role\` so this rule can authorize without a
+    // cross-service Firestore read; the read is kept as a fallback so
+    // admins promoted before v8.4.1 (or via the legacy grant-admin script
+    // before it was updated) are still recognized while their token rotates.
+    // The custom claim is set by the \`claimAdmin\` callable, the
+    // \`onUserCreate\` trigger, and the \`syncAdminClaim\` Firestore trigger
+    // that reconciles the claim with \`users/{uid}.role\` on every write.
     function isAdmin() {
       return request.auth != null
-          && firestore.get(
-               /databases/(default)/documents/users/$(request.auth.uid)
-             ).data.role == 'admin';
+          && (request.auth.token.role == 'admin'
+              || firestore.get(
+                   /databases/(default)/documents/users/$(request.auth.uid)
+                 ).data.role == 'admin');
     }
 
     // Profile avatars live under users/{uid}/<filename>. Storage rules grammar

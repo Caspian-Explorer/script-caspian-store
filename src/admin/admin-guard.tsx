@@ -58,7 +58,7 @@ type ClaimState =
   | { status: 'error'; message: string };
 
 function AccessDenied({ uid }: { uid: string }) {
-  const { functions } = useCaspianFirebase();
+  const { auth, functions } = useCaspianFirebase();
   const { refreshProfile } = useAuth();
   const [copied, setCopied] = useState(false);
   const [claim, setClaim] = useState<ClaimState>({ status: 'idle' });
@@ -75,6 +75,15 @@ function AccessDenied({ uid }: { uid: string }) {
     setClaim({ status: 'claiming' });
     try {
       await httpsCallable(functions, 'claimAdmin')({});
+      // v8.5.0: claimAdmin now also sets a Firebase Auth custom claim
+      // (role='admin') used by storage.rules + firestore.rules. The claim
+      // only appears on the ID token after a refresh — without forcing
+      // one, the admin would have to sign out + back in before any
+      // storage upload would work. Force-refresh so the new claim is
+      // visible immediately to subsequent rule evaluations.
+      if (auth.currentUser) {
+        await auth.currentUser.getIdToken(true);
+      }
       await refreshProfile();
       // AdminGuard will re-render with role=admin and drop AccessDenied.
     } catch (error) {
