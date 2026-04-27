@@ -78,6 +78,18 @@ export const createStripeCheckoutSession = onCall(
       apiVersion: '2024-11-20.acacia' as any,
     });
 
+    // From v8.4 the library stores `Product.brand` as a brand-doc id (was a
+    // free-text name). Orders are historical records, so we capture the
+    // human-readable brand name at the moment of purchase — falling back to
+    // the raw value for legacy products that haven't been migrated yet, and
+    // for the empty-string case.
+    const brandsSnap = await db.collection('productBrands').get();
+    const brandNameById = new Map<string, string>();
+    for (const b of brandsSnap.docs) {
+      const name = (b.data() as { name?: string }).name;
+      if (typeof name === 'string') brandNameById.set(b.id, name);
+    }
+
     // --- Validate items & compute subtotal server-side ---
     const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [];
     const orderItems: Array<{
@@ -141,10 +153,11 @@ export const createStripeCheckoutSession = onCall(
         quantity: item.quantity,
       });
 
+      const rawBrand = (product.brand as string | undefined) ?? '';
       orderItems.push({
         productId: item.productId,
         name: product.name,
-        brand: product.brand ?? '',
+        brand: brandNameById.get(rawBrand) ?? rawBrand,
         price: product.price,
         quantity: item.quantity,
         selectedSize: item.selectedSize ?? null,

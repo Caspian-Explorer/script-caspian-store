@@ -63,6 +63,7 @@ export {
   AdminContactsList,
   type AdminContactsListProps,
 } from './admin-contacts-list';
+export { AdminProductBrandsPage } from './admin-product-brands-page';
 export { AdminProductCategoriesPage } from './admin-product-categories-page';
 export { AdminProductCollectionsPage } from './admin-product-collections-page';
 export { AdminLanguagesPage } from './admin-languages-page';

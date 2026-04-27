@@ -1,13 +1,14 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import type { ProductCategoryDoc, ProductImage } from '../types';
+import type { ProductBrandDoc, ProductCategoryDoc, ProductImage } from '../types';
 import {
   createProduct,
   getProductById,
   updateProduct,
   type ProductWriteInput,
 } from '../services/product-service';
+import { listActiveBrands } from '../services/brand-service';
 import { listAllCategories } from '../services/category-service';
 import { slugify } from '../utils/slugify';
 import { useCaspianFirebase, useCaspianNavigation } from '../provider/caspian-store-provider';
@@ -31,6 +32,14 @@ interface FormState {
   name: string;
   /** URL-safe slug. Auto-filled from `name` on blur when empty; admin-editable. */
   slug: string;
+  /**
+   * Brand document id (not the display name). Mirrors `category` — the
+   * dropdown writes a `productBrands` doc id; legacy products created
+   * before v8.4 may store a free-text brand name here, in which case the
+   * editor synthesises a "(legacy — not migrated)" option to preserve
+   * the value until an admin reselects or runs the migration banner on
+   * `/admin/brands`.
+   */
   brand: string;
   description: string;
   shortDescription: string;
@@ -164,6 +173,7 @@ export function AdminProductEditor({
   const [loading, setLoading] = useState(Boolean(productId));
   const [saving, setSaving] = useState(false);
   const [categories, setCategories] = useState<ProductCategoryDoc[]>([]);
+  const [brands, setBrands] = useState<ProductBrandDoc[] | null>(null);
   const [legacyColor, setLegacyColor] = useState<string>('');
   const [newImageUrl, setNewImageUrl] = useState('');
 
@@ -171,10 +181,16 @@ export function AdminProductEditor({
     let alive = true;
     (async () => {
       try {
-        const list = await listAllCategories(db);
-        if (alive) setCategories(list);
+        const [categoryList, brandList] = await Promise.all([
+          listAllCategories(db),
+          listActiveBrands(db),
+        ]);
+        if (!alive) return;
+        setCategories(categoryList);
+        setBrands(brandList);
       } catch (error) {
-        console.error('[caspian-store] Failed to load categories:', error);
+        console.error('[caspian-store] Failed to load editor reference data:', error);
+        if (alive) setBrands([]);
       }
     })();
     return () => {
@@ -232,6 +248,30 @@ export function AdminProductEditor({
     () => buildCategoryOptions(categories),
     [categories],
   );
+
+  const brandsLoaded = brands !== null;
+  const knownBrandIds = useMemo(
+    () => new Set((brands ?? []).map((b) => b.id)),
+    [brands],
+  );
+  const brandIsLegacyUnknown =
+    brandsLoaded && form.brand !== '' && !knownBrandIds.has(form.brand);
+
+  const brandOptions = useMemo(() => {
+    const out: { value: string; label: string }[] = [
+      { value: '', label: '— Select brand —' },
+    ];
+    for (const b of brands ?? []) {
+      out.push({ value: b.id, label: b.name });
+    }
+    if (brandIsLegacyUnknown) {
+      out.push({
+        value: form.brand,
+        label: `${form.brand} (legacy — not migrated)`,
+      });
+    }
+    return out;
+  }, [brands, brandIsLegacyUnknown, form.brand]);
 
   const legacyCategoryUnknown =
     productId &&
@@ -361,10 +401,20 @@ export function AdminProductEditor({
             />
           </Field>
           <Field label="Brand">
-            <Input
+            <Select
               value={form.brand}
               onChange={(e) => setForm((s) => ({ ...s, brand: e.target.value }))}
+              options={brandOptions}
+              disabled={!brandsLoaded}
+              style={{ width: '100%' }}
             />
+            {brandIsLegacyUnknown && (
+              <p style={{ fontSize: 12, color: '#b45309', marginTop: 4 }}>
+                Stored brand <code>{form.brand}</code> doesn&apos;t match any brand record. Pick
+                one from the list — or run <em>Migrate now</em> on the Brands page to clean up
+                every legacy product at once.
+              </p>
+            )}
           </Field>
         </div>
         <Field label="URL slug">

@@ -5,6 +5,7 @@ import {
   type Timestamp,
 } from 'firebase/firestore';
 import { caspianCollections } from '../../firebase/collections';
+import { listActiveBrands } from '../../services/brand-service';
 import type {
   PaymentPluginCheckoutCtx,
   PaymentPluginStartResult,
@@ -45,10 +46,24 @@ export async function startManualCheckout(
   // lives on — re-resolve rather than threading it down the contract.
   const db = getFirestore(ctx.functions.app);
 
+  // Resolve the human-readable brand name at order-creation time.
+  // `Product.brand` stores a brand-doc id from v8.4 onward; orders are
+  // historical records, so we capture the name verbatim — if a brand is
+  // later renamed or deleted, the customer's order still reads the brand
+  // they actually purchased. Falls back to the raw `product.brand` value
+  // if the brands lookup fails or the brand isn't in the active list (so
+  // pre-migration legacy free-text brands flow through unchanged).
+  const brandsById = await listActiveBrands(db)
+    .then((list) => new Map(list.map((b) => [b.id, b.name])))
+    .catch((error) => {
+      console.error('[caspian-store] Failed to load brands at checkout:', error);
+      return new Map<string, string>();
+    });
+
   const items: OrderItem[] = ctx.items.map((i) => ({
     productId: i.product.id,
     name: i.product.name,
-    brand: i.product.brand,
+    brand: brandsById.get(i.product.brand) ?? i.product.brand,
     price: i.product.price,
     quantity: i.quantity,
     selectedSize: i.selectedSize ?? null,

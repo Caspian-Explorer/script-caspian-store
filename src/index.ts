@@ -433,6 +433,18 @@ export {
   type CategoryWriteInput,
 } from './services/category-service';
 export {
+  listActiveBrands,
+  listAllBrands,
+  createBrand,
+  updateBrand,
+  deleteBrand,
+  resolveBrandName,
+  migrateLegacyBrandStrings,
+  countLegacyBrandStrings,
+  type BrandWriteInput,
+} from './services/brand-service';
+export { useBrands, useBrandName, refreshBrandsCache } from './hooks/use-brands';
+export {
   subscribeEmail,
   listSubscribers,
   deleteSubscriber,
@@ -571,6 +583,7 @@ export {
   AdminSubscribersPage,
   AdminUsersPage,
   AdminContactsList,
+  AdminProductBrandsPage,
   AdminProductCategoriesPage,
   AdminProductCollectionsPage,
   AdminLanguagesPage,

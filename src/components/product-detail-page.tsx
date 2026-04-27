@@ -7,6 +7,7 @@ import { getSiteSettings } from '../services/site-settings-service';
 import { isProductOutOfStock, isSizeOutOfStock } from '../utils/inventory';
 import { useCaspianFirebase, useCaspianNavigation } from '../provider/caspian-store-provider';
 import { useCart } from '../context/cart-context';
+import { useBrandName } from '../hooks/use-brands';
 import { useT } from '../i18n/locale-context';
 import { useToast } from '../ui/toast';
 import { Button } from '../ui/button';
@@ -143,6 +144,8 @@ export function ProductDetailPage({
     };
   }, [db, lookupKey, externalProduct, onNotFound]);
 
+  const brandName = useBrandName(product?.brand);
+
   const blurb = useMemo(() => {
     if (!product) return '';
     return product.shortDescription?.trim() || defaultBlurb(product.description ?? '');
@@ -214,7 +217,7 @@ export function ProductDetailPage({
             {product.limited && <Badge variant="destructive">{t('storefront.badges.limited')}</Badge>}
           </div>
           <p style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#888', margin: 0 }}>
-            {product.brand}
+            {brandName}
           </p>
           <h1 style={{ fontSize: 28, fontWeight: 700, margin: '4px 0 12px' }}>{product.name}</h1>
 

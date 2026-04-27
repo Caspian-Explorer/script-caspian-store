@@ -2,6 +2,7 @@
 
 import type { InventorySettings, Product, TaxConfig } from '../types';
 import { useCaspianLink, useCaspianImage } from '../provider/caspian-store-provider';
+import { useBrandName } from '../hooks/use-brands';
 import { useT } from '../i18n/locale-context';
 import { Badge } from '../ui/misc';
 import { cn } from '../utils/cn';
@@ -39,6 +40,7 @@ export function ProductCard({
   const Link = useCaspianLink();
   const Image = useCaspianImage();
   const t = useT();
+  const brandName = useBrandName(product.brand);
   const img = product.images?.[0];
   const stockBadge = inventory ? resolveStockBadge(product, inventory) : null;
   const priceSuffix = renderPriceSuffix(taxConfig);
@@ -82,7 +84,7 @@ export function ProductCard({
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           <p style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#888', margin: 0 }}>
-            {product.brand}
+            {brandName}
           </p>
           <p style={{ fontSize: 15, fontWeight: 500, margin: 0, lineHeight: 1.3 }}>{product.name}</p>
           <p style={{ fontSize: 15, fontWeight: 600, margin: 0 }}>

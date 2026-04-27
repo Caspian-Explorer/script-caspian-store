@@ -16,6 +16,36 @@ Do not omit the heading, rename it, or fold it into `### Notes`. This is how
 customers tell at a glance whether an upgrade needs attention.
 -->
 
+## v8.4.0 — Brands admin page + brand dropdown on Product CRUD
+
+A new **Brands** sub-menu under Catalog gives admins full CRUD on a `productBrands` Firestore collection — list, create, edit, delete. The product editor's free-text Brand input becomes a `<Select>` populated from active brands, and the products-list filter switches from substring text to a brand `<Select>`. Two products typed `"Acme"` vs `"ACME"` no longer count as different brands.
+
+`Product.brand` semantics shift from "free-text brand name" to "brand document id" — consistent with how `Product.category` already references `productCategories` doc ids. Display sites resolve id → name via the new `useBrandName` hook (raw-string fallback so legacy products keep rendering correctly until migrated). The Brands admin page surfaces a yellow banner when it detects products that still hold legacy free-text brand strings, with a one-click **Migrate now** button that creates matching brand records and updates each product in place. Idempotent — clicking it again on a clean store reports `0 created, 0 updated`.
+
+Order receipts (`OrderItem.brand`) capture the resolved brand **name** at the moment of purchase — not the id — so historical orders keep reading "Nike" forever, even if the brand is later renamed or deleted. The library's manual-payment plugin and the `caspian-stripe` Cloud Function both apply this lookup at order creation.
+
+### No consumer action required
+
+The library is self-healing — `npm install github:Caspian-Explorer/script-caspian-store#v8.4.0` is enough on its own. The brands collection ref, Firestore rules, and `ProductBrandDoc` type already shipped with the package; this release only adds the admin UI on top. Legacy products with free-text brand values keep displaying their stored value via the read-side fallback, so storefronts work the moment the new tag is installed. The first time an admin visits **Catalog → Brands**, the migration banner offers a one-click sweep — that's the cleanup path, run by the admin in the UI, not a manual data step. The `caspian-stripe` Cloud Function bumped to `0.1.3` to capture brand names on Stripe orders; redeploy with `firebase deploy --only functions:caspian-stripe` if you want post-migration Stripe orders to store names rather than ids in `OrderItem.brand` (pre-migration orders are unaffected, and either form continues to render correctly via the read-side fallback).
+
+### Added
+
+- [src/services/brand-service.ts](src/services/brand-service.ts): `listActiveBrands`, `listAllBrands`, `createBrand`, `updateBrand`, `deleteBrand`, plus `resolveBrandName(value, brandsById)` for callers who already hold a brand map. `migrateLegacyBrandStrings(db)` does the one-shot self-healing sweep — for every distinct legacy brand string on the products collection, creates a `productBrands` doc (deterministic id from `slugify(name)`, "Nike" + "nike" coalesce) and updates each product's `brand` field to the new id. Idempotent. `countLegacyBrandStrings(db, sampleSize = 200)` is the cheap detector that decides whether to render the banner. `BrandWriteInput = Omit<ProductBrandDoc, 'id' | 'createdAt'>`.
+- [src/hooks/use-brands.ts](src/hooks/use-brands.ts): `useBrands()` returns `{ brands, brandsById, loaded }` with a module-level cache so a grid of product cards mounted on the same page does a single Firestore read for the whole tree. `useBrandName(value)` is the convenience wrapper — id → name with raw-string fallback. `refreshBrandsCache()` invalidates the cache; the Brands admin page calls it after every create / update / delete / migrate so storefront tabs see fresh data on next mount.
+- [src/admin/admin-product-brands-page.tsx](src/admin/admin-product-brands-page.tsx): list table + dialog form, `+ New brand` button, migration banner. New page registered at `/admin/brands` via [src/admin/admin-root.tsx](src/admin/admin-root.tsx) and surfaced as a sidebar leaf under the Catalog group in [src/admin/admin-shell.tsx](src/admin/admin-shell.tsx).
+- [src/ui/icons.tsx](src/ui/icons.tsx): `BookmarkIcon` for the new sidebar leaf.
+
+### Changed
+
+- [src/admin/admin-product-editor.tsx](src/admin/admin-product-editor.tsx): Brand `<Input>` becomes a `<Select>` of `[{ value: '', label: '— Select brand —' }, ...activeBrands]`. Stale-value preservation: if a product's stored `brand` isn't a known brand id, the editor synthesises a `"<value> (legacy — not migrated)"` option so saving other fields doesn't wipe the value, with a yellow hint pointing to the Brands page's Migrate now button.
+- [src/admin/admin-products-list.tsx](src/admin/admin-products-list.tsx): the "Brand contains…" text input becomes a Brand `<Select>` (with an "Unresolved (legacy text)" option mirroring the categories filter). The Brand column resolves id → name with a `⚠` legacy hint, and the search haystack uses the resolved name so admins can still find products by typing the brand name.
+- [src/components/product-card.tsx](src/components/product-card.tsx), [src/components/product-detail-page.tsx](src/components/product-detail-page.tsx): brand text rendered through `useBrandName(product.brand)` — id resolved to name, raw value as fallback for legacy data.
+- [src/components/search-results-page.tsx](src/components/search-results-page.tsx): the search haystack resolves brand id → name (same pattern as the existing category-id resolution) so storefront search by brand name keeps working post-migration.
+- [src/payments/plugins/manual-base.ts](src/payments/plugins/manual-base.ts) + [firebase/functions-stripe/src/stripe-checkout.ts](firebase/functions-stripe/src/stripe-checkout.ts): on order creation, both manual-payment plugins (Cash on delivery, Cheque, BACS) and the Stripe Cloud Function now resolve `Product.brand` (an id) to the human-readable name before writing it to `OrderItem.brand`. Order data is historical — captured names survive future brand renames/deletes. Stripe Cloud Function bumped to `0.1.3`.
+- [src/index.ts](src/index.ts) / [src/admin/index.ts](src/admin/index.ts): new exports — `AdminProductBrandsPage`, `useBrands`, `useBrandName`, `refreshBrandsCache`, `listActiveBrands`, `listAllBrands`, `createBrand`, `updateBrand`, `deleteBrand`, `resolveBrandName`, `migrateLegacyBrandStrings`, `countLegacyBrandStrings`, `BrandWriteInput`.
+
+---
+
 ## v8.3.1 — Self-diagnosing storage upload errors + ship `CASPIAN_STORAGE_RULES` (#store-1210)
 
 Admins reported `Firebase Storage: User does not have permission to access 'siteSettings/logo/...' (storage/unauthorized)` when trying to upload a logo from `<AdminSiteSettingsPage>`, with the toast just echoing the long FirebaseError string and no actionable next step. Root cause across reported installs: stale deployed Storage rules. The `siteSettings/**` rule block was added in v3.0.0, but consumers who upgraded the library since then never re-ran `firebase deploy --only storage`, so the bucket still runs on pre-v3.0.0 rules and default-denies every write to `siteSettings/`. A close second is `firebase deploy --only firestore` from §4 of INSTALL.md skipping the `,storage` flag.

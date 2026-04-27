@@ -1,8 +1,9 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { Product, ProductCategoryDoc } from '../types';
+import type { Product, ProductBrandDoc, ProductCategoryDoc } from '../types';
 import { deleteProduct, listAllProducts } from '../services/product-service';
+import { listAllBrands } from '../services/brand-service';
 import { listAllCategories } from '../services/category-service';
 import {
   useCaspianFirebase,
@@ -42,6 +43,7 @@ export function AdminProductsList({
   const { toast } = useToast();
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<ProductCategoryDoc[]>([]);
+  const [brands, setBrands] = useState<ProductBrandDoc[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
@@ -52,12 +54,14 @@ export function AdminProductsList({
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [productList, categoryList] = await Promise.all([
+      const [productList, categoryList, brandList] = await Promise.all([
         listAllProducts(db),
         listAllCategories(db),
+        listAllBrands(db),
       ]);
       setProducts(productList);
       setCategories(categoryList);
+      setBrands(brandList);
     } catch (error) {
       console.error('[caspian-store] Failed to load products:', error);
       toast({ title: 'Failed to load products', variant: 'destructive' });
@@ -76,6 +80,12 @@ export function AdminProductsList({
     return map;
   }, [categories]);
 
+  const brandNameById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const b of brands) map.set(b.id, b.name);
+    return map;
+  }, [brands]);
+
   const categoryOptions = useMemo(
     () => [
       { value: '', label: 'All categories' },
@@ -85,6 +95,15 @@ export function AdminProductsList({
       { value: '__unknown__', label: 'Unresolved (legacy names)' },
     ],
     [categories],
+  );
+
+  const brandOptions = useMemo(
+    () => [
+      { value: '', label: 'All brands' },
+      ...[...brands].map((b) => ({ value: b.id, label: b.name })),
+      { value: '__unknown__', label: 'Unresolved (legacy text)' },
+    ],
+    [brands],
   );
 
   const resolveCategoryLabel = useCallback(
@@ -121,17 +140,21 @@ export function AdminProductsList({
       } else if (categoryFilter && p.category !== categoryFilter) {
         return false;
       }
-      if (brandFilter.trim() && !p.brand.toLowerCase().includes(brandFilter.trim().toLowerCase())) {
+      if (brandFilter === '__unknown__') {
+        if (!p.brand) return false;
+        if (brandNameById.has(p.brand)) return false;
+      } else if (brandFilter && p.brand !== brandFilter) {
         return false;
       }
       if (q) {
-        const label = resolveCategoryLabel(p.category).toLowerCase();
-        const hay = `${p.name} ${p.brand} ${label}`.toLowerCase();
+        const categoryLabel = resolveCategoryLabel(p.category).toLowerCase();
+        const brandLabel = (brandNameById.get(p.brand) ?? p.brand).toLowerCase();
+        const hay = `${p.name} ${brandLabel} ${categoryLabel}`.toLowerCase();
         if (!hay.includes(q)) return false;
       }
       return true;
     });
-  }, [products, search, statusFilter, categoryFilter, brandFilter, categoryNameById, resolveCategoryLabel]);
+  }, [products, search, statusFilter, categoryFilter, brandFilter, categoryNameById, brandNameById, resolveCategoryLabel]);
 
   const clearFilters = () => {
     setSearch('');
@@ -144,7 +167,7 @@ export function AdminProductsList({
     search.trim() !== '' ||
     statusFilter !== 'all' ||
     categoryFilter !== '' ||
-    brandFilter.trim() !== '';
+    brandFilter !== '';
 
   return (
     <div className={className}>
@@ -190,10 +213,11 @@ export function AdminProductsList({
           options={categoryOptions}
           style={{ width: '100%' }}
         />
-        <Input
-          placeholder="Brand contains…"
+        <Select
           value={brandFilter}
           onChange={(e) => setBrandFilter(e.target.value)}
+          options={brandOptions}
+          style={{ width: '100%' }}
         />
         <Button
           variant="outline"
@@ -234,6 +258,8 @@ export function AdminProductsList({
               const editHref = getEditHref(p.id);
               const categoryLabel = resolveCategoryLabel(p.category);
               const categoryIsLegacy = p.category && !categoryNameById.has(p.category);
+              const brandLabel = brandNameById.get(p.brand) ?? p.brand;
+              const brandIsLegacy = p.brand && !brandNameById.has(p.brand);
               return (
                 <TR key={p.id}>
                   <TD style={{ color: '#888', fontVariantNumeric: 'tabular-nums' }}>{idx + 1}</TD>
@@ -256,7 +282,17 @@ export function AdminProductsList({
                       </a>
                     </span>
                   </TD>
-                  <TD style={{ color: '#666' }}>{p.brand}</TD>
+                  <TD style={{ color: brandIsLegacy ? '#b45309' : '#666' }}>
+                    {brandLabel}
+                    {brandIsLegacy && (
+                      <span
+                        title="This product stores a legacy free-text brand instead of a brand-doc id. Run Migrate now on the Brands page, or edit + save it to clean up."
+                        style={{ marginLeft: 6, fontSize: 11 }}
+                      >
+                        ⚠
+                      </span>
+                    )}
+                  </TD>
                   <TD style={{ color: categoryIsLegacy ? '#b45309' : '#666' }}>
                     {categoryLabel}
                     {categoryIsLegacy && (

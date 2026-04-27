@@ -603,6 +603,8 @@ node node_modules/@caspian-explorer/script-caspian-store/firebase/scripts/migrat
 
 Products with a legacy name that doesn't match any `productCategories` entry stay unchanged; the admin products list flags them with an amber warning icon so you can fix them by hand.
 
+**v8.4.0 — product brand stored as id instead of name.** Same pattern as the v1.22 category migration, but run from the admin UI rather than a CLI: open **Catalog → Brands** in the admin panel. If any products still hold a free-text brand string, a yellow banner appears with a **Migrate now** button — clicking it creates matching `productBrands` records (deterministic ids from `slugify(name)`, case-insensitive coalescing so "Nike" + "nike" become one) and updates each product in place. Idempotent. No CLI script, no service-account key, no `--dry-run` flag — admins click once and the data reshapes itself. The product editor and storefront keep rendering legacy free-text brand values via the read-side fallback until the admin runs the sweep, so storefronts are never visibly broken in the meantime.
+
 See [CHANGELOG.md](./CHANGELOG.md) for release notes and migration guidance per version.
 
 ---
