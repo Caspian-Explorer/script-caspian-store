@@ -16,6 +16,34 @@ Do not omit the heading, rename it, or fold it into `### Notes`. This is how
 customers tell at a glance whether an upgrade needs attention.
 -->
 
+## v8.5.2 — Self-update works on Windows again (#store-1213)
+
+The `<AdminAboutPage>` "Update available → Update" button has been silently broken on Windows hosts since v7.4.0 (April 2025). Clicking it returned `Unexpected non-JSON response (HTTP 500)` and the consumer's Next.js dev/server log showed `Error: spawn EINVAL { errno: -4071 }`. The bug is invisible on Linux, which is why every production deployment (Vercel / Cloud Run / Firebase App Hosting) shipped fine — but local Windows development and self-hosted Windows servers couldn't self-update at all.
+
+Root cause is Node's CVE-2024-27980 hardening (Node 18.20.2 / 20.12.2 / 21.7.3 / 22, April 2024): spawning `.cmd` or `.bat` files via `child_process.spawn` now requires `{ shell: true }` on Windows. Our [src/server/self-update.ts](src/server/self-update.ts) hardcoded `shell: false` while invoking `npm.cmd`, so every modern Node-on-Windows process threw `EINVAL` synchronously — *before* `child.on('error', …)` was registered, escaping the Promise and producing Next's default HTML error page instead of our JSON shape.
+
+The fix is one parameter: `shell: process.platform === 'win32'`. POSIX behavior is bit-for-bit unchanged. `shell: true` is safe on Windows here because every component of the `npm install` spec is already regex-validated upstream — `allowedOwner` / `allowedRepo` against `/^[A-Za-z0-9._-]{1,100}$/` and `version` against `/^[0-9]+\.[0-9]+\.[0-9]+$/`. None of those character classes overlap with shell metacharacters, so injection is impossible.
+
+### Consumer action required on upgrade
+
+This is the awkward release where the broken endpoint *is* the self-update mechanism, so Windows admins on v8.4.0 / v8.5.0 / v8.5.1 cannot use the in-app Update button to install v8.5.2. One-time manual install:
+
+```powershell
+npm install github:Caspian-Explorer/script-caspian-store#v8.5.2
+```
+
+After that, future updates work from the in-app button as designed. Linux/Mac admins can install v8.5.2 either way (their button has been working fine all along).
+
+### Fixed
+
+- [src/server/self-update.ts](src/server/self-update.ts): `spawn(npm.cmd, …, { shell: false })` → `{ shell: process.platform === 'win32' }`. Resolves `Error: spawn EINVAL` on every Node ≥ 18.20.2 Windows host. Adds an inline comment citing CVE-2024-27980 and the validated-allowlist invariant that makes `shell: true` safe so a future refactor doesn't reintroduce the regression.
+
+### Changed
+
+- [CLAUDE.md](CLAUDE.md): added a Gotchas entry pointing future contributors at the spawn-shell-true Windows requirement.
+
+---
+
 ## v8.5.1 — Admin via Auth custom claims; storage uploads stop tripping cross-service Firestore reads (#store-1210)
 
 Admins still couldn't upload a logo from `<AdminSiteSettingsPage>` after v8.3.1 + v8.4.x — the toast told them to redeploy storage rules, they did, the rules were correct on disk, and they STILL got `storage/unauthorized`. Root cause across reported installs: the rules' `isAdmin()` predicate calls `firestore.get(/databases/(default)/documents/users/$(uid))` from inside Storage rules — a cross-service lookup that fails for any of a dozen project-config reasons (Firestore not in the `(default)` database, IAM grants missing for the rules service agent, permissions propagation delay, the user's `users/{uid}` doc carrying a typo or stale role field). Every one of those eats every admin write silently and the admin's only remediation was "fiddle with Firebase project settings until it works."

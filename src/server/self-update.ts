@@ -260,13 +260,20 @@ export async function caspianHandleSelfUpdate(
     // compromised dep could execute arbitrary code under the server's
     // process identity. Our own package has no install scripts that need
     // to run on consumer sites, so this is safe.
+    // `shell: true` on Windows is required since CVE-2024-27980 (Node 18.20.2 /
+    // 20.12.2 / 21.7.3 / 22): spawning `.cmd` / `.bat` files with `shell: false`
+    // throws `EINVAL` synchronously, escaping this Promise and producing an
+    // HTML 500 instead of a JSON error. Safe here because every component of
+    // `spec` is regex-validated above (VERSION_RE, GITHUB_NAME_RE) — no shell
+    // metacharacters can reach the shell. POSIX still uses `shell: false` so
+    // production Linux hosts behave bit-for-bit as before.
     const child = spawn(
       npmCmd,
       ['install', spec, '--ignore-scripts', '--no-audit', '--no-fund'],
       {
         cwd: process.cwd(),
         env: process.env,
-        shell: false,
+        shell: process.platform === 'win32',
       },
     );
     child.stdout.on('data', (d: Buffer) => (stdout += d.toString()));
