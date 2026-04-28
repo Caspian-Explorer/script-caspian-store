@@ -70,7 +70,7 @@ export function ImageUploadField({
   allowedTypes = DEFAULT_TYPES,
   className,
 }: ImageUploadFieldProps) {
-  const { auth, db, storage } = useCaspianFirebase();
+  const { auth, db, storage, functions } = useCaspianFirebase();
   const { toast } = useToast();
   const t = useT();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -86,6 +86,7 @@ export function ImageUploadField({
       const url = await uploadAdminImage({
         storage,
         auth,
+        functions,
         path,
         file,
         maxBytes,

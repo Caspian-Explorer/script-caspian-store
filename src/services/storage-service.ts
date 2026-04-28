@@ -7,6 +7,7 @@ import {
 } from 'firebase/storage';
 import { doc, getDoc, updateDoc, Timestamp, type Firestore } from 'firebase/firestore';
 import { updateProfile, type Auth } from 'firebase/auth';
+import { httpsCallable, type Functions } from 'firebase/functions';
 
 const PROFILE_PHOTO_PATH = (uid: string, ext: string) => `users/${uid}/avatar.${ext}`;
 const LEGACY_PROFILE_PHOTO_PATHS = ['jpg', 'jpeg', 'png', 'webp'];
@@ -88,6 +89,7 @@ export async function uploadAdminImage({
   path,
   file,
   auth,
+  functions,
   maxBytes = 10 * 1024 * 1024,
   allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'],
 }: {
@@ -95,6 +97,7 @@ export async function uploadAdminImage({
   path: string;
   file: File;
   auth?: Auth;
+  functions?: Functions;
   maxBytes?: number;
   allowedTypes?: string[];
 }): Promise<string> {
@@ -109,13 +112,82 @@ export async function uploadAdminImage({
     await uploadBytes(storageRef, file, { contentType: file.type });
   } catch (err) {
     if (isUnauthorized(err) && auth?.currentUser) {
-      await auth.currentUser.getIdToken(true);
+      // v8.8.0: when Functions is available, try the server-side heal
+      // (ensureAdminClaim mirrors users/{uid}.role to a custom claim) so
+      // pre-trigger admins self-fix without running the backfill script.
+      // Falls through to the v8.6.0 plain force-refresh if Functions
+      // isn't passed or the callable isn't deployed.
+      if (functions) {
+        await tryEnsureAdminClaim({ functions, auth });
+      } else {
+        await auth.currentUser.getIdToken(true);
+      }
       await uploadBytes(storageRef, file, { contentType: file.type });
     } else {
       throw err;
     }
   }
   return await getDownloadURL(storageRef);
+}
+
+/**
+ * Calls the `ensureAdminClaim` callable (v8.8.0 of the `caspian-admin`
+ * Functions codebase) to mirror the caller's `users/{uid}.role` to an
+ * Auth custom claim, then force-refreshes the ID token so the new claim
+ * is visible immediately.
+ *
+ * Returns `true` if the claim was set or already correct, `false` if
+ * Firestore says the caller isn't admin OR the callable isn't deployed
+ * (older Functions versions). Never throws — the upload + diagnostic
+ * flow can fall through gracefully.
+ *
+ * Safe to call on every admin sign-in or every storage/unauthorized
+ * retry: it's idempotent and won't escalate privilege beyond what
+ * `users/{uid}.role` already says.
+ */
+export async function tryEnsureAdminClaim({
+  functions,
+  auth,
+}: {
+  functions: Functions;
+  auth: Auth;
+}): Promise<boolean> {
+  if (!auth.currentUser) return false;
+  try {
+    const callable = httpsCallable<unknown, EnsureAdminClaimResult>(
+      functions,
+      'ensureAdminClaim',
+    );
+    const result = await callable({});
+    if (result.data?.requiresTokenRefresh) {
+      await auth.currentUser.getIdToken(true);
+    } else {
+      // Even if the server side was already a no-op, force-refresh as a
+      // defense in depth — the local cached token might still be stale
+      // from a different out-of-band claim mutation.
+      await auth.currentUser.getIdToken(true);
+    }
+    return result.data?.role === 'admin';
+  } catch {
+    // Most common cause: the callable isn't deployed yet (caspian-admin
+    // Functions older than v0.6.0). Older v8.6.0 fallback: just refresh
+    // the token, which is enough if the trigger DID fire and the claim
+    // is just stale on the client.
+    try {
+      await auth.currentUser.getIdToken(true);
+    } catch {
+      // Network blip — give up. The diagnose path will surface the right
+      // message after this returns false.
+    }
+    return false;
+  }
+}
+
+interface EnsureAdminClaimResult {
+  ok: boolean;
+  role?: string;
+  claimSet?: boolean;
+  requiresTokenRefresh?: boolean;
 }
 
 function isUnauthorized(err: unknown): boolean {

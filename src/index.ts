@@ -553,6 +553,7 @@ export {
   uploadAdminImage,
   deleteStorageObject,
   diagnoseUploadDenial,
+  tryEnsureAdminClaim,
   type UploadDenialDiagnosis,
 } from './services/storage-service';
 

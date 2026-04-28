@@ -28,6 +28,7 @@ import { doc, getDoc, setDoc, Timestamp } from 'firebase/firestore';
 import type { CaspianFirebase } from '../firebase/client';
 import type { UserProfile } from '../types';
 import { logError, reportServiceError } from '../services/error-log-service';
+import { tryEnsureAdminClaim } from '../services/storage-service';
 
 interface AuthContextValue {
   user: User | null;
@@ -121,10 +122,16 @@ export function AuthProvider({
             try {
               const tokenResult = await firebaseUser.getIdTokenResult();
               if (tokenResult.claims.role !== 'admin') {
-                await firebaseUser.getIdToken(true);
+                // v8.8.0: try the server-side heal first
+                // (`ensureAdminClaim` mirrors users/{uid}.role to the Auth
+                // custom claim). Older Functions deployments without that
+                // callable fall through to a plain getIdToken(true), which
+                // is the v8.6.0 behavior — fine when the claim was already
+                // set server-side and just hasn't reached the local token.
+                await tryEnsureAdminClaim({ functions: firebase.functions, auth: firebase.auth });
               }
             } catch (error) {
-              // Network blip — non-fatal. The §1 retry inside
+              // Network blip — non-fatal. The retry inside
               // `uploadAdminImage` is a second line of defense.
               reportServiceError(firebase.db, 'auth-context.refreshAdminClaim', error);
             }

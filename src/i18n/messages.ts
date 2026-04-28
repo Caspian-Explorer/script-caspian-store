@@ -145,7 +145,7 @@ export const DEFAULT_MESSAGES: MessageDict = {
     "Your user profile isn't marked as admin. Open /admin and use 'Claim admin role', or have an existing admin promote you.",
   'imageUpload.errors.claimNotSet.title': 'Admin role not yet active on your token',
   'imageUpload.errors.claimNotSet.description':
-    "You're admin in Firestore, but the auth token doesn't carry the admin claim. The caspian-admin Cloud Functions may not be deployed. From your project root run `firebase deploy --only functions`, then sign out and back in.",
+    "Auto-heal couldn't reach the `ensureAdminClaim` Cloud Function — your `caspian-admin` codebase may be older than v0.6.0 or not deployed. From your project root run `firebase deploy --only functions:caspian-admin`. If that doesn't work, run `node firebase/seed/sync-admin-claims.mjs --project <id> --credentials ./service-account.json`, then sign out and back in.",
   'imageUpload.errors.rulesStale.title': 'Storage rules may be out of date',
   'imageUpload.errors.rulesStale.description':
     'Your deployed Storage rules don’t allow this path. Run `npm run firebase:sync && firebase deploy --only storage` from your project root, then retry. (See INSTALL.md § Upgrade.)',
@@ -756,7 +756,7 @@ export const DEFAULT_MESSAGES: MessageDict = {
   'setup.superAdmin.signin.submitting': 'Signing in…',
   'setup.superAdmin.signin.success': "You're now admin — token refreshed.",
   'setup.superAdmin.email.hint':
-    "Type the email of whoever should become super admin. They'll be promoted automatically the first time they sign up at /auth/register, even if a customer signs up before them.",
+    "Type the email of whoever should become super admin. They'll be promoted automatically the first time they sign up at /register, even if a customer signs up before them.",
   'setup.superAdmin.email.label': 'Future admin email',
   'setup.superAdmin.email.invalid': 'Enter a valid email address.',
   'setup.superAdmin.email.submit': 'Save designation',

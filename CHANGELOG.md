@@ -16,6 +16,48 @@ Do not omit the heading, rename it, or fold it into `### Notes`. This is how
 customers tell at a glance whether an upgrade needs attention.
 -->
 
+## v8.8.0 — Auto-heal stale admin claims via `ensureAdminClaim` callable (#store-1210)
+
+Closes the third (and final) iteration of `#store-1210`. v8.6.0 fixed the *diagnostic* (precise toast naming the right command); v8.8.0 fixes the *recovery* (no command needed at all).
+
+The remaining failure mode after v8.6.0: an admin whose `users/{uid}.role` was set in Firestore **before** the `syncAdminClaim` trigger was deployed. The trigger only fires on new writes, so the claim was never set server-side. Token refresh has nothing to pick up. The v8.6.0 toast told them to redeploy Functions and sign out + in — which doesn't help because no trigger fires for existing docs. The only working remediation was the `firebase/seed/sync-admin-claims.mjs` CLI script, which violates the "releases must never require consumer hand-edits" rule.
+
+This release adds a server-side self-heal callable `ensureAdminClaim` that any signed-in user can invoke. It reads `users/{caller.uid}.role` and mirrors it to a custom claim — never escalating privilege beyond what Firestore already says. The library auto-invokes it from two places:
+
+1. **AuthContext proactive refresh** ([src/context/auth-context.tsx](src/context/auth-context.tsx)) — on admin sign-in, if Firestore says admin but the cached ID token's claim is missing, call `ensureAdminClaim` (sets the claim + force-refreshes the token). Bounded to once per uid via the existing `useRef` gate so consumers on undeployed Functions don't loop.
+2. **`uploadAdminImage` retry** ([src/services/storage-service.ts](src/services/storage-service.ts)) — on `storage/unauthorized`, the v8.6.0 plain token-refresh retry is now upgraded to call `ensureAdminClaim` first when `Functions` is available, then retry the upload. Older v8.6.0 fallback (plain refresh, no heal) is preserved when `Functions` isn't passed or the callable isn't deployed.
+
+Net effect: stale-claim cases self-heal silently. The first admin upload after upgrading to v8.8.0 + redeploying Functions just works — no toast, no script, no manual steps.
+
+The `claimNotSet` i18n message is updated to reflect that auto-heal already tried and failed by the time the toast fires (so the user is on an older Functions deployment, not just stale).
+
+### Consumer action required on upgrade
+
+Auto-heal only kicks in after consumers redeploy `caspian-admin`:
+
+```bash
+npm install github:Caspian-Explorer/script-caspian-store#v8.8.0
+cd firebase/functions-admin && npm install && cd ../..
+firebase deploy --only functions:caspian-admin
+```
+
+After deploying, every existing admin's first sign-in heals automatically — no service-account script, no Firestore edit, no re-sign-in dance. Stores that don't redeploy still see the v8.6.0 toast, with copy now naming the right command.
+
+### Added
+
+- New file [firebase/functions-admin/src/ensure-admin-claim.ts](firebase/functions-admin/src/ensure-admin-claim.ts): the `ensureAdminClaim` callable. Idempotent, no-payload. Returns `{ ok, role, claimSet, requiresTokenRefresh }`.
+- New exported helper `tryEnsureAdminClaim({ functions, auth })` in [src/services/storage-service.ts](src/services/storage-service.ts) — wraps the callable + token refresh, swallows all errors, returns a boolean. Safe to call on every admin sign-in or every upload retry.
+- `functions?: Functions` optional param on `uploadAdminImage` so the upload retry path can run server-side heal before retrying.
+
+### Changed
+
+- [src/context/auth-context.tsx](src/context/auth-context.tsx): proactive refresh now calls `tryEnsureAdminClaim` instead of bare `getIdToken(true)`. Same once-per-uid gate.
+- [src/ui/image-upload-field.tsx](src/ui/image-upload-field.tsx): passes `functions` to `uploadAdminImage` so the v8.8.0 server-side heal path is wired by default.
+- [src/i18n/messages.ts](src/i18n/messages.ts): `imageUpload.errors.claimNotSet.description` updated to reflect that auto-heal already tried — the toast now means "Functions older than v0.6.0 OR not deployed at all."
+- [firebase/functions-admin/package.json](firebase/functions-admin/package.json): `0.5.0` → `0.6.0` since `index.ts` now exports an additional callable.
+
+---
+
 ## v8.7.0 — Multi-step install wizard with pre-flight checklist + super-admin designation (#store-1224)
 
 The wizard at `/setup` (originally shipped as `v1.24` parallel work and never released under that name) gains two leading steps so the install becomes a true installation guide rather than a configuration form:
