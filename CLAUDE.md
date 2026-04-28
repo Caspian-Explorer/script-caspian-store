@@ -8,6 +8,18 @@ Orientation for AI sessions working on this repo. User-facing setup lives in [RE
 
 A turnkey consumer-site scaffolder lives at [scaffold/create.mjs](scaffold/create.mjs) — it generates a pre-wired Next.js App Router site.
 
+## Triage incoming reports
+
+When the user pastes an error, stack trace, screenshot, log, bug report, or feature request, **before proposing a fix** state which side the problem lives on:
+
+- **Library bug** — reproduces from this repo's source (`src/`, `firebase/`, `scaffold/`, build config) on a clean install at the latest tag. Fix here, ship through the Pre-Commit Checklist.
+- **Consumer-site bug** — the symptom is on the user's downstream Next.js / Vite / CRA site that `npm install`-ed the library. Common causes: pinned to an old tag, missing `firestore.rules`/`firestore.indexes.json` redeploy, miswired framework adapter, stale `.next/` cache, env vars, or local `dist/` drift. The library itself may be innocent.
+- **Both** — a real library bug that *also* needs the consumer to redeploy/upgrade once fixed.
+
+Open the response by naming the verdict and the evidence (file path, version, behaviour) that led there. If the evidence is genuinely ambiguous, ask one targeted question (e.g. *"is this from the live consumer site or while running `npm run dev` inside this repo?"*) rather than guessing.
+
+When a bug surfaces on a consumer site but the library could have prevented it — via validation, a better error, a self-heal path, or a safer default — prefer fixing it in the library. Releases must never require consumer hand-edits (see the matching memory rule).
+
 ## Commands
 
 ```bash
