@@ -16,6 +16,39 @@ Do not omit the heading, rename it, or fold it into `### Notes`. This is how
 customers tell at a glance whether an upgrade needs attention.
 -->
 
+## v8.6.0 — Self-healing admin uploads + precise upload-denial diagnostics (#store-1210)
+
+Closes the third (and we believe final) iteration of `#store-1210`. The earlier two iterations — v8.3.1's `CASPIAN_STORAGE_RULES` self-diagnostic toast and v8.5.1's move to Auth custom claims — left one residual failure: an admin whose ID token was issued *before* the `role: 'admin'` claim was set still saw `storage/unauthorized` on their first upload. The toast told them to redeploy storage rules; redeploying didn't help, because the rules were correct. The actual fix was to refresh the ID token, which the admin had no way to discover from the diagnostic.
+
+This release fixes that on three layers:
+
+1. **Auto-heal at the upload site.** [src/services/storage-service.ts](src/services/storage-service.ts)'s `uploadAdminImage` now accepts an optional `auth` and, on `storage/unauthorized`, force-refreshes the ID token and retries the upload exactly once. The most common failure mode (claim was set after token issuance) self-heals invisibly — no toast, no user action.
+2. **Pre-emptive refresh on sign-in.** [src/context/auth-context.tsx](src/context/auth-context.tsx) now compares Firestore `users/{uid}.role` to the cached ID token's `role` claim on every admin sign-in. If Firestore says admin but the token doesn't carry the claim, fire one `getIdToken(true)`. Bounded to once per uid via `useRef` so consumers whose `caspian-admin` Cloud Functions are undeployed don't loop. Every admin write — Storage upload, Firestore admin doc — now sees the claim from the first action.
+3. **Precise diagnostic when retry fails.** New exported helper `diagnoseUploadDenial({ auth, db })` returns one of three discriminated kinds (`notAdmin` / `claimNotSet` / `rulesStale`) by combining the freshest ID token with the Firestore role doc. [src/ui/image-upload-field.tsx](src/ui/image-upload-field.tsx) calls it after the §1 retry also fails and surfaces a kind-specific toast that names the right command — `firebase deploy --only functions` for case b/e, the AccessDenied flow for case c, the existing `firebase:sync && deploy --only storage` line for case d.
+
+Test coverage: [firebase/rules.test.mjs](firebase/rules.test.mjs) gains four positive "admin (custom claim) write allowed" tests — one per Storage rule (`siteSettings/`, `products/`, `journal/`, `pageContents/`) — using `authenticatedContext(uid, { role: 'admin' })` to inject the claim and exercise the JWT short-circuit in `isAdmin()` without touching the still-untestable Firestore-fallback path. Closes the gap noted in the limitation comment that's been there since v1.21.
+
+### No consumer action required
+
+The auto-heal works against existing v8.5.x deployments without redeploying anything — the new behavior fires whenever the upload path is exercised. The deployed storage rules and `caspian-admin` Functions from v8.5.1 still satisfy this release. If the underlying deployment really IS stale (rules drift, undeployed functions), the new diagnostic now names the right fix instead of always blaming "stale storage rules."
+
+### Added
+
+- [src/services/storage-service.ts](src/services/storage-service.ts): exported `diagnoseUploadDenial()` and `UploadDenialDiagnosis` type. `uploadAdminImage` now accepts optional `auth` and self-heals `storage/unauthorized` once per call.
+- [src/i18n/messages.ts](src/i18n/messages.ts): three new diagnosis-keyed message pairs — `imageUpload.errors.{notAdmin,claimNotSet,rulesStale}.{title,description}`.
+- [src/context/auth-context.tsx](src/context/auth-context.tsx): pre-emptive admin-claim token refresh inside the `onAuthStateChanged` block, gated to once per uid.
+- [firebase/rules.test.mjs](firebase/rules.test.mjs): `adminClaimStorage(uid)` helper plus four positive write-allowed tests covering all four admin storage rules.
+
+### Deprecated
+
+- `imageUpload.errors.unauthorized.title` and `imageUpload.errors.unauthorized.description` keys remain as aliases pointing at the new `rulesStale.*` text. Slated for removal in v8.7.x. If you maintain a custom message dict, migrate to the diagnosis-keyed names; if you read the keys at runtime, they continue to resolve.
+
+### Changed
+
+- [firebase/rules.test.mjs](firebase/rules.test.mjs) limitation comment updated: the JWT path is now covered, only the Firestore-fallback path remains manual-only.
+
+---
+
 ## v8.5.2 — Self-update works on Windows again (#store-1213)
 
 The `<AdminAboutPage>` "Update available → Update" button has been silently broken on Windows hosts since v7.4.0 (April 2025). Clicking it returned `Unexpected non-JSON response (HTTP 500)` and the consumer's Next.js dev/server log showed `Error: spawn EINVAL { errno: -4071 }`. The bug is invisible on Linux, which is why every production deployment (Vercel / Cloud Run / Firebase App Hosting) shipped fine — but local Windows development and self-hosted Windows servers couldn't self-update at all.

@@ -4,6 +4,7 @@ import {
   createContext,
   useContext,
   useEffect,
+  useRef,
   useState,
   useCallback,
   type ReactNode,
@@ -91,6 +92,10 @@ export function AuthProvider({
   const [user, setUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  // v8.6.0: pre-emptive admin-claim token refresh, gated to once per uid so
+  // we don't loop on consumers whose `caspian-admin` Cloud Functions are
+  // undeployed (the claim will never arrive — refreshing again won't help).
+  const refreshedClaimForUid = useRef<string | null>(null);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(firebase.auth, async (firebaseUser) => {
@@ -99,11 +104,37 @@ export function AuthProvider({
         try {
           const profile = await fetchOrCreateUserProfile(firebase, firebaseUser);
           setUserProfile(profile);
+          // If Firestore says admin but the cached ID token is missing the
+          // `role: 'admin'` custom claim, force-refresh once. This pre-empts
+          // the most common storage/unauthorized cause: the claim was set
+          // (by `claimAdmin`, `onUserCreate`, or `syncAdminClaim`) AFTER
+          // the user's last token issuance, so storage.rules' fast path
+          // fails until the token rotates ~1h later. Refreshing here makes
+          // the next admin write — Storage upload, Firestore write — see
+          // the claim immediately. Bounded to once per uid so a consumer
+          // who hasn't deployed the admin Functions doesn't loop.
+          if (
+            profile.role === 'admin' &&
+            refreshedClaimForUid.current !== firebaseUser.uid
+          ) {
+            refreshedClaimForUid.current = firebaseUser.uid;
+            try {
+              const tokenResult = await firebaseUser.getIdTokenResult();
+              if (tokenResult.claims.role !== 'admin') {
+                await firebaseUser.getIdToken(true);
+              }
+            } catch (error) {
+              // Network blip — non-fatal. The §1 retry inside
+              // `uploadAdminImage` is a second line of defense.
+              reportServiceError(firebase.db, 'auth-context.refreshAdminClaim', error);
+            }
+          }
         } catch (error) {
           reportServiceError(firebase.db, 'auth-context.fetchProfile', error);
           setUserProfile(null);
         }
       } else {
+        refreshedClaimForUid.current = null;
         setUserProfile(null);
       }
       setLoading(false);

@@ -552,6 +552,8 @@ export { ShippingRatePicker, type ShippingRatePickerProps } from './components/c
 export {
   uploadAdminImage,
   deleteStorageObject,
+  diagnoseUploadDenial,
+  type UploadDenialDiagnosis,
 } from './services/storage-service';
 
 // --- Admin surface ---

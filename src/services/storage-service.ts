@@ -5,7 +5,7 @@ import {
   uploadBytes,
   type FirebaseStorage,
 } from 'firebase/storage';
-import { doc, updateDoc, Timestamp, type Firestore } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, Timestamp, type Firestore } from 'firebase/firestore';
 import { updateProfile, type Auth } from 'firebase/auth';
 
 const PROFILE_PHOTO_PATH = (uid: string, ext: string) => `users/${uid}/avatar.${ext}`;
@@ -65,11 +65,20 @@ export async function uploadProfilePhoto({
  * and `pageContents/**` (see `firebase/storage.rules` /
  * `CASPIAN_STORAGE_RULES`).
  *
+ * Pass `auth` to enable the v8.6.0 self-heal: if Storage returns
+ * `storage/unauthorized` on the first attempt, the helper force-refreshes
+ * the user's ID token and retries once. This recovers the common case where
+ * an admin's claim was set after their cached ID token was issued (e.g.
+ * `claimAdmin` ran in another tab, or `syncAdminClaim` fired during the
+ * session). The retry runs at most once — if it also fails the original
+ * error is rethrown so callers can surface a precise diagnostic via
+ * {@link diagnoseUploadDenial}.
+ *
  * `uploadBytes` may throw a `FirebaseError`; common `error.code` values
  * callers should handle:
  *   - `storage/unauthorized` — rules deny the path, or the user's Firestore
- *     `users/{uid}.role !== 'admin'`. Most often: stale deployed rules. Fix:
- *     `firebase deploy --only storage`.
+ *     `users/{uid}.role !== 'admin'`, or the admin custom claim isn't on
+ *     the token. Use {@link diagnoseUploadDenial} to disambiguate.
  *   - `storage/unauthenticated` — no auth user. Sign in again.
  *   - `storage/quota-exceeded` — Storage bucket is full.
  *   - `storage/retry-limit-exceeded` / `storage/canceled` — network drop.
@@ -78,12 +87,14 @@ export async function uploadAdminImage({
   storage,
   path,
   file,
+  auth,
   maxBytes = 10 * 1024 * 1024,
   allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'],
 }: {
   storage: FirebaseStorage;
   path: string;
   file: File;
+  auth?: Auth;
   maxBytes?: number;
   allowedTypes?: string[];
 }): Promise<string> {
@@ -94,8 +105,80 @@ export async function uploadAdminImage({
     throw new Error(`Image must be under ${Math.round(maxBytes / 1024 / 1024)} MB.`);
   }
   const storageRef = ref(storage, path);
-  await uploadBytes(storageRef, file, { contentType: file.type });
+  try {
+    await uploadBytes(storageRef, file, { contentType: file.type });
+  } catch (err) {
+    if (isUnauthorized(err) && auth?.currentUser) {
+      await auth.currentUser.getIdToken(true);
+      await uploadBytes(storageRef, file, { contentType: file.type });
+    } else {
+      throw err;
+    }
+  }
   return await getDownloadURL(storageRef);
+}
+
+function isUnauthorized(err: unknown): boolean {
+  return (
+    err !== null &&
+    typeof err === 'object' &&
+    'code' in err &&
+    (err as { code?: unknown }).code === 'storage/unauthorized'
+  );
+}
+
+/**
+ * Discriminates the reason an admin image upload was denied, so the UI can
+ * show a precise toast instead of always blaming "stale storage rules."
+ *
+ * Call after {@link uploadAdminImage} threw `storage/unauthorized` AND its
+ * built-in token-refresh retry also failed.
+ *
+ * - `notAdmin` — Firestore `users/{uid}.role !== 'admin'`. Path: AccessDenied
+ *   / `claimAdmin` flow.
+ * - `claimNotSet` — Firestore says admin but the freshest ID token has no
+ *   `role: 'admin'` custom claim. The `caspian-admin` Cloud Functions
+ *   (specifically `syncAdminClaim`) likely aren't deployed. Path:
+ *   `firebase deploy --only functions`.
+ * - `rulesStale` — Firestore admin AND claim present. The rules engine
+ *   still denies, so the deployed rules don't allow this path or the
+ *   Firebase Rules API is disabled on the project. Path:
+ *   `npm run firebase:sync && firebase deploy --only storage`.
+ */
+export type UploadDenialDiagnosis =
+  | { kind: 'notAdmin' }
+  | { kind: 'claimNotSet' }
+  | { kind: 'rulesStale' };
+
+export async function diagnoseUploadDenial({
+  auth,
+  db,
+}: {
+  auth: Auth;
+  db: Firestore;
+}): Promise<UploadDenialDiagnosis> {
+  const user = auth.currentUser;
+  if (!user) return { kind: 'notAdmin' };
+
+  // Don't force-refresh — the retry path already did, and a second forced
+  // refresh inside the same flow doesn't surface anything new.
+  const tokenResult = await user.getIdTokenResult();
+  const claimIsAdmin = tokenResult.claims.role === 'admin';
+
+  let firestoreIsAdmin = false;
+  try {
+    const snap = await getDoc(doc(db, 'users', user.uid));
+    firestoreIsAdmin = snap.exists() && snap.data()?.role === 'admin';
+  } catch {
+    // If Firestore read fails (offline / rules / network), treat as
+    // not-admin — the user can't be authorized as admin if we can't even
+    // read their profile. Better to over-explain than silently default to
+    // "redeploy rules."
+  }
+
+  if (!firestoreIsAdmin) return { kind: 'notAdmin' };
+  if (!claimIsAdmin) return { kind: 'claimNotSet' };
+  return { kind: 'rulesStale' };
 }
 
 export async function deleteStorageObject(

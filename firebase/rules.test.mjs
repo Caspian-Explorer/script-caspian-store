@@ -83,6 +83,15 @@ function authedStorage(uid) {
   return env.authenticatedContext(uid).storage();
 }
 
+// v8.6.0: storage.rules `isAdmin()` short-circuits on the `role: 'admin'`
+// custom claim before falling back to a cross-service Firestore read. The
+// rules-unit-testing sandbox can't wire the cross-service read (see comment
+// above the siteSettings/** block) but `authenticatedContext` accepts
+// arbitrary token claims via its second arg — so the claim path IS testable.
+function adminClaimStorage(uid) {
+  return env.authenticatedContext(uid, { role: 'admin' }).storage();
+}
+
 function unauthedStorage() {
   return env.unauthenticatedContext().storage();
 }
@@ -498,15 +507,14 @@ test('errorLogs/{id}: admin can bump seenCount', async () => {
 // ---- storage: siteSettings/** ----------------------------------------
 // Branding uploads (logo + favicon) from <AdminSiteSettingsPage>. Added v1.21.
 //
-// Limitation: `isAdmin()` in storage.rules calls `firestore.get(...)` which is
-// a cross-service lookup. `@firebase/rules-unit-testing` does not wire the
-// storage rules runtime to read from the Firestore emulator in sandbox mode,
-// so any rule path that requires isAdmin() == true returns a null-lookup
-// error and denies. We therefore can't positively assert the admin-write
-// success path here. We cover the negative paths (unauthenticated, non-admin,
-// bad content-type) and the public-read path (using a rules-bypass seed).
-// Admin-write success is verified manually in the example app against a
-// fully-deployed emulator or live project.
+// Limitation (Firestore fallback): `isAdmin()` in storage.rules first checks
+// the `role: 'admin'` Auth custom claim and only falls back to
+// `firestore.get(...)` when the claim is absent. The rules-unit-testing
+// sandbox does not wire storage→Firestore reads, so the FALLBACK path is
+// only verified manually in the example app. The CLAIM path (the primary
+// admin signal since v8.5.1) IS covered here via `adminClaimStorage()` —
+// see the "admin (custom claim) write allowed" test in each rule's block
+// below.
 
 test('storage siteSettings/**: unauthenticated write denied', async () => {
   await env.clearFirestore();
@@ -611,5 +619,55 @@ test('storage products/**: public read allowed', async () => {
   const publicStorage = unauthedStorage();
   await assertSucceeds(
     getDownloadURL(storageRef(publicStorage, 'products/p1/hero.png')),
+  );
+});
+
+// ---- storage: admin custom-claim write paths ------------------------
+// v8.6.0: positive coverage for the admin-claim short-circuit in
+// `isAdmin()`. Each test uploads a valid image as a user whose token
+// carries `role: 'admin'` — exercising the JWT path and bypassing the
+// untestable Firestore-fallback path.
+
+test('storage siteSettings/**: admin (custom claim) write allowed', async () => {
+  await env.clearFirestore();
+  await env.clearStorage();
+  const storage = adminClaimStorage('admin1');
+  await assertSucceeds(
+    uploadBytes(storageRef(storage, 'siteSettings/logo.png'), PNG_1x1, {
+      contentType: 'image/png',
+    }),
+  );
+});
+
+test('storage products/**: admin (custom claim) write allowed', async () => {
+  await env.clearFirestore();
+  await env.clearStorage();
+  const storage = adminClaimStorage('admin1');
+  await assertSucceeds(
+    uploadBytes(storageRef(storage, 'products/p1/hero.png'), PNG_1x1, {
+      contentType: 'image/png',
+    }),
+  );
+});
+
+test('storage journal/**: admin (custom claim) write allowed', async () => {
+  await env.clearFirestore();
+  await env.clearStorage();
+  const storage = adminClaimStorage('admin1');
+  await assertSucceeds(
+    uploadBytes(storageRef(storage, 'journal/post1/cover.png'), PNG_1x1, {
+      contentType: 'image/png',
+    }),
+  );
+});
+
+test('storage pageContents/**: admin (custom claim) write allowed', async () => {
+  await env.clearFirestore();
+  await env.clearStorage();
+  const storage = adminClaimStorage('admin1');
+  await assertSucceeds(
+    uploadBytes(storageRef(storage, 'pageContents/about/hero.png'), PNG_1x1, {
+      contentType: 'image/png',
+    }),
   );
 });

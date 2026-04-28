@@ -3,7 +3,7 @@
 import { useId, useRef, useState } from 'react';
 import { useT } from '../i18n';
 import { useCaspianFirebase } from '../provider/caspian-store-provider';
-import { uploadAdminImage } from '../services/storage-service';
+import { diagnoseUploadDenial, uploadAdminImage } from '../services/storage-service';
 import { cn } from '../utils/cn';
 import { Button } from './button';
 import { Input, Label } from './input';
@@ -70,7 +70,7 @@ export function ImageUploadField({
   allowedTypes = DEFAULT_TYPES,
   className,
 }: ImageUploadFieldProps) {
-  const { storage } = useCaspianFirebase();
+  const { auth, db, storage } = useCaspianFirebase();
   const { toast } = useToast();
   const t = useT();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -85,6 +85,7 @@ export function ImageUploadField({
       const path = `${storagePath.replace(/\/$/, '')}/${Date.now()}-${rand}.${ext}`;
       const url = await uploadAdminImage({
         storage,
+        auth,
         path,
         file,
         maxBytes,
@@ -100,14 +101,20 @@ export function ImageUploadField({
           ? (error as { code: string }).code
           : null;
       switch (code) {
-        case 'storage/unauthorized':
+        case 'storage/unauthorized': {
+          // The retry inside uploadAdminImage already force-refreshed the
+          // ID token once. If we're here, the claim genuinely isn't on
+          // the token OR the user isn't admin OR the deployed rules are
+          // stale. Disambiguate so the toast names the right fix.
+          const diagnosis = await diagnoseUploadDenial({ auth, db });
           toast({
-            title: t('imageUpload.errors.unauthorized.title'),
-            description: t('imageUpload.errors.unauthorized.description'),
+            title: t(`imageUpload.errors.${diagnosis.kind}.title`),
+            description: t(`imageUpload.errors.${diagnosis.kind}.description`),
             variant: 'destructive',
             durationMs: 8000,
           });
           break;
+        }
         case 'storage/unauthenticated':
           toast({
             title: t('imageUpload.errors.unauthenticated.title'),

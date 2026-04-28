@@ -136,7 +136,21 @@ export const DEFAULT_MESSAGES: MessageDict = {
 
   // Admin image upload (logo, favicon, product photos, page assets)
   'imageUpload.success': 'Image uploaded',
-  'imageUpload.errors.unauthorized.title': 'Upload denied by Firebase Storage rules',
+  // v8.6.0: storage/unauthorized split into three diagnosis-keyed variants.
+  // The old `imageUpload.errors.unauthorized.*` pair is kept aliased to
+  // `rulesStale.*` for one minor cycle so any consumer who imported the
+  // keys directly stays compatible.
+  'imageUpload.errors.notAdmin.title': "You don't have admin access",
+  'imageUpload.errors.notAdmin.description':
+    "Your user profile isn't marked as admin. Open /admin and use 'Claim admin role', or have an existing admin promote you.",
+  'imageUpload.errors.claimNotSet.title': 'Admin role not yet active on your token',
+  'imageUpload.errors.claimNotSet.description':
+    "You're admin in Firestore, but the auth token doesn't carry the admin claim. The caspian-admin Cloud Functions may not be deployed. From your project root run `firebase deploy --only functions`, then sign out and back in.",
+  'imageUpload.errors.rulesStale.title': 'Storage rules may be out of date',
+  'imageUpload.errors.rulesStale.description':
+    'Your deployed Storage rules don’t allow this path. Run `npm run firebase:sync && firebase deploy --only storage` from your project root, then retry. (See INSTALL.md § Upgrade.)',
+  // Deprecated aliases — remove in v8.7.x.
+  'imageUpload.errors.unauthorized.title': 'Storage rules may be out of date',
   'imageUpload.errors.unauthorized.description':
     'Your deployed Storage rules don’t allow this path. Run `npm run firebase:sync && firebase deploy --only storage` from your project root, then retry. (See INSTALL.md § Upgrade.)',
   'imageUpload.errors.unauthenticated.title': 'Sign-in expired',
