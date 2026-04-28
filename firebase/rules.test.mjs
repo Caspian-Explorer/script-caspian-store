@@ -28,6 +28,7 @@ import {
   getDoc,
   setDoc,
   updateDoc,
+  deleteDoc,
   collection,
   addDoc,
   serverTimestamp,
@@ -501,6 +502,106 @@ test('errorLogs/{id}: admin can bump seenCount', async () => {
   });
   await assertSucceeds(
     updateDoc(doc(authed('admin1'), 'errorLogs', 'e1'), { seenCount: 2 }),
+  );
+});
+
+// ---- pendingSuperAdmin/{email} (v8.7.0) -----------------------------
+// Setup-wizard email allowlist for the very first admin. Doc id is the
+// lowercase email; the wizard writes pre-install (unauthenticated) and
+// `onUserCreate` consumes the entry on signup. Server-side trigger
+// bypasses rules via Admin SDK, so the rules-level test focuses on
+// wizard-time access patterns.
+
+const VALID_PENDING_DOC = (email) => ({
+  email,
+  designatedAt: serverTimestamp(),
+});
+
+test('pendingSuperAdmin/{email}: unauthenticated create allowed with valid shape', async () => {
+  await env.clearFirestore();
+  const db = unauthed();
+  await assertSucceeds(
+    setDoc(
+      doc(db, 'pendingSuperAdmin', 'admin@example.com'),
+      VALID_PENDING_DOC('admin@example.com'),
+    ),
+  );
+});
+
+test('pendingSuperAdmin/{email}: create rejected when email field !== doc id', async () => {
+  await env.clearFirestore();
+  const db = unauthed();
+  await assertFails(
+    setDoc(
+      doc(db, 'pendingSuperAdmin', 'admin@example.com'),
+      VALID_PENDING_DOC('different@example.com'),
+    ),
+  );
+});
+
+test('pendingSuperAdmin/{email}: create rejected with extra fields', async () => {
+  await env.clearFirestore();
+  const db = unauthed();
+  await assertFails(
+    setDoc(doc(db, 'pendingSuperAdmin', 'admin@example.com'), {
+      email: 'admin@example.com',
+      designatedAt: serverTimestamp(),
+      role: 'admin',
+    }),
+  );
+});
+
+test('pendingSuperAdmin/{email}: re-create rejected when doc already exists', async () => {
+  await env.clearFirestore();
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(
+      doc(ctx.firestore(), 'pendingSuperAdmin', 'admin@example.com'),
+      VALID_PENDING_DOC('admin@example.com'),
+    );
+  });
+  const db = unauthed();
+  await assertFails(
+    setDoc(
+      doc(db, 'pendingSuperAdmin', 'admin@example.com'),
+      VALID_PENDING_DOC('admin@example.com'),
+    ),
+  );
+});
+
+test('pendingSuperAdmin/{email}: public read allowed', async () => {
+  await env.clearFirestore();
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(
+      doc(ctx.firestore(), 'pendingSuperAdmin', 'admin@example.com'),
+      VALID_PENDING_DOC('admin@example.com'),
+    );
+  });
+  await assertSucceeds(getDoc(doc(unauthed(), 'pendingSuperAdmin', 'admin@example.com')));
+});
+
+test('pendingSuperAdmin/{email}: non-admin delete denied', async () => {
+  await env.clearFirestore();
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(
+      doc(ctx.firestore(), 'pendingSuperAdmin', 'admin@example.com'),
+      VALID_PENDING_DOC('admin@example.com'),
+    );
+  });
+  const db = authed('alice');
+  await assertFails(deleteDoc(doc(db, 'pendingSuperAdmin', 'admin@example.com')));
+});
+
+test('pendingSuperAdmin/{email}: admin delete allowed', async () => {
+  await env.clearFirestore();
+  await seedAdmin('admin1');
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(
+      doc(ctx.firestore(), 'pendingSuperAdmin', 'admin@example.com'),
+      VALID_PENDING_DOC('admin@example.com'),
+    );
+  });
+  await assertSucceeds(
+    deleteDoc(doc(authed('admin1'), 'pendingSuperAdmin', 'admin@example.com')),
   );
 });
 

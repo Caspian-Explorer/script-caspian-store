@@ -15,39 +15,54 @@ export function SummaryStep({ draft, onEdit }: SummaryStepProps) {
     .filter((key) => draft.features[key])
     .map((key) => t(`setup.features.${String(key)}.title`));
 
+  // Step indices match setup-wizard.tsx (v8.7.0): 0 prereqs, 1 superAdmin,
+  // 2 siteInfo, 3 branding, 4 features, 5 summary.
+  const superAdminValue =
+    draft.superAdmin.method === 'signin'
+      ? draft.superAdmin.signedInUid
+        ? t('setup.summary.superAdminSignedIn')
+        : '—'
+      : draft.superAdmin.email || '—';
+
   return (
     <div style={card}>
       <Row
+        label={t('setup.summary.superAdmin')}
+        value={superAdminValue}
+        onEdit={() => onEdit(1)}
+      />
+      <Divider />
+      <Row
         label={t('setup.summary.brand')}
         value={draft.siteInfo.brandName || '—'}
-        onEdit={() => onEdit(0)}
+        onEdit={() => onEdit(2)}
       />
       <Row
         label={t('setup.summary.contactEmail')}
         value={draft.siteInfo.contactEmail || '—'}
-        onEdit={() => onEdit(0)}
+        onEdit={() => onEdit(2)}
       />
       <Row
         label={t('setup.summary.currency')}
         value={draft.siteInfo.currency || 'USD'}
-        onEdit={() => onEdit(0)}
+        onEdit={() => onEdit(2)}
       />
       <Divider />
       <Row
         label={t('setup.summary.theme')}
         value={draft.branding.themePreset || t('setup.summary.themeCustom')}
-        onEdit={() => onEdit(1)}
+        onEdit={() => onEdit(3)}
       />
       <Row
         label={t('setup.summary.hero')}
         value={draft.branding.heroTitle || '—'}
-        onEdit={() => onEdit(1)}
+        onEdit={() => onEdit(3)}
       />
       <Divider />
       <Row
         label={t('setup.summary.features')}
         value={enabledFeatures.length ? enabledFeatures.join(', ') : t('setup.summary.noFeatures')}
-        onEdit={() => onEdit(2)}
+        onEdit={() => onEdit(4)}
       />
     </div>
   );

@@ -196,6 +196,35 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Setup-wizard email allowlist for the very first admin (v8.7.0).
+    // Doc id is the lowercase, trimmed email. The wizard's "Designate by
+    // email" path writes here BEFORE any admin exists; once the named
+    // user signs up, `onUserCreate` promotes them and deletes the doc.
+    //
+    // - Public read so the wizard can confirm a designation already exists.
+    // - Public create — but a doc can only be written ONCE per email
+    //   (`!exists`), shape is validated, and the email must equal the
+    //   doc id. The bigger safety invariant ("no admin exists yet") is
+    //   enforced server-side in `onUserCreate`: if an admin already
+    //   exists, the trigger ignores all pending entries, so a stale
+    //   write here can't escalate privilege.
+    // - Update forbidden — re-designate by delete + recreate.
+    // - Delete restricted to admins (so post-install revocation goes
+    //   through the admin panel; pre-install installers who fat-finger
+    //   the email can fix it by signing up under the typo'd address
+    //   to consume the entry, or by simply typing it correctly the
+    //   second time — distinct emails create distinct docs).
+    match /pendingSuperAdmin/{email} {
+      allow read: if true;
+      allow create: if !exists(/databases/$(database)/documents/pendingSuperAdmin/$(email))
+                    && request.resource.data.keys().hasOnly(['email', 'designatedAt'])
+                    && request.resource.data.email is string
+                    && request.resource.data.email.size() > 0
+                    && request.resource.data.email.size() <= 320
+                    && request.resource.data.email == email;
+      allow delete: if isAdmin();
+    }
+
     // Transactional email config (v2.11). Admin-only on both read and write —
     // contains sender addresses, admin recipient lists, and unfiltered
     // template bodies that shouldn't leak to shoppers. Cloud Functions

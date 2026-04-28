@@ -29,6 +29,10 @@ export function caspianCollections(db: Firestore) {
     contacts: collection(db, 'contacts'),
     errorLogs: collection(db, 'errorLogs'),
     adminTodos: collection(db, 'adminTodos'),
+    // v8.7.0: Setup-wizard email allowlist for the very first admin. Each
+    // doc id is the lowercase, trimmed email; on signup `onUserCreate`
+    // promotes the matching account to admin and deletes the doc.
+    pendingSuperAdmin: collection(db, 'pendingSuperAdmin'),
     scriptSettingsDoc: doc(db, 'scriptSettings', 'site'),
     siteSettingsDoc: doc(db, 'settings', 'site'),
     emailSettingsDoc: doc(db, 'emailSettings', 'site'),

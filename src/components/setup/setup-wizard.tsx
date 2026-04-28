@@ -9,6 +9,8 @@ import { DEFAULT_SCRIPT_SETTINGS, type SiteSettings } from '../../types';
 import { SetupShell } from './setup-shell';
 import type { SetupStep } from './setup-stepper';
 import { SetupButton } from './setup-ui';
+import { PrereqsStep, isPrereqsComplete } from './steps/prereqs-step';
+import { SuperAdminStep, isSuperAdminComplete } from './steps/super-admin-step';
 import { SiteInfoStep } from './steps/site-info-step';
 import { BrandingStep } from './steps/branding-step';
 import { FeaturesStep } from './steps/features-step';
@@ -23,6 +25,20 @@ export interface SetupWizardProps {
 type FieldErrors = { brandName?: string; contactEmail?: string };
 
 const emptyDraft = (): WizardDraft => ({
+  prereqs: {
+    firebaseProject: false,
+    firebaseWebConfig: false,
+    serviceAccount: false,
+    brandAssets: false,
+    contactEmail: false,
+    toolchain: false,
+    stripeKeys: false,
+  },
+  superAdmin: {
+    method: 'signin',
+    email: '',
+    signedInUid: '',
+  },
   siteInfo: {
     brandName: '',
     brandDescription: '',
@@ -39,13 +55,22 @@ const emptyDraft = (): WizardDraft => ({
   features: { ...DEFAULT_SCRIPT_SETTINGS.features },
 });
 
+// Step indices — bumped from 0..3 in v8.6.x to 0..5 in v8.7.0 with the
+// addition of the prereqs checklist (step 0) and super-admin step (step 1).
+const STEP_PREREQS = 0;
+const STEP_SUPER_ADMIN = 1;
+const STEP_SITE_INFO = 2;
+const STEP_BRANDING = 3;
+const STEP_FEATURES = 4;
+const STEP_SUMMARY = 5;
+
 export function SetupWizard({ finishHref = '/admin' }: SetupWizardProps) {
   const t = useT();
   const { db } = useCaspianFirebase();
   const navigation = useCaspianNavigation();
   const scriptSettings = useScriptSettings();
 
-  const [currentIndex, setCurrentIndex] = useState(0);
+  const [currentIndex, setCurrentIndex] = useState(STEP_PREREQS);
   const [draft, setDraft] = useState<WizardDraft>(emptyDraft);
   const [saving, setSaving] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -93,6 +118,8 @@ export function SetupWizard({ finishHref = '/admin' }: SetupWizardProps) {
 
   const steps: SetupStep[] = useMemo(
     () => [
+      { key: 'prereqs', label: t('setup.steps.prereqs') },
+      { key: 'super-admin', label: t('setup.steps.superAdmin') },
       { key: 'site-info', label: t('setup.steps.siteInfo') },
       { key: 'branding', label: t('setup.steps.branding') },
       { key: 'features', label: t('setup.steps.features') },
@@ -114,7 +141,19 @@ export function SetupWizard({ finishHref = '/admin' }: SetupWizardProps) {
   }, [draft.siteInfo.brandName, draft.siteInfo.contactEmail, t]);
 
   const commitStep = useCallback(async () => {
-    if (currentIndex === 0) {
+    if (currentIndex === STEP_PREREQS) {
+      if (!isPrereqsComplete(draft.prereqs)) {
+        throw new Error('prereqs-incomplete');
+      }
+      return;
+    }
+    if (currentIndex === STEP_SUPER_ADMIN) {
+      if (!isSuperAdminComplete(draft.superAdmin)) {
+        throw new Error('super-admin-incomplete');
+      }
+      return;
+    }
+    if (currentIndex === STEP_SITE_INFO) {
       const errors = validateSiteInfo();
       if (Object.keys(errors).length > 0) {
         setFieldErrors(errors);
@@ -138,7 +177,7 @@ export function SetupWizard({ finishHref = '/admin' }: SetupWizardProps) {
       await saveSiteSettings(db, merged);
       return;
     }
-    if (currentIndex === 1) {
+    if (currentIndex === STEP_BRANDING) {
       await scriptSettings.save({
         brandName: draft.siteInfo.brandName.trim() || scriptSettings.settings.brandName,
         defaultCurrency:
@@ -154,7 +193,7 @@ export function SetupWizard({ finishHref = '/admin' }: SetupWizardProps) {
       });
       return;
     }
-    if (currentIndex === 2) {
+    if (currentIndex === STEP_FEATURES) {
       await scriptSettings.save({ features: draft.features });
       return;
     }
@@ -168,9 +207,16 @@ export function SetupWizard({ finishHref = '/admin' }: SetupWizardProps) {
       await commitStep();
       setCurrentIndex((i) => Math.min(steps.length - 1, i + 1));
     } catch (err) {
-      if (err instanceof Error && err.message === 'validation') {
-        // Field errors already set; no submit-level message.
-        return;
+      if (err instanceof Error) {
+        if (err.message === 'validation') return; // field errors set
+        if (err.message === 'prereqs-incomplete') {
+          setSubmitError(t('setup.prereqs.incomplete'));
+          return;
+        }
+        if (err.message === 'super-admin-incomplete') {
+          setSubmitError(t('setup.superAdmin.incomplete'));
+          return;
+        }
       }
       const message =
         err && typeof err === 'object' && 'message' in err
@@ -192,9 +238,12 @@ export function SetupWizard({ finishHref = '/admin' }: SetupWizardProps) {
     navigation.push(finishHref);
   }, [navigation, finishHref]);
 
-  const isLast = currentIndex === steps.length - 1;
+  const isLast = currentIndex === STEP_SUMMARY;
+  const isFirst = currentIndex === STEP_PREREQS;
   const headings = useMemo(
     () => [
+      { heading: t('setup.prereqs.heading'), subhead: t('setup.prereqs.subhead') },
+      { heading: t('setup.superAdmin.heading'), subhead: t('setup.superAdmin.subhead') },
       { heading: t('setup.siteInfo.heading'), subhead: t('setup.siteInfo.subhead') },
       { heading: t('setup.branding.heading'), subhead: t('setup.branding.subhead') },
       { heading: t('setup.features.heading'), subhead: t('setup.features.subhead') },
@@ -205,7 +254,25 @@ export function SetupWizard({ finishHref = '/admin' }: SetupWizardProps) {
 
   const content = (() => {
     switch (currentIndex) {
-      case 0:
+      case STEP_PREREQS:
+        return (
+          <PrereqsStep
+            draft={draft.prereqs}
+            onChange={(patch) =>
+              setDraft((d) => ({ ...d, prereqs: { ...d.prereqs, ...patch } }))
+            }
+          />
+        );
+      case STEP_SUPER_ADMIN:
+        return (
+          <SuperAdminStep
+            draft={draft.superAdmin}
+            onChange={(patch) =>
+              setDraft((d) => ({ ...d, superAdmin: { ...d.superAdmin, ...patch } }))
+            }
+          />
+        );
+      case STEP_SITE_INFO:
         return (
           <SiteInfoStep
             draft={draft.siteInfo}
@@ -215,7 +282,7 @@ export function SetupWizard({ finishHref = '/admin' }: SetupWizardProps) {
             errors={fieldErrors}
           />
         );
-      case 1:
+      case STEP_BRANDING:
         return (
           <BrandingStep
             draft={draft.branding}
@@ -224,7 +291,7 @@ export function SetupWizard({ finishHref = '/admin' }: SetupWizardProps) {
             }
           />
         );
-      case 2:
+      case STEP_FEATURES:
         return (
           <FeaturesStep
             draft={draft.features}
@@ -233,7 +300,7 @@ export function SetupWizard({ finishHref = '/admin' }: SetupWizardProps) {
             }
           />
         );
-      case 3:
+      case STEP_SUMMARY:
         return <SummaryStep draft={draft} onEdit={(i) => setCurrentIndex(i)} />;
       default:
         return null;
@@ -241,6 +308,10 @@ export function SetupWizard({ finishHref = '/admin' }: SetupWizardProps) {
   })();
 
   const completed = Array.from({ length: currentIndex }, (_, i) => i);
+
+  // Step-zero CTA reads "Begin installation" rather than "Next step" so the
+  // prereqs gate is obvious. Other steps keep the standard "Next step".
+  const nextLabel = isFirst ? t('setup.prereqs.begin') : t('setup.next');
 
   return (
     <SetupShell
@@ -251,7 +322,7 @@ export function SetupWizard({ finishHref = '/admin' }: SetupWizardProps) {
       subhead={headings[currentIndex]?.subhead}
       footer={
         <>
-          {currentIndex > 0 ? (
+          {!isFirst ? (
             <SetupButton variant="ghost" onClick={back} disabled={saving}>
               {t('setup.back')}
             </SetupButton>
@@ -268,7 +339,7 @@ export function SetupWizard({ finishHref = '/admin' }: SetupWizardProps) {
               </SetupButton>
             ) : (
               <SetupButton onClick={next} disabled={saving}>
-                {saving ? t('setup.saving') : t('setup.next')}
+                {saving ? t('setup.saving') : nextLabel}
               </SetupButton>
             )}
           </div>

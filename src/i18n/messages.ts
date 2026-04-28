@@ -693,6 +693,8 @@ export const DEFAULT_MESSAGES: MessageDict = {
   'setup.next': 'Next Step',
   'setup.saving': 'Saving…',
 
+  'setup.steps.prereqs': 'PREREQS',
+  'setup.steps.superAdmin': 'SUPER ADMIN',
   'setup.steps.siteInfo': 'YOUR INFO',
   'setup.steps.branding': 'BRANDING',
   'setup.steps.features': 'ADD-ONS',
@@ -701,6 +703,76 @@ export const DEFAULT_MESSAGES: MessageDict = {
   'setup.errors.brandNameRequired': 'Brand name is required',
   'setup.errors.contactEmailInvalid': 'Invalid email',
   'setup.errors.saveFailed': 'Could not save — check your connection and try again.',
+
+  // Setup — Prerequisites checklist (v8.7.0)
+  'setup.prereqs.heading': "Before you begin, gather these",
+  'setup.prereqs.subhead':
+    "Have these in front of you and the wizard takes about ten minutes. Required items must be checked to continue; optional ones can be added later from the admin panel.",
+  'setup.prereqs.intro':
+    "Tick each item as you confirm it's ready. Required items gate the install; optional items can be added later.",
+  'setup.prereqs.optional': 'Optional',
+  'setup.prereqs.begin': 'Begin installation',
+  'setup.prereqs.incomplete':
+    'Tick every required item to continue. Optional ones can be skipped.',
+  'setup.prereqs.items.firebaseProject.title': 'A Firebase project',
+  'setup.prereqs.items.firebaseProject.desc':
+    "Create one at console.firebase.google.com → Add project. Enable Email/Password and Google sign-in providers under Build → Authentication.",
+  'setup.prereqs.items.firebaseWebConfig.title': 'Your Firebase web config',
+  'setup.prereqs.items.firebaseWebConfig.desc':
+    'Project settings → Your apps → web (</> icon). Copy the apiKey, authDomain, projectId, storageBucket, messagingSenderId, and appId.',
+  'setup.prereqs.items.serviceAccount.title': 'A service-account JSON',
+  'setup.prereqs.items.serviceAccount.desc':
+    'Project settings → Service accounts → Generate new private key. Save as service-account.json next to your project root. Used by grant-admin and other CLI scripts.',
+  'setup.prereqs.items.toolchain.title': 'Local toolchain ready',
+  'setup.prereqs.items.toolchain.desc':
+    'Node 18+, the firebase CLI on PATH (`npm i -g firebase-tools`), and Java 17+ if you want to run the emulator-based test suite.',
+  'setup.prereqs.items.contactEmail.title': 'A contact email for shoppers',
+  'setup.prereqs.items.contactEmail.desc':
+    'Public-facing email shown on the storefront footer, contact page, and order confirmations. Use a real inbox you monitor.',
+  'setup.prereqs.items.brandAssets.title': 'Logo and favicon (any aspect ratio)',
+  'setup.prereqs.items.brandAssets.desc':
+    "PNG/SVG works best. You can upload them in the wizard's Branding step or anytime later from Settings.",
+  'setup.prereqs.items.stripeKeys.title': 'Stripe keys (only if you want payments)',
+  'setup.prereqs.items.stripeKeys.desc':
+    "Publishable key for the storefront, secret key for the Cloud Functions secret. Skip if you'll add payments later.",
+
+  // Setup — Super admin designation (v8.7.0)
+  'setup.superAdmin.heading': 'Designate the super admin',
+  'setup.superAdmin.subhead':
+    "Either sign in now to claim the role yourself, or pre-authorize a future admin by email. Only the designated address can become admin once Functions are deployed — no race window.",
+  'setup.superAdmin.tabs.signin': 'Sign in as admin',
+  'setup.superAdmin.tabs.email': 'Designate by email',
+  'setup.superAdmin.incomplete':
+    'Either sign in or designate an email before continuing.',
+  'setup.superAdmin.signin.hint':
+    "Use email + password (we'll create the account if it doesn't exist) or Google. We immediately call claimAdmin so this account becomes admin.",
+  'setup.superAdmin.signin.email': 'Email',
+  'setup.superAdmin.signin.password': 'Password',
+  'setup.superAdmin.signin.passwordNewHint': 'At least 6 characters',
+  'setup.superAdmin.signin.createMode': "I don't have an account yet — create one",
+  'setup.superAdmin.signin.submit': 'Sign in & claim admin',
+  'setup.superAdmin.signin.createSubmit': 'Create account & claim admin',
+  'setup.superAdmin.signin.google': 'Continue with Google',
+  'setup.superAdmin.signin.submitting': 'Signing in…',
+  'setup.superAdmin.signin.success': "You're now admin — token refreshed.",
+  'setup.superAdmin.email.hint':
+    "Type the email of whoever should become super admin. They'll be promoted automatically the first time they sign up at /auth/register, even if a customer signs up before them.",
+  'setup.superAdmin.email.label': 'Future admin email',
+  'setup.superAdmin.email.invalid': 'Enter a valid email address.',
+  'setup.superAdmin.email.submit': 'Save designation',
+  'setup.superAdmin.email.submitting': 'Saving…',
+  'setup.superAdmin.email.success': 'Saved. The first signup matching this email becomes admin.',
+  'setup.superAdmin.email.previouslySaved': 'Currently designated: {email}',
+  'setup.superAdmin.errors.permissionDenied':
+    "Couldn't write the designation. Make sure your firestore.rules from v8.7.0 are deployed (`npm run firebase:sync && firebase deploy --only firestore:rules`).",
+  'setup.superAdmin.errors.adminAlreadyExists':
+    "An admin already exists. Use the existing admin's account, or revoke them from /admin first.",
+  'setup.superAdmin.errors.emailInUse':
+    "An account with that email already exists. Try the regular Sign in option instead of Create.",
+  'setup.superAdmin.errors.wrongPassword': 'Wrong email or password.',
+  'setup.superAdmin.errors.weakPassword': 'Password must be at least 6 characters.',
+  'setup.superAdmin.errors.popupClosed': 'Sign-in window was closed before finishing.',
+  'setup.superAdmin.errors.generic': 'Something went wrong. Check the dev server console.',
 
   // Setup — Site info
   'setup.siteInfo.heading': 'Tell us about your store',
@@ -741,6 +813,8 @@ export const DEFAULT_MESSAGES: MessageDict = {
   // Setup — Summary
   'setup.summary.heading': 'Ready to open for business',
   'setup.summary.subhead': 'Review your settings. You can edit anything from the admin panel afterwards.',
+  'setup.summary.superAdmin': 'Super admin',
+  'setup.summary.superAdminSignedIn': 'Signed in (claimed)',
   'setup.summary.brand': 'Brand',
   'setup.summary.contactEmail': 'Contact email',
   'setup.summary.currency': 'Currency',
@@ -767,7 +841,7 @@ export const DEFAULT_MESSAGES: MessageDict = {
   'setup.init.errorMissing': 'All fields are required.',
   'setup.init.errorGeneric': 'Could not write .env.local. Check the dev server logs.',
   'setup.init.successTitle': 'Saved to .env.local',
-  'setup.init.successBody': 'Stop the dev server (Ctrl+C), run npm run dev again, then go to /auth/register to create the first admin account.',
+  'setup.init.successBody': 'Stop the dev server (Ctrl+C), run npm run dev again, then open /setup to walk through the install wizard (prereqs, super admin, branding, features).',
 
   // Public contact page (v2.13)
   'contact.page.title': 'Contact us',

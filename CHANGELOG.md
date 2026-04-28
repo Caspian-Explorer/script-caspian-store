@@ -16,6 +16,55 @@ Do not omit the heading, rename it, or fold it into `### Notes`. This is how
 customers tell at a glance whether an upgrade needs attention.
 -->
 
+## v8.7.0 — Multi-step install wizard with pre-flight checklist + super-admin designation (#store-1224)
+
+The wizard at `/setup` (originally shipped as `v1.24` parallel work and never released under that name) gains two leading steps so the install becomes a true installation guide rather than a configuration form:
+
+1. **Pre-flight checklist** — a static "step zero" that lists everything an installer needs to gather *before* clicking Begin: Firebase project + web config, service-account JSON, Node 18 + Java 17 + firebase CLI, contact email, brand assets (optional), Stripe keys (optional). All required items must be ticked before Begin enables. No backend, no Firestore reads — pure UI gate so the rest of the wizard can assume preconditions are met.
+
+2. **Super-admin designation** — a tabbed step with two paths to set the very first admin:
+   - **Sign in as admin** — email+password (with a "create account" toggle) or Google. After auth succeeds we call `claimAdmin`, force-refresh the ID token, and the user is admin from this session forward.
+   - **Designate by email** — enter `someone@example.com`. We write to `pendingSuperAdmin/{lowercase-email}` and the modified `onUserCreate` trigger promotes that exact account on its first signup. Closes the legacy "first user wins" race window where any accidental signup before the installer's own would steal the role.
+
+The legacy first-user-wins promotion path is preserved as a fallback when the `pendingSuperAdmin` collection is empty, so v8.6.x consumers who never visit the new step still bootstrap exactly as before.
+
+`onUserCreate` semantics change: when any pending entries exist, it ONLY promotes accounts whose email matches a pending entry, and deletes the matched doc on success. Stale entries cannot escalate privilege — the "no admin already exists" check still gates the entire function.
+
+### Consumer action required on upgrade
+
+The v8.7.0 features only kick in for stores that redeploy:
+
+```bash
+# 1. Pull the library + sync rules + redeploy Firestore rules (new pendingSuperAdmin block)
+npm install github:Caspian-Explorer/script-caspian-store#v8.7.0
+npm run firebase:sync
+firebase deploy --only firestore:rules
+
+# 2. Redeploy the caspian-admin Cloud Functions codebase (onUserCreate now reads pendingSuperAdmin)
+cd firebase/functions-admin && npm install && cd ../..
+firebase deploy --only functions:caspian-admin
+```
+
+Stores that don't redeploy: the wizard's email-designation tab will toast "permission-denied" (because the new `pendingSuperAdmin` rules block isn't in the deployed rules yet), but the sign-in tab continues to work since it uses the existing `claimAdmin` callable.
+
+### Added
+
+- New file [src/components/setup/steps/prereqs-step.tsx](src/components/setup/steps/prereqs-step.tsx): pre-flight checklist UI + `isPrereqsComplete()` gate.
+- New file [src/components/setup/steps/super-admin-step.tsx](src/components/setup/steps/super-admin-step.tsx): tabbed sign-in vs. email-designation UI + `isSuperAdminComplete()` gate. Calls existing `claimAdmin` callable for the sign-in path.
+- New `pendingSuperAdmin/{email}` Firestore collection — see [firebase/firestore.rules](firebase/firestore.rules) for shape rules. `caspianCollections().pendingSuperAdmin` ref added to [src/firebase/collections.ts](src/firebase/collections.ts).
+- 26 new i18n keys under `setup.prereqs.*` and `setup.superAdmin.*` in [src/i18n/messages.ts](src/i18n/messages.ts).
+- 7 new tests in [firebase/rules.test.mjs](firebase/rules.test.mjs) covering the `pendingSuperAdmin` rule (create-allowed, shape-rejected, re-create blocked, public-read, non-admin-delete-denied, admin-delete-allowed, etc.).
+- [src/components/setup/setup-types.ts](src/components/setup/setup-types.ts): new `PrereqsDraft` and `SuperAdminDraft` types added to `WizardDraft`.
+
+### Changed
+
+- [firebase/functions-admin/src/on-user-create.ts](firebase/functions-admin/src/on-user-create.ts): two-path promotion logic — checks `pendingSuperAdmin` first, falls back to legacy first-user-wins if empty. Function version 0.4.0 → 0.5.0.
+- [src/components/setup/setup-wizard.tsx](src/components/setup/setup-wizard.tsx): step indices shifted (was 0–3, now 0–5) to accommodate prereqs + super-admin at the front. CTA text on step 0 reads "Begin installation" rather than "Next step."
+- [src/components/setup/steps/summary-step.tsx](src/components/setup/steps/summary-step.tsx): added super-admin row; Edit-link `onEdit(i)` indices updated to match the new step layout.
+- [src/i18n/messages.ts](src/i18n/messages.ts): `setup.init.successBody` now points at `/setup` instead of `/auth/register`.
+
+---
+
 ## v8.6.0 — Self-healing admin uploads + precise upload-denial diagnostics (#store-1210)
 
 Closes the third (and we believe final) iteration of `#store-1210`. The earlier two iterations — v8.3.1's `CASPIAN_STORAGE_RULES` self-diagnostic toast and v8.5.1's move to Auth custom claims — left one residual failure: an admin whose ID token was issued *before* the `role: 'admin'` claim was set still saw `storage/unauthorized` on their first upload. The toast told them to redeploy storage rules; redeploying didn't help, because the rules were correct. The actual fix was to refresh the ID token, which the admin had no way to discover from the diagnostic.
