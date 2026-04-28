@@ -134,7 +134,7 @@ export const DEFAULT_ADMIN_TODOS: Array<{ id: string; title: string; description
     id: 'grant-admin-role',
     title: 'Grant yourself admin role',
     description:
-      'Sign up at `/auth/register`, copy your Firebase Auth UID, then set `users/{uid}.role = "admin"` in Firestore (or run the seed script with `--admin <uid>`).',
+      'Sign up at `/register`, copy your Firebase Auth UID, then set `users/{uid}.role = "admin"` in Firestore (or run the seed script with `--admin <uid>`).',
   },
   {
     id: 'edit-site-settings',

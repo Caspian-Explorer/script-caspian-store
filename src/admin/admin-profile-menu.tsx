@@ -13,7 +13,7 @@ export interface AdminProfileMenuProps {
   storefrontHref?: string;
   /** User-facing profile page. Default: `/account`. */
   profileHref?: string;
-  /** Where to send the user after sign-out. Default: `/auth/login`. */
+  /** Where to send the user after sign-out. Default: `/login`. */
   afterSignOutHref?: string;
   /** Avatar size in px. Default: 36. */
   avatarSize?: number;
@@ -32,7 +32,7 @@ export interface AdminProfileMenuProps {
 export function AdminProfileMenu({
   storefrontHref = '/',
   profileHref = '/account',
-  afterSignOutHref = '/auth/login',
+  afterSignOutHref = '/login',
   avatarSize = 36,
   className,
 }: AdminProfileMenuProps) {

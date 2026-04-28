@@ -167,9 +167,9 @@ export function CaspianRoot(props: CaspianRootProps = {}): ReactNode {
   }
 
   if (path === '/account') return <AccountPage />;
-  if (path === '/auth/login') return <LoginPage />;
-  if (path === '/auth/register') return <RegisterPage />;
-  if (path === '/auth/forgot-password') return <ForgotPasswordPage />;
+  if (path === '/login' || path === '/auth/login') return <LoginPage />;
+  if (path === '/register' || path === '/auth/register') return <RegisterPage />;
+  if (path === '/forgot-password' || path === '/auth/forgot-password') return <ForgotPasswordPage />;
 
   if (path === '/journal') return <JournalListPage />;
   {

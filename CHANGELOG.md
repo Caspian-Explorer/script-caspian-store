@@ -16,6 +16,27 @@ Do not omit the heading, rename it, or fold it into `### Notes`. This is how
 customers tell at a glance whether an upgrade needs attention.
 -->
 
+## v8.8.1 — Bare `/login`, `/register`, `/forgot-password` routes now resolve
+
+The route dispatcher in [src/components/caspian-root.tsx](src/components/caspian-root.tsx) only matched the `/auth/...` form, but every component default targeted the bare form: `AdminGuard.signInHref = '/login'`, `LoginPage.registerHref = '/register'` and `forgotPasswordHref = '/forgot-password'`, `RegisterPage.loginHref = '/login'`, `ForgotPasswordPage.loginHref = '/login'`, `AccountPage.signInHref = '/login'`, plus the hard-coded checkout sign-in CTA. Result: the "Sign in" link rendered by `AdminGuard` on every signed-out admin URL (e.g. `/admin/products/<id>/edit`) hit NotFound, and visitors landing on `http://localhost:3000/login` from external links saw the same 404.
+
+The dispatcher now accepts both forms — `/login` and `/auth/login`, `/register` and `/auth/register`, `/forgot-password` and `/auth/forgot-password`. Locale-prefixed URLs (`/en/login`, `/fr/register`, …) already worked through the existing `stripLocalePrefix` step and continue to work; this release just adds the bare aliases the rest of the library was already pointing at.
+
+The two outliers (`AdminProfileMenu.afterSignOutHref` and `SiteHeader.accountHref`) that previously defaulted to `/auth/login` are normalized to `/login` so the entire library converges on one canonical URL convention. Both forms remain valid at runtime — stores that explicitly passed `/auth/login` keep working unchanged.
+
+### No consumer action required
+
+`npm install github:Caspian-Explorer/script-caspian-store#v8.8.1` and rebuild — both URL forms route correctly. Stores that overrode the auth hrefs explicitly are unaffected.
+
+### Fixed
+
+- [src/components/caspian-root.tsx](src/components/caspian-root.tsx): dispatcher now matches `/login`, `/register`, `/forgot-password` in addition to the pre-existing `/auth/...` aliases.
+- [src/admin/admin-profile-menu.tsx](src/admin/admin-profile-menu.tsx): default `afterSignOutHref` is `/login` (was `/auth/login`).
+- [src/components/site-header.tsx](src/components/site-header.tsx): default `accountHref` is `/login` (was `/auth/login`).
+- [src/i18n/messages.ts](src/i18n/messages.ts) `setup.superAdmin.email.hint` and [src/services/admin-todo-service.ts](src/services/admin-todo-service.ts) `grant-admin-role` description: in-text references to `/auth/register` updated to `/register` to match the canonical form.
+
+---
+
 ## v8.8.0 — Auto-heal stale admin claims via `ensureAdminClaim` callable (#store-1210)
 
 Closes the third (and final) iteration of `#store-1210`. v8.6.0 fixed the *diagnostic* (precise toast naming the right command); v8.8.0 fixes the *recovery* (no command needed at all).

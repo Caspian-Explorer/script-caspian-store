@@ -57,7 +57,7 @@ export function SiteHeader({
   nav = DEFAULT_NAV,
   languageSwitcher,
   userMenu,
-  accountHref = '/auth/login',
+  accountHref = '/login',
   wishlistHref = '/wishlist',
   showSearch = true,
   className,
