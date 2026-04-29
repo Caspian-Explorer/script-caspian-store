@@ -148,11 +148,11 @@ export const DEFAULT_MESSAGES: MessageDict = {
     "Auto-heal couldn't reach the `ensureAdminClaim` Cloud Function — your `caspian-admin` codebase may be older than v0.6.0 or not deployed. From your project root run `firebase deploy --only functions:caspian-admin`. If that doesn't work, run `node firebase/seed/sync-admin-claims.mjs --project <id> --credentials ./service-account.json`, then sign out and back in.",
   'imageUpload.errors.rulesStale.title': 'Storage rules may be out of date',
   'imageUpload.errors.rulesStale.description':
-    'Your deployed Storage rules don’t allow this path. Run `npm run firebase:sync && firebase deploy --only storage` from your project root, then retry. (See INSTALL.md § Upgrade.)',
+    'Your deployed Storage rules don’t allow this path. From your project root run `npm run firebase:sync`, then `firebase deploy --only storage`, then retry. (See INSTALL.md § Upgrade.)',
   // Deprecated aliases — remove in v8.7.x.
   'imageUpload.errors.unauthorized.title': 'Storage rules may be out of date',
   'imageUpload.errors.unauthorized.description':
-    'Your deployed Storage rules don’t allow this path. Run `npm run firebase:sync && firebase deploy --only storage` from your project root, then retry. (See INSTALL.md § Upgrade.)',
+    'Your deployed Storage rules don’t allow this path. From your project root run `npm run firebase:sync`, then `firebase deploy --only storage`, then retry. (See INSTALL.md § Upgrade.)',
   'imageUpload.errors.unauthenticated.title': 'Sign-in expired',
   'imageUpload.errors.unauthenticated.description': 'Sign in again, then retry the upload.',
   'imageUpload.errors.quotaExceeded.title': 'Storage bucket full',
@@ -764,7 +764,7 @@ export const DEFAULT_MESSAGES: MessageDict = {
   'setup.superAdmin.email.success': 'Saved. The first signup matching this email becomes admin.',
   'setup.superAdmin.email.previouslySaved': 'Currently designated: {email}',
   'setup.superAdmin.errors.permissionDenied':
-    "Couldn't write the designation. Make sure your firestore.rules from v8.7.0 are deployed (`npm run firebase:sync && firebase deploy --only firestore:rules`).",
+    "Couldn't write the designation. Make sure your firestore.rules from v8.7.0 are deployed: run `npm run firebase:sync`, then `firebase deploy --only firestore:rules`.",
   'setup.superAdmin.errors.adminAlreadyExists':
     "An admin already exists. Use the existing admin's account, or revoke them from /admin first.",
   'setup.superAdmin.errors.emailInUse':

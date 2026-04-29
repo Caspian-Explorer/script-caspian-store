@@ -16,6 +16,23 @@ Do not omit the heading, rename it, or fold it into `### Notes`. This is how
 customers tell at a glance whether an upgrade needs attention.
 -->
 
+## v8.9.1 — Diagnostic toast commands compatible with PowerShell 5.1 (#store-1210)
+
+Final cleanup on the long `#store-1210` chain. Three diagnostic toast strings (`imageUpload.errors.rulesStale.description`, `imageUpload.errors.unauthorized.description`, `setup.superAdmin.errors.permissionDenied`) instructed users to run `X && Y` chained commands. PowerShell 5.1 — the default Windows PowerShell that ships with Win10/11 and the most common shell our consumer-store admins run in — doesn't support `&&` (it's a PowerShell 7 / bash feature), so following those toasts on Windows produced a parser error and left the admin stuck without a clear next step.
+
+This release rephrases each chained command to "Run `X`, then `Y`" prose, which works identically in cmd, PowerShell 5.1, PowerShell 7+, bash, and zsh — no shell-version detection needed.
+
+### No consumer action required
+
+Pure copy change in three i18n strings + one JSDoc comment. No public API change, no Functions changes (`functions-admin` stays at 0.6.0). Existing v8.9.0 installs see the new text wherever the toasts fire on the next library refresh; no deploy, no migration.
+
+### Changed
+
+- [src/i18n/messages.ts](src/i18n/messages.ts) — `imageUpload.errors.rulesStale.description`, `imageUpload.errors.unauthorized.description`, and `setup.superAdmin.errors.permissionDenied` now use "run X, then Y" prose instead of `X && Y` chains.
+- [src/services/storage-service.ts](src/services/storage-service.ts) — `diagnoseUploadDenial` JSDoc updated for the same reason (cosmetic; doesn't affect runtime).
+
+---
+
 ## v8.9.0 — Firebase App Hosting deploys "just work" via FIREBASE_WEBAPP_CONFIG auto-pickup
 
 Closes a class of build failures where Next.js sites scaffolded by `npm create caspian-store@latest` and deployed to **Firebase App Hosting** crashed `next build` at `Generating static pages → /_not-found` with `Firebase: Error (auth/invalid-api-key)`. The default scaffold read the six `NEXT_PUBLIC_FIREBASE_*` vars only; App Hosting injects `FIREBASE_WEBAPP_CONFIG` (a JSON blob containing the same values) instead, so unless the consumer redundantly populated all six vars in their backend env, prerender saw `apiKey === undefined` and Firebase threw inside the `<CaspianStoreProvider>` `useMemo` that wraps `/_not-found` from the root layout.

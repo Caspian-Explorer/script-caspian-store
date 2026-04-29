@@ -215,7 +215,7 @@ function isUnauthorized(err: unknown): boolean {
  * - `rulesStale` — Firestore admin AND claim present. The rules engine
  *   still denies, so the deployed rules don't allow this path or the
  *   Firebase Rules API is disabled on the project. Path:
- *   `npm run firebase:sync && firebase deploy --only storage`.
+ *   run `npm run firebase:sync`, then `firebase deploy --only storage`.
  */
 export type UploadDenialDiagnosis =
   | { kind: 'notAdmin' }
