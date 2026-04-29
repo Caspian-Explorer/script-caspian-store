@@ -86,7 +86,7 @@ NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=…
 NEXT_PUBLIC_FIREBASE_APP_ID=…
 ```
 
-> **Deploying to Firebase App Hosting?** Backends created via the Firebase Console auto-inject `FIREBASE_WEBAPP_CONFIG` (a JSON blob containing the same fields) at build and runtime, so you do not need to populate the six vars above on App Hosting — `readFirebaseConfigFromEnv()` (used by the scaffolded `caspian-adapters.tsx` since v8.9.0) picks it up automatically. The scaffolded `next.config.mjs` forwards `FIREBASE_WEBAPP_CONFIG` into the client bundle via its `env:` block. Vercel and local dev keep using the six `NEXT_PUBLIC_*` vars.
+> **Deploying to Firebase App Hosting?** Backends created via the Firebase Console auto-inject `FIREBASE_WEBAPP_CONFIG` (a JSON blob containing the same fields) at BUILD time, so on App Hosting you don't need to populate the six vars above. Since v8.9.2, `<CaspianStoreProvider>` auto-heals an incomplete `caspianFirebaseConfig` from `FIREBASE_WEBAPP_CONFIG` server-side and forwards the resolved config to the client browser via an SSR-injected `<script>` tag — no `next.config.mjs` env: forwarding required. The v8.9.0-style explicit setup (`readFirebaseConfigFromEnv()` in `caspian-adapters.tsx` + `env:` block in `next.config.mjs`) is still valid and is what new scaffolds emit; it's now belt-and-suspenders rather than a requirement. Vercel and local dev keep using the six `NEXT_PUBLIC_*` vars.
 
 ---
 

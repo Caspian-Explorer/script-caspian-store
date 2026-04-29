@@ -16,6 +16,29 @@ Do not omit the heading, rename it, or fold it into `### Notes`. This is how
 customers tell at a glance whether an upgrade needs attention.
 -->
 
+## v8.9.2 — App Hosting auto-heal works without consumer file edits
+
+v8.9.0 fixed App Hosting build failures *if* the consumer applied a two-line change to `src/lib/caspian-adapters.tsx` and `next.config.mjs`. That violated this repo's "releases must never require consumer hand-edits" rule, and in practice consumers were upgrading the package version without applying the file edits — leaving them stuck on the same `auth/invalid-api-key` prerender crash that v8.9.0 was supposed to solve. This release closes the loop so a plain `npm install github:Caspian-Explorer/script-caspian-store#v8.9.2` is sufficient — no `caspian-adapters.tsx` edit, no `next.config.mjs` env: block. Two changes:
+
+1. **`initCaspianFirebase` merges its incoming `config` with `readFirebaseConfigFromEnv()`** before initializing Firebase. So when the scaffold-generated `caspianFirebaseConfig` literal resolves to `{apiKey: undefined, ...}` (because the consumer didn't set the six `NEXT_PUBLIC_FIREBASE_*` vars), the missing fields auto-fill from `FIREBASE_WEBAPP_CONFIG`. Server-side prerender (where `process.env.FIREBASE_WEBAPP_CONFIG` is available on App Hosting) now succeeds.
+
+2. **`<CaspianStoreProvider>` injects an SSR-only `<script>` tag** that serializes the resolved config into `window.__CASPIAN_FIREBASE_CONFIG__`. The browser executes that script at HTML-parse time, before React hydration, so the client provider's `useMemo` can read the same config the server saw — without consumers needing to forward `FIREBASE_WEBAPP_CONFIG` through `next.config.mjs`'s `env:` block. The window global takes precedence over `process.env` on the client (where non-`NEXT_PUBLIC_*` vars don't exist anyway). Firebase web client API keys are public by design — embedding them in the HTML is no different from the standard `NEXT_PUBLIC_FIREBASE_API_KEY` pattern.
+
+The pre-check guard from v8.9.0 stays in place but now fires only when *all* sources (passed config, `FIREBASE_WEBAPP_CONFIG`, `NEXT_PUBLIC_*`, window global) come up empty — which is essentially "you've configured no Firebase project at all." The error message is updated to match.
+
+### No consumer action required
+
+`npm install github:Caspian-Explorer/script-caspian-store#v8.9.2` and redeploy — the `/_not-found` prerender now succeeds on App Hosting backends created via the Firebase Console (which auto-inject `FIREBASE_WEBAPP_CONFIG`). The two-line change documented in v8.9.0's changelog is no longer needed; sites still on the v8.8.x scaffold's inline `caspianFirebaseConfig` literal work without modification.
+
+The v8.9.0 path (consumer-side `readFirebaseConfigFromEnv()` + `next.config.mjs` env: forward) remains valid and is still emitted by new `npm create caspian-store@latest` scaffolds. It's now an optional belt-and-suspenders rather than a requirement.
+
+### Changed
+
+- [src/firebase/client.ts](src/firebase/client.ts): `initCaspianFirebase` merges its `config` argument with `readFirebaseConfigFromEnv()`. Passed values always win; missing fields fall back to env. Pre-check error message updated to reference all sources auto-heal consulted.
+- [src/provider/caspian-store-provider.tsx](src/provider/caspian-store-provider.tsx): `<CaspianStoreProvider>` resolves the Firebase config from passed → SSR window global → `process.env`, and emits an SSR-only `<script>` tag that mirrors the resolved config to `window.__CASPIAN_FIREBASE_CONFIG__` so client-side hydration sees the same values. Hydration-warning-suppressed because the script content is identical between SSR and client renders.
+
+---
+
 ## v8.9.1 — Diagnostic toast commands compatible with PowerShell 5.1 (#store-1210)
 
 Final cleanup on the long `#store-1210` chain. Three diagnostic toast strings (`imageUpload.errors.rulesStale.description`, `imageUpload.errors.unauthorized.description`, `setup.superAdmin.errors.permissionDenied`) instructed users to run `X && Y` chained commands. PowerShell 5.1 — the default Windows PowerShell that ships with Win10/11 and the most common shell our consumer-store admins run in — doesn't support `&&` (it's a PowerShell 7 / bash feature), so following those toasts on Windows produced a parser error and left the admin stuck without a clear next step.

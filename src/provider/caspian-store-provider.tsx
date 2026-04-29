@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useMemo, type ReactNode } from 'r
 import type { FirebaseOptions } from 'firebase/app';
 import { initCaspianFirebase, type CaspianFirebase } from '../firebase/client';
 import { caspianCollections, type CaspianCollections } from '../firebase/collections';
+import { readFirebaseConfigFromEnv } from '../firebase/env-config';
 import {
   DefaultCaspianLink,
   DefaultCaspianImage,
@@ -54,6 +55,40 @@ export interface CaspianStoreContextValue {
 
 const CaspianStoreContext = createContext<CaspianStoreContextValue | null>(null);
 
+// SSR-injected window global key. The provider serializes the resolved
+// Firebase config into a <script> tag during server prerender; the browser
+// runs that script before React hydration so the same config is available
+// client-side without requiring the consumer's next.config.mjs to forward
+// FIREBASE_WEBAPP_CONFIG via an env: block. Firebase web client API keys are
+// public by design (security relies on Firestore/Auth/Storage rules), so
+// embedding them in the HTML is no different from the standard
+// NEXT_PUBLIC_FIREBASE_* pattern.
+const SSR_CONFIG_GLOBAL = '__CASPIAN_FIREBASE_CONFIG__';
+
+function readSsrConfigFromWindow(): FirebaseOptions {
+  if (typeof window === 'undefined') return {};
+  const w = window as unknown as Record<string, FirebaseOptions | undefined>;
+  return w[SSR_CONFIG_GLOBAL] ?? {};
+}
+
+function resolveFirebaseConfig(passed: FirebaseOptions): FirebaseOptions {
+  // Precedence: passed values > SSR-injected window global > process.env env-config.
+  // On server prerender, window is undefined → env wins. On client hydration,
+  // window has the SSR-resolved config → it wins. Either way, passed always
+  // takes precedence so explicit overrides keep working.
+  const fromWindow = readSsrConfigFromWindow();
+  const fromEnv = readFirebaseConfigFromEnv();
+  return {
+    apiKey: passed.apiKey || fromWindow.apiKey || fromEnv.apiKey,
+    authDomain: passed.authDomain || fromWindow.authDomain || fromEnv.authDomain,
+    projectId: passed.projectId || fromWindow.projectId || fromEnv.projectId,
+    storageBucket: passed.storageBucket || fromWindow.storageBucket || fromEnv.storageBucket,
+    messagingSenderId:
+      passed.messagingSenderId || fromWindow.messagingSenderId || fromEnv.messagingSenderId,
+    appId: passed.appId || fromWindow.appId || fromEnv.appId,
+  };
+}
+
 export function CaspianStoreProvider({
   firebaseConfig,
   functionsRegion,
@@ -65,8 +100,9 @@ export function CaspianStoreProvider({
   children,
 }: CaspianStoreProviderProps) {
   const value = useMemo<CaspianStoreContextValue>(() => {
+    const resolvedConfig = resolveFirebaseConfig(firebaseConfig);
     const firebase = initCaspianFirebase({
-      config: firebaseConfig,
+      config: resolvedConfig,
       functionsRegion,
       name: appName,
     });
@@ -81,8 +117,22 @@ export function CaspianStoreProvider({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Serialize the resolved config so the browser sees the same values without
+  // requiring next.config.mjs env: forwarding. Reads `app.options` (what
+  // Firebase actually used) so the global mirrors reality even if a consumer
+  // passes a partial config. The script runs at HTML parse time, before
+  // React hydration, so the client useMemo above can read it via
+  // readSsrConfigFromWindow().
+  const ssrConfigJson = JSON.stringify(value.firebase.app.options);
+
   return (
     <CaspianStoreContext.Provider value={value}>
+      <script
+        suppressHydrationWarning
+        dangerouslySetInnerHTML={{
+          __html: `window.${SSR_CONFIG_GLOBAL}=${ssrConfigJson};`,
+        }}
+      />
       <ErrorBoundary db={value.firebase.db} origin="CaspianStoreProvider">
         <GlobalErrorCapture db={value.firebase.db} projectId={firebaseConfig.projectId} />
         <LocationChangeBridge />
