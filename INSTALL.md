@@ -86,6 +86,8 @@ NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=…
 NEXT_PUBLIC_FIREBASE_APP_ID=…
 ```
 
+> **Deploying to Firebase App Hosting?** Backends created via the Firebase Console auto-inject `FIREBASE_WEBAPP_CONFIG` (a JSON blob containing the same fields) at build and runtime, so you do not need to populate the six vars above on App Hosting — `readFirebaseConfigFromEnv()` (used by the scaffolded `caspian-adapters.tsx` since v8.9.0) picks it up automatically. The scaffolded `next.config.mjs` forwards `FIREBASE_WEBAPP_CONFIG` into the client bundle via its `env:` block. Vercel and local dev keep using the six `NEXT_PUBLIC_*` vars.
+
 ---
 
 ## 3. Mount the provider
@@ -100,14 +102,11 @@ import Image from 'next/image';
 import { useRouter, usePathname } from 'next/navigation';
 import type { CaspianLinkProps, CaspianImageProps } from '@caspian-explorer/script-caspian-store';
 
-export const caspianFirebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY!,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN!,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID!,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET!,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID!,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID!,
-};
+import { readFirebaseConfigFromEnv } from '@caspian-explorer/script-caspian-store/firebase';
+
+// Reads FIREBASE_WEBAPP_CONFIG (App Hosting auto-injects it) first, then
+// falls back to the six NEXT_PUBLIC_FIREBASE_* vars (Vercel / .env.local).
+export const caspianFirebaseConfig = readFirebaseConfigFromEnv();
 
 export function CaspianNextLink({ href, children, ...rest }: CaspianLinkProps) {
   return <Link href={href as any} {...rest}>{children}</Link>;
@@ -182,6 +181,12 @@ const nextConfig = {
     remotePatterns: [
       { protocol: 'https', hostname: '**' },
     ],
+  },
+  env: {
+    // Forward Firebase App Hosting's auto-injected web config into the client
+    // bundle. Required for /_not-found prerender + browser runtime when the
+    // six NEXT_PUBLIC_FIREBASE_* vars aren't set. No-op on Vercel/local.
+    FIREBASE_WEBAPP_CONFIG: process.env.FIREBASE_WEBAPP_CONFIG,
   },
 };
 export default nextConfig;

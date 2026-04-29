@@ -16,6 +16,53 @@ Do not omit the heading, rename it, or fold it into `### Notes`. This is how
 customers tell at a glance whether an upgrade needs attention.
 -->
 
+## v8.9.0 — Firebase App Hosting deploys "just work" via FIREBASE_WEBAPP_CONFIG auto-pickup
+
+Closes a class of build failures where Next.js sites scaffolded by `npm create caspian-store@latest` and deployed to **Firebase App Hosting** crashed `next build` at `Generating static pages → /_not-found` with `Firebase: Error (auth/invalid-api-key)`. The default scaffold read the six `NEXT_PUBLIC_FIREBASE_*` vars only; App Hosting injects `FIREBASE_WEBAPP_CONFIG` (a JSON blob containing the same values) instead, so unless the consumer redundantly populated all six vars in their backend env, prerender saw `apiKey === undefined` and Firebase threw inside the `<CaspianStoreProvider>` `useMemo` that wraps `/_not-found` from the root layout.
+
+The library now exports `readFirebaseConfigFromEnv()` from `@caspian-explorer/script-caspian-store/firebase`. It prefers `FIREBASE_WEBAPP_CONFIG` (App Hosting), falls back to the six `NEXT_PUBLIC_FIREBASE_*` vars (Vercel / manual / local). New scaffolds use the helper out of the box and forward `FIREBASE_WEBAPP_CONFIG` into the client bundle via `next.config.mjs`'s `env:` block.
+
+`initCaspianFirebase` also gains a pre-check that throws an actionable error naming the missing field(s) and detected platform, instead of bubbling Firebase's opaque `auth/invalid-api-key`.
+
+### Consumer action required on upgrade
+
+**Vercel and local-dev consumers**: no action — your existing `NEXT_PUBLIC_FIREBASE_*` vars continue to work.
+
+**Firebase App Hosting consumers**: two-line change to switch over to auto-pickup:
+
+1. [src/lib/caspian-adapters.tsx](src/lib/caspian-adapters.tsx) — replace the inline `caspianFirebaseConfig = { ... }` literal with the helper:
+   ```ts
+   import { readFirebaseConfigFromEnv } from '@caspian-explorer/script-caspian-store/firebase';
+   export const caspianFirebaseConfig = readFirebaseConfigFromEnv();
+   ```
+2. [next.config.mjs](next.config.mjs) — add inside the `nextConfig` object:
+   ```js
+   env: {
+     FIREBASE_WEBAPP_CONFIG: process.env.FIREBASE_WEBAPP_CONFIG,
+   },
+   ```
+
+Then:
+
+```bash
+npm install github:Caspian-Explorer/script-caspian-store#v8.9.0
+firebase deploy --only apphosting
+```
+
+Alternatively, keep the v8.8.1 setup unchanged and just populate the six `NEXT_PUBLIC_FIREBASE_*` vars in your App Hosting backend env — the path the v8.8.1 README already documents. Both approaches work; auto-pickup just removes the manual env-var step.
+
+### Added
+
+- New file [src/firebase/env-config.ts](src/firebase/env-config.ts): `readFirebaseConfigFromEnv()` and `describeFirebaseConfigSource()` exports from the `./firebase` subpath. The first resolves Firebase web config from `FIREBASE_WEBAPP_CONFIG` with `NEXT_PUBLIC_FIREBASE_*` fallback; the second returns a human-readable label of the detected source for diagnostic error messages.
+
+### Changed
+
+- [src/firebase/client.ts](src/firebase/client.ts): `initCaspianFirebase` pre-checks `apiKey`, `authDomain`, `projectId`, and `appId` before reaching the Firebase SDK, throwing a diagnostic error that names the missing field(s) and platform (App Hosting / Vercel / unknown) when any are absent. Replaces Firebase's opaque `auth/invalid-api-key`.
+- [scaffold/create.mjs](scaffold/create.mjs): generated `src/lib/caspian-adapters.tsx` now calls `readFirebaseConfigFromEnv()` instead of inlining six `process.env.NEXT_PUBLIC_FIREBASE_*!` reads. Generated `next.config.mjs` adds `env: { FIREBASE_WEBAPP_CONFIG: process.env.FIREBASE_WEBAPP_CONFIG }` to forward the App Hosting blob into the client bundle. Generated `src/app/providers.tsx` preflight switches to checking the resolved config object's fields and surfaces the detected source in the error message.
+- Scaffolded README: App Hosting deploy section now leads with auto-pickup as the default path; manual `NEXT_PUBLIC_*` population becomes the fallback.
+
+---
+
 ## v8.8.1 — Bare `/login`, `/register`, `/forgot-password` routes now resolve
 
 The route dispatcher in [src/components/caspian-root.tsx](src/components/caspian-root.tsx) only matched the `/auth/...` form, but every component default targeted the bare form: `AdminGuard.signInHref = '/login'`, `LoginPage.registerHref = '/register'` and `forgotPasswordHref = '/forgot-password'`, `RegisterPage.loginHref = '/login'`, `ForgotPasswordPage.loginHref = '/login'`, `AccountPage.signInHref = '/login'`, plus the hard-coded checkout sign-in CTA. Result: the "Sign in" link rendered by `AdminGuard` on every signed-out admin URL (e.g. `/admin/products/<id>/edit`) hit NotFound, and visitors landing on `http://localhost:3000/login` from external links saw the same 404.

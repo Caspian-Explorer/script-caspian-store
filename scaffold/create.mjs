@@ -235,6 +235,14 @@ const nextConfig = {
       { protocol: 'https', hostname: '**' },
     ],
   },
+  env: {
+    // Firebase App Hosting auto-injects FIREBASE_WEBAPP_CONFIG at build time.
+    // Forwarding it through Next's env: block is what keeps it inlined into
+    // the client bundle (it isn't NEXT_PUBLIC_-prefixed, so DefinePlugin
+    // wouldn't otherwise expose it to the browser). No-op on Vercel/local
+    // — undefined just falls through to NEXT_PUBLIC_FIREBASE_* values.
+    FIREBASE_WEBAPP_CONFIG: process.env.FIREBASE_WEBAPP_CONFIG,
+  },
 };
 export default nextConfig;
 `;
@@ -354,15 +362,12 @@ import type {
   CaspianLinkProps,
   CaspianImageProps,
 } from '@caspian-explorer/script-caspian-store';
+import { readFirebaseConfigFromEnv } from '@caspian-explorer/script-caspian-store/firebase';
 
-export const caspianFirebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY!,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN!,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID!,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET!,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID!,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID!,
-};
+// Reads from FIREBASE_WEBAPP_CONFIG (Firebase App Hosting auto-injects it)
+// first, then falls back to the six NEXT_PUBLIC_FIREBASE_* vars (Vercel / .env.local).
+// next.config.mjs forwards FIREBASE_WEBAPP_CONFIG into the client bundle.
+export const caspianFirebaseConfig = readFirebaseConfigFromEnv();
 
 export function CaspianNextLink({ href, children, className, style, onClick, target, rel, 'aria-label': al }: CaspianLinkProps) {
   return (
@@ -408,6 +413,7 @@ write('src/app/providers.tsx', `'use client';
 
 import type { ReactNode } from 'react';
 import { CaspianStoreProvider } from '@caspian-explorer/script-caspian-store';
+import { describeFirebaseConfigSource } from '@caspian-explorer/script-caspian-store/firebase';
 import {
   CaspianNextLink,
   CaspianNextImage,
@@ -415,29 +421,30 @@ import {
   caspianFirebaseConfig,
 } from '@/lib/caspian-adapters';
 
-// Preflight: if a required NEXT_PUBLIC_FIREBASE_* env var is missing, throw a
-// clear error rather than silently rendering a blank storefront and crashing
-// later inside Firebase auth/cart hydration. The whole \`firebaseConfig.*!\`
-// non-null assertion in caspian-adapters.tsx is what masks this otherwise.
-const REQUIRED_ENV: Array<[keyof typeof caspianFirebaseConfig, string]> = [
-  ['apiKey', 'NEXT_PUBLIC_FIREBASE_API_KEY'],
-  ['authDomain', 'NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN'],
-  ['projectId', 'NEXT_PUBLIC_FIREBASE_PROJECT_ID'],
-  ['storageBucket', 'NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET'],
-  ['messagingSenderId', 'NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID'],
-  ['appId', 'NEXT_PUBLIC_FIREBASE_APP_ID'],
+// Preflight: if a required Firebase config field is missing, throw a clear
+// error rather than rendering a blank storefront and crashing later inside
+// Firebase auth/cart hydration. The library's initCaspianFirebase will also
+// throw with this same shape, but checking here surfaces the failure before
+// the provider tree mounts so the source is the literal '@/lib/caspian-adapters'.
+const REQUIRED: Array<keyof typeof caspianFirebaseConfig> = [
+  'apiKey',
+  'authDomain',
+  'projectId',
+  'appId',
 ];
-
-const missing = REQUIRED_ENV.filter(([k]) => !caspianFirebaseConfig[k]).map(
-  ([, name]) => name,
-);
+const missing = REQUIRED.filter((k) => !caspianFirebaseConfig[k]);
 if (missing.length > 0) {
   throw new Error(
-    'Caspian Store: missing Firebase env vars: ' +
+    'Caspian Store: Firebase config missing field(s): ' +
       missing.join(', ') +
-      '. Copy .env.example to .env.local and fill in the values from ' +
-      'Firebase Console → Project settings → Your apps → Web app config, ' +
-      'then restart \`npm run dev\`.',
+      '. Source detected: ' +
+      describeFirebaseConfigSource() +
+      '. Local dev: copy .env.example to .env.local and fill values from ' +
+      'Firebase Console → Project settings → Your apps → Web app config. ' +
+      'App Hosting: backends created via the Firebase Console auto-inject ' +
+      'FIREBASE_WEBAPP_CONFIG — confirm next.config.mjs forwards it through ' +
+      "the env: { FIREBASE_WEBAPP_CONFIG: process.env.FIREBASE_WEBAPP_CONFIG } block. " +
+      'Vercel: set the six NEXT_PUBLIC_FIREBASE_* vars in Project Settings.',
   );
 }
 
@@ -793,7 +800,9 @@ npm run dev                  # http://localhost:3000
    firebase init apphosting       # creates a backend, links your GitHub repo
    firebase deploy --only apphosting
    \`\`\`
-   The scaffolder already dropped an \`apphosting.yaml\` with the \`NEXT_PUBLIC_*\` vars declared but empty. Fill the values in **Firebase console → App Hosting → your backend → Environment variables**, or commit them to \`apphosting.yaml\` (they're already public — bundled into the client). For anything sensitive, use \`firebase apphosting:secrets:set <NAME>\` and switch the entry in \`apphosting.yaml\` from \`value:\` to \`secret: <NAME>\`.
+   Backends created via the Firebase Console auto-inject \`FIREBASE_WEBAPP_CONFIG\` (a JSON blob containing your full Firebase web config) at both build and runtime. The scaffolded \`next.config.mjs\` forwards it into the client bundle, and \`src/lib/caspian-adapters.tsx\` reads it via \`readFirebaseConfigFromEnv()\` — so App Hosting deploys work with **zero env-var setup** out of the box.
+
+   The scaffolder also drops an \`apphosting.yaml\` with the six \`NEXT_PUBLIC_FIREBASE_*\` vars declared but empty as a fallback. They're consulted only when \`FIREBASE_WEBAPP_CONFIG\` is missing — useful if you want explicit control or are deploying to a non-Console-created backend. Fill them in **Firebase console → App Hosting → your backend → Environment variables**, or commit them to \`apphosting.yaml\`. For anything sensitive, use \`firebase apphosting:secrets:set <NAME>\` and switch the entry in \`apphosting.yaml\` from \`value:\` to \`secret: <NAME>\`.
 
    Either host works with the same Stripe webhook endpoint — the webhook points at a Cloud Function (\`https://<region>-<project-id>.cloudfunctions.net/stripeWebhook\`), not at your Next.js site, so you don't reconfigure it when switching hosts.
 
